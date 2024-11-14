@@ -66,8 +66,8 @@ class ClassExtensionInnerClassesTest {
         assertEquals(shape, ClassExtension.extension(square, Shape_Describable.class));
         System.out.println("Description for shape is: " + shape.getDescription());
         assertEquals(shape.getDelegate(), square);
-        assertEquals(shape.getClass(), Square_Describable.class);
-        assertEquals(shape.getDescription(), "Square_Describable description");
+        assertEquals(Square_Describable.class, shape.getClass());
+        assertEquals("Square_Describable description", shape.getDescription());
     }
 
     /**
@@ -81,7 +81,7 @@ class ClassExtensionInnerClassesTest {
         assertEquals(shape, ClassExtension.extension(oval, Shape_Describable.class));
         System.out.println("Description for shape is: " + shape.getDescription());
         assertEquals(shape.getDelegate(), oval);
-        assertEquals(shape.getClass(), Shape_Describable.class);
-        assertEquals(shape.getDescription(), "Shape_Describable description");
+        assertEquals(Shape_Describable.class, shape.getClass());
+        assertEquals("Shape_Describable description", shape.getDescription());
     }
 }

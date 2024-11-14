@@ -24,20 +24,74 @@ package com.gl.classext;
 
 import java.text.MessageFormat;
 
+/**
+ * <p>Class {@code ClassExtension} provides a way to mimic class extensions (categories) by finding matching extension objects and
+ * using them to perform any extended functionality.</p>
+ * <p>For example: lets imagine a {@code Shape} class that provides only coordinates and dimensions of shapes. If we need to
+ * introduce a drawable shape we can create a {@code Shape(Drawable)} class extension with the {@code draw()} method, and we can call
+ * the {@code draw()} method as simple as {@code new Shape().draw()}. Though such kind of extension is not available in Java the
+ * {@code ClassExtension} provides a way to simulate that. To do it we should introduce an extension class
+ * {@code Shape_Drawable} with the {@code draw()} method. Now we can call the {@code draw()} method as simple as
+ * {@code ClassExtension.extension(new Shape(), Shape_Drawable.class).draw()}. {@code ClassExtension} takes care of inheritance
+ * so, for example, if there's no explicit {@code Drawable} extension for {@code Oval} objects - base {@code Shape_Drawable} will be used instead<p/>
+ * <p><code><pre>
+ *     class Shape {
+ *         // some properties and methods here
+ *     }
+ *     ...more shape classes here...
+ *
+ *     class Shape_Drawable implements DelegateHolder {
+ *         private Shape delegate;
+ *         public void draw() {
+ *             // use delegate properties to draw a shape
+ *         }
+ *         public Shape getDelegate() {
+ *             return delegate;
+ *         }
+ *         public void setDelegate(Shape aDelegate) {
+ *             delegate = aDelegate;
+ *         }
+ *     }
+ *     ...more shape drawable class extensions here
+ *
+ *     class ShapesView {
+ *         void drawShapes() {
+ *             List<Shape> shapes = ...
+ *             for (Shape shape : shapes)
+ *              ClassExtension.extension(shape, Shape_Drawable.class).draw();
+ *         }
+ *     }
+ *     </code></pre></p>
+ *
+ * <p>All the extension classes must implement the DelegateHolder interface and must end with the name of an extension delimited by underscore
+ * i.e. Shape_Drawable where shape is the name of the class and Drawable is the name of extension</p>
+ *
+ * <p>Cashing of extension objects are supported out of the box. Cache utilises weak references to release extension objects
+ * that are not in use. Though, to perform full cleanup either the cacheCleanup() should be used or automatic cleanup can
+ * be initiated via the scheduleCacheCleanup(). If automatic cache cleanup is used - it can be stopped by calling the
+ * shutdownCacheCleanup().</p>
+ */
 public class ClassExtension {
 
-    @SuppressWarnings({"rawtypes"})
+    @SuppressWarnings("rawtypes")
     private static final ThreadSafeWeakCache extensionCache = new ThreadSafeWeakCache();
 
 
+    /**
+     * The interface all the class extensions must implement. It defines the 'delegate' property which is used to supply
+     * extension objects with values to work with
+     *
+     * @param <T> defines a class of delegate objects to work with
+     */
     public interface DelegateHolder<T> {
-        public T getDelegate();
+        T getDelegate();
 
-        public void setDelegate(T aDelegate);
+        void setDelegate(T aDelegate);
     }
 
     /**
-     * Finds and returns an extension object according to a supplied class. It uses cache to avoid redundant objects creation.
+     * Finds and returns an extension object according to a supplied class. It uses cache to avoid redundant objects
+     * creation.
      *
      * @param anObject         object to return an extension object for
      * @param anExtensionClass class of extension object to be returned
@@ -72,7 +126,9 @@ public class ClassExtension {
     public static <T extends DelegateHolder> T extensionNoCache(Object anObject, String anExtensionName, String aPackageName) {
         Class<T> extensionClass = extensionClassForObject(anObject, anExtensionName, aPackageName);
         if (extensionClass == null)
-            throw new IllegalArgumentException(MessageFormat.format("No extension {0} for a {1} class", extensionName(aPackageName, anObject.getClass().getSimpleName(), anExtensionName), anObject.getClass().getName()));
+            throw new IllegalArgumentException(MessageFormat.format("No extension {0} for a {1} class",
+                    extensionName(aPackageName, anObject.getClass().getSimpleName(), anExtensionName),
+                    anObject.getClass().getName()));
         try {
             T result = extensionClass.getDeclaredConstructor().newInstance();
             result.setDelegate(anObject);
