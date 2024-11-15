@@ -25,7 +25,7 @@ For example: lets imagine a `Shape` class that provides only coordinates and dim
           void drawShapes() {
               List<Shape> shapes = ...
               for (Shape shape : shapes)
-                  ClassExtension.extension(shape, Shape_Drawable. class).draw();
+                  ClassExtension.extension(shape, Shape_Drawable.class).draw();
           }
       }
 ```
