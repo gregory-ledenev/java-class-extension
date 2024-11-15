@@ -29,6 +29,6 @@ For example: lets imagine a `Shape` class that provides only coordinates and dim
           }
       }
 ```
-All the extension classes must implement the `DelegateHolder` interface and must end with the name of an extension delimited by underscore i. e. `Shape_Drawable` where `Shape` is the name of the class and `Drawable` is the name of extension.
+All the extension classes must implement the `DelegateHolder` interface and must end with the name of an extension delimited by underscore i.g. `Shape_Drawable` where `Shape` is the name of the class and `Drawable` is the name of extension.
 
 Cashing of extension objects are supported out of the box. Cache utilises weak references to release extension objects that are not in use. Though, to perform full cleanup either the `cacheCleanup()` should be used or automatic cleanup can be initiated via the `scheduleCacheCleanup()`. If automatic cache cleanup is used - it can be stopped by calling the `shutdownCacheCleanup()`.
