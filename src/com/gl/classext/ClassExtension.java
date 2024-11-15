@@ -32,8 +32,8 @@ import java.text.MessageFormat;
  * the {@code draw()} method as simple as {@code new Shape().draw()}. Though such kind of extension is not available in Java the
  * {@code ClassExtension} provides a way to simulate that. To do it we should introduce an extension class
  * {@code Shape_Drawable} with the {@code draw()} method. Now we can call the {@code draw()} method as simple as
- * {@code ClassExtension.extension(new Shape(), Shape_Drawable.class).draw()}.<p/>
- * <p><code><pre>
+ * {@code ClassExtension.extension(new Shape(), Shape_Drawable.class).draw()}.</p>
+ * <pre><code>
  *     class Shape {
  *         // some properties and methods here
  *     }
@@ -55,12 +55,12 @@ import java.text.MessageFormat;
  *
  *     class ShapesView {
  *         void drawShapes() {
- *             List<Shape> shapes = ...
+ *             List&lt;Shape&gt; shapes = ...
  *             for (Shape shape : shapes)
  *              ClassExtension.extension(shape, Shape_Drawable.class).draw();
  *         }
  *     }
- *     </code></pre></p>
+ *     </code></pre>
  *
  * <p>All the extension classes must implement the DelegateHolder interface and must end with the name of an extension delimited by underscore
  * e.g. Shape_Drawable where shape is the name of the class and Drawable is the name of extension</p>

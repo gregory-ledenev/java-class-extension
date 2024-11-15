@@ -1,0 +1,8 @@
+<component name="ArtifactManager">
+  <artifact type="jar" name="class-extension-doc:jar">
+    <output-path>$PROJECT_DIR$/out/artifacts/class_extension_doc_jar</output-path>
+    <root id="archive" name="class-extension-doc.jar">
+      <element id="dir-copy" path="$PROJECT_DIR$/out/production/doc" />
+    </root>
+  </artifact>
+</component>
