@@ -4,7 +4,7 @@ import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-class ClassExtensionInnerClassesTest {
+public class ClassExtensionInnerClassesTest {
     static class Shape {
     }
 
@@ -83,5 +83,100 @@ class ClassExtensionInnerClassesTest {
         assertEquals(shape.getDelegate(), oval);
         assertEquals(Shape_Describable.class, shape.getClass());
         assertEquals("Shape_Describable description", shape.getDescription());
+    }
+
+    public static class Item {
+        private final String name;
+
+        public Item(String aName) {
+            name = aName;
+        }
+
+        @Override
+        public String toString() {
+            return name;
+        }
+
+        public String getName() {
+            return name;
+        }
+    }
+
+    public static class Book extends Item {
+        public Book(String aName) {
+            super(aName);
+        }
+    }
+
+    public static class Furniture extends Item {
+        public Furniture(String aName) {
+            super(aName);
+        }
+    }
+
+    public static class ElectronicItem extends Item {
+        public ElectronicItem(String aName) {
+            super(aName);
+        }
+    }
+
+    public record ShippingInfo(String result) {}
+
+    public static class Item_Shippable implements ClassExtension.DelegateHolder<Item> {
+        public ShippingInfo ship() {
+            return new ShippingInfo(getDelegate() + " NOT shipped");
+        }
+
+        private Item delegate;
+        @Override
+        public Item getDelegate() {
+            return delegate;
+        }
+
+        @Override
+        public void setDelegate(Item aDelegate) {
+            delegate = aDelegate;
+        }
+    }
+
+    static class Book_Shippable extends Item_Shippable{
+        public ShippingInfo ship() {
+            return new ShippingInfo(getDelegate() + " shipped");
+        }
+    }
+
+    static class Furniture_Shippable extends Item_Shippable {
+        public ShippingInfo ship() {
+            return new ShippingInfo(getDelegate() + " shipped");
+        }
+    }
+
+    static class ElectronicItem_Shippable extends Item_Shippable {
+        public ShippingInfo ship() {
+            return new ShippingInfo(getDelegate() + " shipped");
+        }
+    }
+
+    @Test
+    void shipmentTest() {
+        Item[] items = {new Book("book"), new Furniture("furniture"), new ElectronicItem("electronic item")};
+
+        StringBuilder shippingInfos = new StringBuilder();
+        for (Item item : items) {
+            ShippingInfo shippingInfo = ship(item);
+            if (!shippingInfos.isEmpty())
+                shippingInfos.append("\n");
+            shippingInfos.append(shippingInfo);
+            System.out.println(shippingInfo);
+        }
+        assertEquals("""
+                     ShippingInfo[result=book shipped]
+                     ShippingInfo[result=furniture shipped]
+                     ShippingInfo[result=electronic item shipped]""",
+                shippingInfos.toString());
+    }
+
+    public ShippingInfo ship(Item anItem) {
+        return ClassExtension.extension(anItem, Item_Shippable.class).ship();
     }
 }

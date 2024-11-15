@@ -23,6 +23,10 @@ SOFTWARE.
 package com.gl.classext;
 
 import java.text.MessageFormat;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
 
 /**
  * <p>Class {@code ClassExtension} provides a way to mimic class extensions (categories) by finding matching extension objects and
@@ -103,7 +107,25 @@ public class ClassExtension {
      */
     @SuppressWarnings({"rawtypes"})
     public static <T extends DelegateHolder> T extension(Object anObject, Class<T> anExtensionClass) {
-        return extension(anObject, extensionName(anExtensionClass), anExtensionClass.getPackageName());
+        return extension(anObject, anExtensionClass, null);
+    }
+
+    /**
+     * Finds and returns an extension object according to a supplied class. It uses cache to avoid redundant objects
+     * creation.
+     *
+     * @param anObject         object to return an extension object for
+     * @param anExtensionClass class of extension object to be returned
+     * @param aPackageNames    additional packages to lookup for extensions
+     * @return an extension object
+     */
+    @SuppressWarnings({"rawtypes"})
+    public static <T extends DelegateHolder> T extension(Object anObject, Class<T> anExtensionClass, List<String> aPackageNames) {
+        List<String> packageNames = new ArrayList<>();
+        packageNames.add(anExtensionClass.getPackageName());
+        if (aPackageNames != null)
+            packageNames.addAll(aPackageNames);
+        return extension(anObject, extensionName(anExtensionClass), packageNames);
     }
 
     /**
@@ -115,7 +137,24 @@ public class ClassExtension {
      */
     @SuppressWarnings({"rawtypes"})
     public static <T extends DelegateHolder> T extensionNoCache(Object anObject, Class<T> anExtensionClass) {
-        return extensionNoCache(anObject, extensionName(anExtensionClass), anExtensionClass.getPackageName());
+        return extensionNoCache(anObject, extensionName(anExtensionClass), null);
+    }
+
+    /**
+     * Finds and returns an extension object according to a supplied class.
+     *
+     * @param anObject         object to return an extension object for
+     * @param anExtensionClass class of extension object to be returned
+     * @param aPackageNames    additional packages to lookup for extensions
+     * @return an extension object
+     */
+    @SuppressWarnings({"rawtypes"})
+    public static <T extends DelegateHolder> T extensionNoCache(Object anObject, Class<T> anExtensionClass, List<String> aPackageNames) {
+        List<String> packageNames = new ArrayList<>();
+        packageNames.add(anExtensionClass.getPackageName());
+        if (aPackageNames != null)
+            packageNames.addAll(aPackageNames);
+        return extensionNoCache(anObject, extensionName(anExtensionClass), packageNames);
     }
 
     /**
@@ -123,15 +162,15 @@ public class ClassExtension {
      *
      * @param anObject        object to return an extension object for
      * @param anExtensionName name of extension
-     * @param aPackageName    package to find extension in
+     * @param aPackageNames   packages to lookup extension in
      * @return an extension object
      */
     @SuppressWarnings({"rawtypes", "unchecked"})
-    public static <T extends DelegateHolder> T extensionNoCache(Object anObject, String anExtensionName, String aPackageName) {
-        Class<T> extensionClass = extensionClassForObject(anObject, anExtensionName, aPackageName);
+    public static <T extends DelegateHolder> T extensionNoCache(Object anObject, String anExtensionName, List<String> aPackageNames) {
+        Class<T> extensionClass = extensionClassForObject(anObject, anExtensionName, aPackageNames);
         if (extensionClass == null)
             throw new IllegalArgumentException(MessageFormat.format("No extension {0} for a {1} class",
-                    extensionName(aPackageName, anObject.getClass().getSimpleName(), anExtensionName),
+                    extensionNames(aPackageNames, anObject.getClass().getSimpleName(), anExtensionName),
                     anObject.getClass().getName()));
         try {
             T result = extensionClass.getDeclaredConstructor().newInstance();
@@ -148,12 +187,25 @@ public class ClassExtension {
      *
      * @param anObject        object to return an extension object for
      * @param anExtensionName name of extension
-     * @param aPackageName    package to find extension in
+     * @param aPackageNames   packages to lookup extension in
      * @return an extension object
      */
     @SuppressWarnings({"rawtypes", "unchecked"})
-    public static <T extends DelegateHolder> T extension(Object anObject, String anExtensionName, String aPackageName) {
-        return (T) extensionCache.getOrCreate(anObject, () -> extensionNoCache(anObject, anExtensionName, aPackageName));
+    public static <T extends DelegateHolder> T extension(Object anObject, String anExtensionName, List<String> aPackageNames) {
+        return (T) extensionCache.getOrCreate(anObject, () -> extensionNoCache(anObject, anExtensionName, aPackageNames));
+    }
+
+    static <T> Class<T> extensionClassForObject(Object anObject, String anExtensionName, List<String> aPackageNames) {
+        Class<T> result = null;
+        List<String> packageNames = new ArrayList<>(aPackageNames);
+        Collections.reverse(packageNames);
+
+        for (String packageName : packageNames) {
+            result = extensionClassForObject(anObject, anExtensionName, packageName);
+            if (result != null)
+                break;
+        }
+        return result;
     }
 
     @SuppressWarnings({"rawtypes", "unchecked"})
@@ -177,6 +229,16 @@ public class ClassExtension {
 
     static String extensionName(String aPackageName, String aSimpleClassName, String extensionName) {
         return MessageFormat.format("{0}.{1}_{2}", aPackageName, aSimpleClassName, extensionName);
+    }
+
+    static String extensionNames(List<String> aPackageNames, String aSimpleClassName, String extensionName) {
+        StringBuilder result = new StringBuilder();
+        for (String packageName : aPackageNames) {
+            if (result.isEmpty())
+                result.append(", ");
+            result.append(extensionName(packageName, aSimpleClassName, extensionName));
+        }
+        return result.toString();
     }
 
     static <T> String extensionName(Class<T> clazz) {
