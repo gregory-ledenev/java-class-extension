@@ -123,6 +123,9 @@ public class ClassExtensionInnerClassesTest {
     public record ShippingInfo(String result) {}
 
     public static class Item_Shippable implements ClassExtension.DelegateHolder<Item> {
+        public static Item_Shippable extensionFor(Item anItem) {
+            return ClassExtension.extension(anItem, Item_Shippable.class);
+        }
         public ShippingInfo ship() {
             return new ShippingInfo(getDelegate() + " NOT shipped");
         }
@@ -177,6 +180,6 @@ public class ClassExtensionInnerClassesTest {
     }
 
     public ShippingInfo ship(Item anItem) {
-        return ClassExtension.extension(anItem, Item_Shippable.class).ship();
+        return Item_Shippable.extensionFor(anItem).ship();
     }
 }

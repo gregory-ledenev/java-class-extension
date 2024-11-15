@@ -1,7 +1,6 @@
 package com.gl.classext.com.gl.classext.shipment;
 
 import com.gl.classext.ClassExtension;
-import com.gl.classext.ClassExtensionInnerClassesTest;
 
 public class Items {
     public static class Item {
