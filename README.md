@@ -45,4 +45,4 @@ To add Java Class Extension library to your build:
 * Add */dist/class-extension-doc-x.x.x.jar* as documentation
 
 ## License
-The Java Class Extension library is licensed under terms of the [MIT License](https://opensource.org/license/mit).
+The Java Class Extension library is licensed under the terms of the [MIT License](https://opensource.org/license/mit).
