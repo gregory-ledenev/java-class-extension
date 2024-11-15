@@ -32,8 +32,7 @@ import java.text.MessageFormat;
  * the {@code draw()} method as simple as {@code new Shape().draw()}. Though such kind of extension is not available in Java the
  * {@code ClassExtension} provides a way to simulate that. To do it we should introduce an extension class
  * {@code Shape_Drawable} with the {@code draw()} method. Now we can call the {@code draw()} method as simple as
- * {@code ClassExtension.extension(new Shape(), Shape_Drawable.class).draw()}. {@code ClassExtension} takes care of inheritance
- * so, for example, if there's no explicit {@code Drawable} extension for {@code Oval} objects - base {@code Shape_Drawable} will be used instead<p/>
+ * {@code ClassExtension.extension(new Shape(), Shape_Drawable.class).draw()}.<p/>
  * <p><code><pre>
  *     class Shape {
  *         // some properties and methods here
@@ -64,7 +63,12 @@ import java.text.MessageFormat;
  *     </code></pre></p>
  *
  * <p>All the extension classes must implement the DelegateHolder interface and must end with the name of an extension delimited by underscore
- * i.e. Shape_Drawable where shape is the name of the class and Drawable is the name of extension</p>
+ * e.g. Shape_Drawable where shape is the name of the class and Drawable is the name of extension</p>
+ *
+ * <p>{@code ClassExtension} takes care of inheritance so it is possible to design and implement class extensions hierarchy
+ * that fully or partially resembles original classes' hierarchy. If there's no explicit extension specified for particular
+ * class - its parent extension will be utilised. For example, if there's no explicit {@code Drawable} extension for
+ * {@code Oval} objects - base {@code Shape_Drawable} will be used instead.</p>
  *
  * <p>Cashing of extension objects are supported out of the box. Cache utilises weak references to release extension objects
  * that are not in use. Though, to perform full cleanup either the cacheCleanup() should be used or automatic cleanup can
