@@ -29,6 +29,8 @@ For example: lets imagine a `Shape` class that provides only coordinates and dim
           }
       }
 ```
-All the extension classes must implement the `DelegateHolder` interface and must end with the name of an extension delimited by underscore i.g. `Shape_Drawable` where `Shape` is the name of the class and `Drawable` is the name of extension.
+All the extension classes must implement the `DelegateHolder` interface and must end with the name of an extension delimited by underscore e.g. `Shape_Drawable` where `Shape` is the name of the class and `Drawable` is the name of extension.
+
+`ClassExtension` takes care of inheritance so it is possible to design and implement class extensions hierarchy that fully or partially resembles original classes hierarhy. If there's no explicit extension specified for particular class - its parent extension will be utilised. For example, if there's no explicit `Drawable` extension for `Oval` objects - base `Shape_Drawable` will be used instead.
 
 Cashing of extension objects are supported out of the box. Cache utilises weak references to release extension objects that are not in use. Though, to perform full cleanup either the `cacheCleanup()` should be used or automatic cleanup can be initiated via the `scheduleCacheCleanup()`. If automatic cache cleanup is used - it can be stopped by calling the `shutdownCacheCleanup()`.
