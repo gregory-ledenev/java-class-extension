@@ -2,38 +2,45 @@
 The Java Class Extension library provides a way to mimic class extensions (categories) by finding matching extension objects and using them to perform any extended functionality.
 
 ## Introduction
-The core of Java Class Extension is the `ClassExtension` class that provides several methods to allow finding and creation of extension objects on demand.
-
-For example: lets imagine a `Shape` class that provides only coordinates and dimensions of shapes. If we need to introduce a drawable shape we can create a `Shape(Drawable)` class extension with the `draw()` method, and we can call the `draw()` method as simple as `new Shape().draw()`. Though such kind of extension is not available in Java so the `ClassExtension` provides a way to simulate that. To do it we should introduce an extension class `Shape_Drawable` with the `draw()` method. Now we can call the `draw()` method as simple as `ClassExtension.extension(new Shape(), Shape_Drawable.class).draw()`.
+Consider a scenario where we are building a warehouse application designed to handle the shipping of various items. We have established a hierarchy of classes to represent the goods we have:
 ```java
-      class Shape {
-          // some properties and methods here
-      }
-      ...more shape classes here...
- 
-      class Shape_Drawable implements DelegateHolder {
-          private Shape delegate;
-          public void draw() {
-              // use delegate properties to draw a shape
-          }
-          public Shape getDelegate() {
-              return delegate;
-          }
-          public void setDelegate(Shape aDelegate) {
-              delegate = aDelegate;
-          }
-      }
-      ...more shape drawable extensions here
- 
-      class ShapesView {
-          void drawShapes() {
-              List<Shape> shapes = ...
-              for (Shape shape : shapes)
-                  ClassExtension.extension(shape, Shape_Drawable.class).draw();
-          }
-      }
+class Item {}
+class Book extends Item {}
+class Furniture extends Item {}
+class ElectronicItem extends Item {}
 ```
-All the extension classes must implement the `DelegateHolder` interface and must end with the name of an extension delimited by underscore e.g. `Shape_Drawable` where `Shape` is the name of the class and `Drawable` is the name of extension.
+To implement shipping logic for each item, one might be tempted to add a `ship()` method directly to each `Item` class. While this is straightforward, it can lead to bloated classes filled with unrelated operations—such as shipping, storing, retrieving from a database, and rendering.
+
+Instead of mixing these responsibilities, it’s better to keep items as primarily data classes and separate domain-specific logic from them. We can create an `Item_Shippable` class that acts as a `Shippable` extension (category). This class must implement the `DelegateHolder` interface to allow it to work with items. Then we should subclass `Item_Shippable` and provide class extensions for each particular `Item` classes.
+```java
+class Item_Shippable implements ClassExtension.DelegateHolder<Item> {
+    public ShippingInfo ship() {
+        return …;
+    }
+}
+
+class Book_Shippable extends Item_Shippable{
+    public ShippingInfo ship() {
+        return …;
+    }
+}
+```
+The core of the library is the `ClassExtension` class, which offers methods for dynamically finding and creating extension objects as needed. Using `ClassExtension`, shipping an item becomes as simple as calling `ClassExtension.extension(item, Item_Shippable.class).ship()`. Shipping a collection of items is equally straightforward:
+```java
+Item[] items = {
+    new Book("The Mythical Man-Month"), 
+    new Furniture("Sofa"), 
+    new ElectronicItem(“Soundbar")
+};
+
+for (Item item : items) {
+    ClassExtension.extension(item,         
+        Item_Shippable.class).ship();
+}
+```
+
+## Details
+All the extension classes must implement the `DelegateHolder` interface and must end with the name of an extension delimited by underscore e.g. `Book_Shippable` where `Book` is the name of the class and `Shippable` is the name of extension.
 
 `ClassExtension` takes care of inheritance so it is possible to design and implement class extensions hierarchy that fully or partially resembles original classes hierarchy. If there's no explicit extension specified for particular class - its parent extension will be utilized. For example, if there's no explicit `Drawable` extension for `Oval` objects - base `Shape_Drawable` will be used instead.
 
