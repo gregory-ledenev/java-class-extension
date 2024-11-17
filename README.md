@@ -34,8 +34,7 @@ Item[] items = {
 };
 
 for (Item item : items) {
-    ClassExtension.extension(item,         
-        Item_Shippable.class).ship();
+    ClassExtension.extension(item, Item_Shippable.class).ship();
 }
 ```
 
