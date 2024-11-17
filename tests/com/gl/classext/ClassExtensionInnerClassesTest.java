@@ -2,7 +2,7 @@ package com.gl.classext;
 
 import org.junit.jupiter.api.Test;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.*;
 
 public class ClassExtensionInnerClassesTest {
     static class Shape {
@@ -179,7 +179,26 @@ public class ClassExtensionInnerClassesTest {
                 shippingInfos.toString());
     }
 
+    @Test
+    @SuppressWarnings({"rawtypes"})
+    void noShippableClassFoundTest() {
+        try {
+            ClassExtension.DelegateHolder extension = ClassExtension.extension(new Book("noname"), ClassExtension.DelegateHolder.class);
+            fail("Unexpected extension found: " + extension);
+        } catch (Exception aE) {
+            System.out.println(aE.toString());
+        }
+    }
+
     public ShippingInfo ship(Item anItem) {
         return Item_Shippable.extensionFor(anItem).ship();
+    }
+
+    @Test
+    void cacheTest() {
+        ClassExtensionRecordsTest.Book book = new ClassExtensionRecordsTest.Book("");
+        String extension = ClassExtensionRecordsTest.Item_Shippable.extensionFor(book).toString();
+        System.gc();
+        assertNotEquals(extension, ClassExtensionRecordsTest.Item_Shippable.extensionFor(book).toString());
     }
 }
