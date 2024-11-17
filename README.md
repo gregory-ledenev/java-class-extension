@@ -11,7 +11,7 @@ class ElectronicItem extends Item {}
 ```
 To implement shipping logic for each item, one might be tempted to add a `ship()` method directly to each `Item` class. While this is straightforward, it can lead to bloated classes filled with unrelated operations—such as shipping, storing, retrieving from a database, and rendering.
 
-Instead of mixing these responsibilities, it’s better to keep items as primarily data classes and separate domain-specific logic from them. We can create an `Item_Shippable` class that acts as a `Shippable` extension (category). This class must implement the `DelegateHolder` interface to allow it to work with items. Then we should subclass `Item_Shippable` and provide class extensions for each particular `Item` classes.
+Instead of mixing these responsibilities, it’s better to keep items as primarily data classes and separate domain-specific logic from them. We can create an `Item_Shippable` class that acts as a `Shippable` extension (category) and provides a `ship()` method. This class must implement the `DelegateHolder` interface to allow it to work with items. Then we should subclass `Item_Shippable` and provide class extensions for each particular `Item` classes.
 ```java
 class Item_Shippable implements ClassExtension.DelegateHolder<Item> {
     public ShippingInfo ship() {
