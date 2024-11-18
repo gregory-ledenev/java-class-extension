@@ -37,6 +37,20 @@ for (Item item : items) {
     ClassExtension.extension(item, Item_Shippable.class).ship();
 }
 ```
+It is possible to further simplify things by adding an `extensionFor(Item)` helper method to the `Item_Shippable`:
+```java
+public static class Item_Shippable implements ClassExtension.DelegateHolder<Item> {
+	public static Item_Shippable extensionFor(Item anItem) {
+    	return ClassExtension.extension(anItem, Item_Shippable.class);
+	}
+  ...
+}
+```
+
+With that helper method, shipping become even more simpler and shorter:
+```java
+Item_Shippable.extensionFor(anItem).ship()
+```
 
 ## Details
 All the extension classes must implement the `DelegateHolder` interface and must end with the name of an extension delimited by underscore e.g. `Book_Shippable` where `Book` is the name of the class and `Shippable` is the name of extension.
