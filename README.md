@@ -15,7 +15,7 @@ Instead of mixing these responsibilities, it’s better to keep items as primari
 
 ### Shipping Logic - Functional Style
 
-To ship an item, we could define a method that uses modern switch statements with pattern matching:
+To ship an item, we could define a method that uses a modern switch statement with pattern matching:
 ```java
 public ShippingInfo ship(Item item) {
     return switch (item) {
