@@ -4,10 +4,10 @@ The Java Class Extension library provides a way to mimic class extensions (categ
 ## Introduction
 Consider a scenario where we are building a warehouse application designed to handle the shipping of various items. We have established a hierarchy of classes to represent the goods we have:
 ```java
-class Item {}
-class Book extends Item {}
-class Furniture extends Item {}
-class ElectronicItem extends Item {}
+class Item {...}
+class Book extends Item {...}
+class Furniture extends Item {...}
+class ElectronicItem extends Item {...}
 ```
 To implement shipping logic for each item, one might be tempted to add a `ship()` method directly to each `Item` class. While this is straightforward, it can lead to bloated classes filled with unrelated operations—such as shipping, storing, retrieving from a database, and rendering.
 
