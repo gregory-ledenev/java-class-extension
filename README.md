@@ -80,6 +80,9 @@ With that helper method, shipping become even more simpler and shorter:
 ```java
 Item_Shippable.extensionFor(anItem).ship()
 ```
+Supporting a new Item class using the Java Class Extension library requires just adding a new Shippable extension with a proper ship() implementation. No need to change any other code. That is it.
+
+Java Class Extension library provides a valuable alternative for class extensions (not supported in Java) with just a little more verbose code and little more complex implementation.
 
 ## Details
 All the extension classes must implement the `DelegateHolder` interface and must end with the name of an extension delimited by underscore e.g. `Book_Shippable` where `Book` is the name of the class and `Shippable` is the name of extension.
