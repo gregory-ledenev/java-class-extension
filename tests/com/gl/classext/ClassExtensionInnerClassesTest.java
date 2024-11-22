@@ -71,18 +71,21 @@ public class ClassExtensionInnerClassesTest {
         }
     }
 
+    @suppress("unused")
     static class Book_Shippable extends Item_Shippable {
         public ShippingInfo ship() {
             return new ShippingInfo(getDelegate() + " shipped");
         }
     }
 
+    @suppress("unused")
     static class Furniture_Shippable extends Item_Shippable {
         public ShippingInfo ship() {
             return new ShippingInfo(getDelegate() + " shipped");
         }
     }
 
+    @suppress("unused")
     static class ElectronicItem_Shippable extends Item_Shippable {
         public ShippingInfo ship() {
             return new ShippingInfo(getDelegate() + " shipped");

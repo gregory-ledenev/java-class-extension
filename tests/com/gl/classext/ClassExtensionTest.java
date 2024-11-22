@@ -70,18 +70,21 @@ class Item_Shippable implements ClassExtension.DelegateHolder<Item> {
     }
 }
 
+@suppress("unused")
 class Book_Shippable extends Item_Shippable {
     public ShippingInfo ship() {
         return new ShippingInfo(getDelegate() + " shipped");
     }
 }
 
+@suppress("unused")
 class Furniture_Shippable extends Item_Shippable {
     public ShippingInfo ship() {
         return new ShippingInfo(getDelegate() + " shipped");
     }
 }
 
+@suppress("unused")
 class ElectronicItem_Shippable extends Item_Shippable {
     public ShippingInfo ship() {
         return new ShippingInfo(getDelegate() + " shipped");

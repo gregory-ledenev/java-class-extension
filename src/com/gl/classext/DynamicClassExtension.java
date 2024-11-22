@@ -154,16 +154,16 @@ public class DynamicClassExtension {
         return dynamicClassExtension;
     }
 
-    public static <T, E> Builder<E> sharedBuilder(Class<E> aExtensionClass) {
+    public static <E> Builder<E> sharedBuilder(Class<E> aExtensionClass) {
         return dynamicClassExtension.builder(aExtensionClass);
     }
 
-    public <T, E> Builder<E> builder(Class<E> aExtensionClass) {
-        return new Builder<E>(aExtensionClass, this);
+    public <E> Builder<E> builder(Class<E> aExtensionClass) {
+        return new Builder<>(aExtensionClass, this);
     }
 
     public static class Builder<E> {
-        private DynamicClassExtension dynamicClassExtension = new DynamicClassExtension();
+        private final DynamicClassExtension dynamicClassExtension;
         private final Class<E> extensionClass;
         private String operationName;
 
