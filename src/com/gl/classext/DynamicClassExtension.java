@@ -35,7 +35,6 @@ public class DynamicClassExtension {
         return anOperation;
     }
 
-    @SuppressWarnings({"rawtypes"})
     public <T, E> Object getExtensionOperation(Class<T> aClass,
                                                Class<E> anExtensionClass,
                                                String anOperationName) {
@@ -72,9 +71,7 @@ public class DynamicClassExtension {
 
         return (T) Proxy.newProxyInstance(anExtensionClass.getClassLoader(),
                 new Class<?>[]{anExtensionClass},
-                (proxy, method, args) -> {
-                    return performOperation(anObject, anExtensionClass, method, args);
-                });
+                (proxy, method, args) -> performOperation(anObject, anExtensionClass, method, args));
     }
 
     @SuppressWarnings({"rawtypes", "unchecked"})
@@ -105,7 +102,7 @@ public class DynamicClassExtension {
 
     @SuppressWarnings({"rawtypes", "unchecked"})
     <T> Object findExtensionOperation(Object anObject, Class<T> anExtensionClass, Method method) {
-        Object result = null;
+        Object result;
 
         Class current = anObject.getClass();
         do {
@@ -148,7 +145,7 @@ public class DynamicClassExtension {
             return new Builder<>(objectClass, extensionClass, operationName, dynamicClassExtension);
         }
 
-        public <R, T1> Builder<T, E> voidOperation(Class<T1> anObjectClass, Consumer<T1> anOperation) {
+        public <T1> Builder<T, E> voidOperation(Class<T1> anObjectClass, Consumer<T1> anOperation) {
             dynamicClassExtension.addVoidExtensionOperation(anObjectClass, extensionClass, operationName, anOperation);
             return new Builder<>(objectClass, extensionClass, operationName, dynamicClassExtension);
         }

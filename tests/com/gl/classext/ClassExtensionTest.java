@@ -2,8 +2,6 @@ package com.gl.classext;
 
 import org.junit.jupiter.api.Test;
 
-import java.util.function.Function;
-
 import static org.junit.jupiter.api.Assertions.*;
 
 class Item {
@@ -15,7 +13,7 @@ class Item {
 
     @Override
     public String toString() {
-        return name;
+        return getName();
     }
 
     public String getName() {
@@ -159,7 +157,7 @@ public class ClassExtensionTest {
             ClassExtension.DelegateHolder extension = ClassExtension.extension(new Book("noname"), ClassExtension.DelegateHolder.class);
             fail("Unexpected extension found: " + extension);
         } catch (Exception aE) {
-            System.out.println(aE.toString());
+            System.out.println(aE);
         }
     }
 
@@ -210,7 +208,7 @@ public class ClassExtensionTest {
         ClassExtension.scheduleCacheCleanup();
         try {
             Book book = new Book("");
-            String extension = Item_Shippable.extensionFor(book).toString();
+            Item_Shippable.extensionFor(book);
             System.gc();
             assertFalse(ClassExtension.cacheIsEmpty());
             try {

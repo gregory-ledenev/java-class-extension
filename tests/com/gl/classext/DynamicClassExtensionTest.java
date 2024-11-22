@@ -4,7 +4,6 @@ package com.gl.classext;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class DynamicClassExtensionTest {
     static class Item {
@@ -64,18 +63,14 @@ public class DynamicClassExtensionTest {
     @Test
     void operationTest() {
         DynamicClassExtension build = new DynamicClassExtension();
-        build.addExtensionOperation(Item.class, Item_Shippable.class, "ship", anItem3 -> {
-            return new ShippingInfo(anItem3.getName() + " item NOT shipped");
-        });
-        build.addExtensionOperation(Book.class, Item_Shippable.class, "ship", anItem2 -> {
-            return new ShippingInfo(anItem2.getName() + " book shipped");
-        });
-        build.addExtensionOperation(Furniture.class, Item_Shippable.class, "ship", anItem1 -> {
-            return new ShippingInfo(anItem1.getName() + " furniture shipped");
-        });
-        build.addExtensionOperation(ElectronicItem.class, Item_Shippable.class, "ship", anItem -> {
-            return new ShippingInfo(anItem.getName() + " electronic item shipped");
-        });
+        build.addExtensionOperation(Item.class, Item_Shippable.class, "ship",
+                item -> new ShippingInfo(item.getName() + " item NOT shipped"));
+        build.addExtensionOperation(Book.class, Item_Shippable.class, "ship",
+                book -> new ShippingInfo(book.getName() + " book shipped"));
+        build.addExtensionOperation(Furniture.class, Item_Shippable.class, "ship",
+                furniture -> new ShippingInfo(furniture.getName() + " furniture shipped"));
+        build.addExtensionOperation(ElectronicItem.class, Item_Shippable.class, "ship",
+                item -> new ShippingInfo(item.getName() + " electronic item shipped"));
 
         Item[] items = {
                 new Book("The Mythical Man-Month"),
@@ -116,7 +111,7 @@ public class DynamicClassExtensionTest {
                     voidOperation(Item.class, item -> {
                         if (! shippingLog.isEmpty())
                             shippingLog.append("\n");
-                        shippingLog.append(item.getName() + " is about to be shipped");
+                        shippingLog.append(item.getName()).append(" is about to be shipped");
                     }).
                 operationName("track").
                     operation(Item.class, item -> new TrackingInfo(item.getName() + "item on its way")).
@@ -138,8 +133,8 @@ public class DynamicClassExtensionTest {
                 shippingInfos.append("\n");
             shippingInfos.append(shippingInfo);
         }
-        System.out.println(shippingLog.toString());
-        System.out.printf(shippingInfos.toString());
+        System.out.println(shippingLog);
+        System.out.println(shippingInfos);
 
         assertEquals("""
                      The Mythical Man-Month is about to be shipped

@@ -22,15 +22,11 @@ SOFTWARE.
 
 package com.gl.classext;
 
-import java.lang.reflect.Method;
-import java.lang.reflect.Proxy;
 import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.function.Function;
 
 /**
  * <p>Class {@code ClassExtension} provides a way to mimic class extensions (categories) by finding matching extension objects and
