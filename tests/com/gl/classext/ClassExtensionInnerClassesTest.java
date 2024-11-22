@@ -14,7 +14,7 @@ public class ClassExtensionInnerClassesTest {
 
         @Override
         public String toString() {
-            return name;
+            return getName();
         }
 
         public String getName() {
@@ -153,7 +153,7 @@ public class ClassExtensionInnerClassesTest {
             ClassExtension.DelegateHolder extension = ClassExtension.extension(new Book("noname"), ClassExtension.DelegateHolder.class);
             fail("Unexpected extension found: " + extension);
         } catch (Exception aE) {
-            System.out.println(aE.toString());
+            System.out.println(aE);
         }
     }
 

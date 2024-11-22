@@ -157,7 +157,7 @@ public class ClassExtensionTest {
             ClassExtension.DelegateHolder extension = ClassExtension.extension(new Book("noname"), ClassExtension.DelegateHolder.class);
             fail("Unexpected extension found: " + extension);
         } catch (Exception aE) {
-            System.out.println(aE);
+            System.out.println(aE.toString());
         }
     }
 

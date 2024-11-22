@@ -9,7 +9,7 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 
 public class DynamicClassExtension {
-    public <R, T, E> Function<T, R> addExtensionOperation(Class<T> aClass,
+    public <R, T, E> void addExtensionOperation(Class<T> aClass,
                                                           Class<E> anExtensionClass,
                                                           String anOperationName,
                                                           Function<T, R> anOperation) {
@@ -19,10 +19,9 @@ public class DynamicClassExtension {
         Objects.requireNonNull(anOperation);
 
         operationsMap.put(new OperationKey(aClass, anExtensionClass, anOperationName), anOperation);
-        return anOperation;
     }
 
-    public <T, E> Consumer<T> addVoidExtensionOperation(Class<T> aClass,
+    public <T, E> void addVoidExtensionOperation(Class<T> aClass,
                                                     Class<E> anExtensionClass,
                                                     String anOperationName,
                                                     Consumer<T> anOperation) {
@@ -32,7 +31,6 @@ public class DynamicClassExtension {
         Objects.requireNonNull(anOperation);
 
         operationsMap.put(new OperationKey(aClass, anExtensionClass, anOperationName), anOperation);
-        return anOperation;
     }
 
     public <T, E> Object getExtensionOperation(Class<T> aClass,
