@@ -71,21 +71,21 @@ public class ClassExtensionInnerClassesTest {
         }
     }
 
-    @suppress("unused")
+    @SuppressWarnings("unused")
     static class Book_Shippable extends Item_Shippable {
         public ShippingInfo ship() {
             return new ShippingInfo(getDelegate() + " shipped");
         }
     }
 
-    @suppress("unused")
+    @SuppressWarnings("unused")
     static class Furniture_Shippable extends Item_Shippable {
         public ShippingInfo ship() {
             return new ShippingInfo(getDelegate() + " shipped");
         }
     }
 
-    @suppress("unused")
+    @SuppressWarnings("unused")
     static class ElectronicItem_Shippable extends Item_Shippable {
         public ShippingInfo ship() {
             return new ShippingInfo(getDelegate() + " shipped");
@@ -155,8 +155,8 @@ public class ClassExtensionInnerClassesTest {
         try {
             ClassExtension.DelegateHolder extension = ClassExtension.extension(new Book("noname"), ClassExtension.DelegateHolder.class);
             fail("Unexpected extension found: " + extension);
-        } catch (Exception aE) {
-            System.out.println(aE);
+        } catch (Exception ex) {
+            ex.printStackTrace();
         }
     }
 

@@ -70,21 +70,21 @@ class Item_Shippable implements ClassExtension.DelegateHolder<Item> {
     }
 }
 
-@suppress("unused")
+@SuppressWarnings("unused")
 class Book_Shippable extends Item_Shippable {
     public ShippingInfo ship() {
         return new ShippingInfo(getDelegate() + " shipped");
     }
 }
 
-@suppress("unused")
+@SuppressWarnings("unused")
 class Furniture_Shippable extends Item_Shippable {
     public ShippingInfo ship() {
         return new ShippingInfo(getDelegate() + " shipped");
     }
 }
 
-@suppress("unused")
+@SuppressWarnings("unused")
 class ElectronicItem_Shippable extends Item_Shippable {
     public ShippingInfo ship() {
         return new ShippingInfo(getDelegate() + " shipped");
@@ -159,8 +159,8 @@ public class ClassExtensionTest {
         try {
             ClassExtension.DelegateHolder extension = ClassExtension.extension(new Book("noname"), ClassExtension.DelegateHolder.class);
             fail("Unexpected extension found: " + extension);
-        } catch (Exception aE) {
-            System.out.println(aE.toString());
+        } catch (Exception ex) {
+            ex.printStackTrace();
         }
     }
 
