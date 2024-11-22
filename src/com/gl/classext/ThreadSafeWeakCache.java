@@ -89,4 +89,8 @@ public class ThreadSafeWeakCache<K, V> {
     public void shutdownCleanup() {
         cleanupExecutor.shutdown();
     }
+
+    public boolean isEmpty() {
+        return cache.isEmpty();
+    }
 }

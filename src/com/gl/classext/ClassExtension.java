@@ -22,11 +22,15 @@ SOFTWARE.
 
 package com.gl.classext;
 
+import java.lang.reflect.Method;
+import java.lang.reflect.Proxy;
 import java.text.MessageFormat;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Function;
 
 /**
  * <p>Class {@code ClassExtension} provides a way to mimic class extensions (categories) by finding matching extension objects and
@@ -82,7 +86,7 @@ import java.util.List;
 public class ClassExtension {
 
     @SuppressWarnings("rawtypes")
-    private static final ThreadSafeWeakCache extensionCache = new ThreadSafeWeakCache();
+    static final ThreadSafeWeakCache extensionCache = new ThreadSafeWeakCache();
 
 
     /**
@@ -107,6 +111,9 @@ public class ClassExtension {
      */
     @SuppressWarnings({"rawtypes"})
     public static <T extends DelegateHolder> T extension(Object anObject, Class<T> anExtensionClass) {
+        Objects.requireNonNull(anObject);
+        Objects.requireNonNull(anExtensionClass);
+
         return extension(anObject, anExtensionClass, null);
     }
 
@@ -121,6 +128,9 @@ public class ClassExtension {
      */
     @SuppressWarnings({"rawtypes"})
     public static <T extends DelegateHolder> T extension(Object anObject, Class<T> anExtensionClass, List<String> aPackageNames) {
+        Objects.requireNonNull(anObject);
+        Objects.requireNonNull(anExtensionClass);
+
         List<String> packageNames = new ArrayList<>();
         packageNames.add(anExtensionClass.getPackageName());
         if (aPackageNames != null)
@@ -137,6 +147,9 @@ public class ClassExtension {
      */
     @SuppressWarnings({"rawtypes"})
     public static <T extends DelegateHolder> T extensionNoCache(Object anObject, Class<T> anExtensionClass) {
+        Objects.requireNonNull(anObject);
+        Objects.requireNonNull(anExtensionClass);
+
         return extensionNoCache(anObject, extensionName(anExtensionClass), null);
     }
 
@@ -150,6 +163,9 @@ public class ClassExtension {
      */
     @SuppressWarnings({"rawtypes"})
     public static <T extends DelegateHolder> T extensionNoCache(Object anObject, Class<T> anExtensionClass, List<String> aPackageNames) {
+        Objects.requireNonNull(anObject);
+        Objects.requireNonNull(anExtensionClass);
+
         List<String> packageNames = new ArrayList<>();
         packageNames.add(anExtensionClass.getPackageName());
         if (aPackageNames != null)
@@ -167,6 +183,9 @@ public class ClassExtension {
      */
     @SuppressWarnings({"rawtypes", "unchecked"})
     public static <T extends DelegateHolder> T extensionNoCache(Object anObject, String anExtensionName, List<String> aPackageNames) {
+        Objects.requireNonNull(anObject);
+        Objects.requireNonNull(anExtensionName);
+
         Class<T> extensionClass = extensionClassForObject(anObject, anExtensionName, aPackageNames);
         if (extensionClass == null)
             throw new IllegalArgumentException(MessageFormat.format("No extension {0} for a {1} class",
@@ -192,6 +211,9 @@ public class ClassExtension {
      */
     @SuppressWarnings({"rawtypes", "unchecked"})
     public static <T extends DelegateHolder> T extension(Object anObject, String anExtensionName, List<String> aPackageNames) {
+        Objects.requireNonNull(anObject);
+        Objects.requireNonNull(anExtensionName);
+
         return (T) extensionCache.getOrCreate(anObject, () -> extensionNoCache(anObject, anExtensionName, aPackageNames));
     }
 
@@ -247,6 +269,8 @@ public class ClassExtension {
         return clazz.getName().substring(index + 1);
     }
 
+    //region Cache methods
+
     /**
      * Cleanups cache by removing keys for all already garbage collected values
      */
@@ -274,4 +298,9 @@ public class ClassExtension {
     public static void shutdownCacheCleanup() {
         extensionCache.shutdownCleanup();
     }
+
+    static boolean cacheIsEmpty() {
+        return extensionCache.isEmpty();
+    }
+    //endregion
 }
