@@ -6,8 +6,8 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class DynamicClassExtensionTest {
-    static interface ItemInterface {
-        public String getName();
+    interface ItemInterface {
+        String getName();
     }
 
     static class Item implements ItemInterface {
@@ -19,7 +19,7 @@ public class DynamicClassExtensionTest {
 
         @Override
         public String toString() {
-            return name;
+            return getName();
         }
 
         public String getName() {
@@ -60,7 +60,6 @@ public class DynamicClassExtensionTest {
     interface Item_Shippable {
         ShippingInfo ship();
         TrackingInfo track();
-//        void log();
         void log(boolean isVerbose);
     }
 
@@ -119,7 +118,7 @@ public class DynamicClassExtensionTest {
                         shippingLog.append(item.getName()).append(" is about to be shipped");
                     }).
                 name("track").
-                    op(Item.class, item -> new TrackingInfo(item.getName() + "item on its way"));
+                    op(Item.class, item -> new TrackingInfo(item.getName() + " item on its way"));
 
         Item[] items = {
                 new Book("The Mythical Man-Month"),
@@ -132,10 +131,10 @@ public class DynamicClassExtensionTest {
         for (Item item : items) {
             Item_Shippable extension = DynamicClassExtension.sharedInstance().extension(item, Item_Shippable.class);
             extension.log(false);
-            ShippingInfo shippingInfo = extension.ship();
             if (!shippingInfos.isEmpty())
                 shippingInfos.append("\n");
-            shippingInfos.append(shippingInfo);
+            shippingInfos.append(extension.ship());
+            shippingInfos.append("\n").append(extension.track());
         }
         System.out.println(shippingLog);
         System.out.println(shippingInfos);
@@ -148,9 +147,13 @@ public class DynamicClassExtensionTest {
 
         assertEquals("""
                      ShippingInfo[result=The Mythical Man-Month book shipped]
+                     TrackingInfo[result=The Mythical Man-Month item on its way]
                      ShippingInfo[result=Sofa furniture shipped]
+                     TrackingInfo[result=Sofa item on its way]
                      ShippingInfo[result=Soundbar electronic item shipped]
-                     ShippingInfo[result=Tire item NOT shipped]""",
+                     TrackingInfo[result=Soundbar item on its way]
+                     ShippingInfo[result=Tire item NOT shipped]
+                     TrackingInfo[result=Tire item on its way]""",
                 shippingInfos.toString());
     }
 }
