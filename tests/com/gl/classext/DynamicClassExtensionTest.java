@@ -6,7 +6,11 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class DynamicClassExtensionTest {
-    static class Item {
+    static interface ItemInterface {
+        public String getName();
+    }
+
+    static class Item implements ItemInterface {
         private final String name;
 
         public Item(String aName) {
@@ -56,7 +60,8 @@ public class DynamicClassExtensionTest {
     interface Item_Shippable {
         ShippingInfo ship();
         TrackingInfo track();
-        void log();
+//        void log();
+        void log(boolean isVerbose);
     }
 
 
@@ -101,21 +106,20 @@ public class DynamicClassExtensionTest {
 
         StringBuilder shippingLog = new StringBuilder();
 
-        DynamicClassExtension build = new DynamicClassExtension.Builder<>(Item.class, Item_Shippable.class).
-                operationName("ship").
-                    operation(Item.class, book -> new ShippingInfo(book.getName() + " item NOT shipped")).
-                    operation(Book.class, book -> new ShippingInfo(book.getName() + " book shipped")).
-                    operation(Furniture.class, furniture -> new ShippingInfo(furniture.getName() + " furniture shipped")).
-                    operation(ElectronicItem.class, electronicItem -> new ShippingInfo(electronicItem.getName() + " electronic item shipped")).
-                operationName("log").
-                    voidOperation(Item.class, item -> {
+        DynamicClassExtension.sharedBuilder(Item_Shippable.class).
+                name("ship").
+                    op(Item.class, book -> new ShippingInfo(book.getName() + " item NOT shipped")).
+                    op(Book.class, book -> new ShippingInfo(book.getName() + " book shipped")).
+                    op(Furniture.class, furniture -> new ShippingInfo(furniture.getName() + " furniture shipped")).
+                    op(ElectronicItem.class, electronicItem -> new ShippingInfo(electronicItem.getName() + " electronic item shipped")).
+                name("log").
+                    voidOp(Item.class, (Item item, Boolean isVerbose) -> {
                         if (! shippingLog.isEmpty())
                             shippingLog.append("\n");
                         shippingLog.append(item.getName()).append(" is about to be shipped");
                     }).
-                operationName("track").
-                    operation(Item.class, item -> new TrackingInfo(item.getName() + "item on its way")).
-                build();
+                name("track").
+                    op(Item.class, item -> new TrackingInfo(item.getName() + "item on its way"));
 
         Item[] items = {
                 new Book("The Mythical Man-Month"),
@@ -126,8 +130,8 @@ public class DynamicClassExtensionTest {
 
         StringBuilder shippingInfos = new StringBuilder();
         for (Item item : items) {
-            Item_Shippable extension = build.extension(item, Item_Shippable.class);
-            extension.log();
+            Item_Shippable extension = DynamicClassExtension.sharedInstance().extension(item, Item_Shippable.class);
+            extension.log(false);
             ShippingInfo shippingInfo = extension.ship();
             if (!shippingInfos.isEmpty())
                 shippingInfos.append("\n");
