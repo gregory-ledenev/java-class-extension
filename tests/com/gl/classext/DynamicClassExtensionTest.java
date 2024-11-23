@@ -173,7 +173,7 @@ public class DynamicClassExtensionTest {
         // remove log(boolean)
         shippingLog.setLength(0);
         dynamicClassExtension.builder(Item_Shippable.class).
-                name("log").
+                opName("log").
                 removeOp(Item.class, new Boolean[]{true});
         for (Item item : items) {
             Item_Shippable extension = dynamicClassExtension.extension(item, Item_Shippable.class);
@@ -185,7 +185,7 @@ public class DynamicClassExtensionTest {
         dynamicClassExtension = setupDynamicClassExtension(shippingLog);
         shippingLog.setLength(0);
         dynamicClassExtension.builder(Item_Shippable.class).
-                name("log").
+                opName("log").
                 removeOp(Item.class, null);
         try {
             for (Item item : items) {
@@ -214,7 +214,7 @@ public class DynamicClassExtensionTest {
     void operationFailedToDetectDuplicateTest() {
         try {
             new DynamicClassExtension().builder(Item_Shippable.class).
-                    name("ship").
+                    opName("ship").
                         op(Item.class, book -> null).
                         op(Item.class, book -> null).
                     build();
@@ -225,7 +225,7 @@ public class DynamicClassExtensionTest {
 
         try {
             new DynamicClassExtension().builder(Item_Shippable.class).
-                    name("ship").
+                    opName("ship").
                         op(Item.class, book -> null).
                         voidOp(Item.class, book -> {}).
                     build();
@@ -236,7 +236,7 @@ public class DynamicClassExtensionTest {
 
         try {
             new DynamicClassExtension().builder(Item_Shippable.class).
-                    name("ship").
+                    opName("ship").
                         voidOp(Item.class, book -> {}).
                         op(Item.class, book -> null).
                     build();
@@ -247,7 +247,7 @@ public class DynamicClassExtensionTest {
 
         try {
             new DynamicClassExtension().builder(Item_Shippable.class).
-                    name("ship").
+                    opName("ship").
                     op(Item.class, (Item book, Boolean isVerbose) -> null).
                     op(Item.class, (Item book, Boolean isVerbose) -> null).
                     build();
@@ -258,7 +258,7 @@ public class DynamicClassExtensionTest {
 
         try {
             new DynamicClassExtension().builder(Item_Shippable.class).
-                    name("ship").
+                    opName("ship").
                         voidOp(Item.class, (Item book, Boolean isVerbose) -> {}).
                         op(Item.class, (Item book, Boolean isVerbose) -> null).
                     build();
@@ -272,7 +272,7 @@ public class DynamicClassExtensionTest {
     void operationWronglyDetectedDuplicateTest() {
         try {
             new DynamicClassExtension().builder(Item_Shippable.class).
-                    name("ship").
+                    opName("ship").
                         op(Item.class, book -> null).
                         op(Item.class, (Item book, Boolean isVerbose) -> null).
                     build();
@@ -282,7 +282,7 @@ public class DynamicClassExtensionTest {
 
         try {
             new DynamicClassExtension().builder(Item_Shippable.class).
-                    name("ship").
+                    opName("ship").
                         op(Item.class, (Item book, Boolean isVerbose) -> null).
                         op(Item.class, book -> null).
                     build();
@@ -292,7 +292,7 @@ public class DynamicClassExtensionTest {
 
         try {
             new DynamicClassExtension().builder(Item_Shippable.class).
-                    name("ship").
+                    opName("ship").
                         op(Item.class, book -> null).
                         voidOp(Item.class, (Item book, Boolean isVerbose) -> {}).
                     build();
@@ -302,7 +302,7 @@ public class DynamicClassExtensionTest {
 
         try {
             new DynamicClassExtension().builder(Item_Shippable.class).
-                    name("ship").
+                    opName("ship").
                         voidOp(Item.class, (Item book, Boolean isVerbose) -> {}).
                         op(Item.class, book -> null).
                     build();
@@ -356,12 +356,12 @@ public class DynamicClassExtensionTest {
 
     private static DynamicClassExtension setupDynamicClassExtension(StringBuilder shippingLog) {
         return new DynamicClassExtension().builder(Item_Shippable.class).
-                name("ship").
+                opName("ship").
                 op(Item.class, book -> new ShippingInfo(book.getName() + " item NOT shipped")).
                 op(Book.class, book -> new ShippingInfo(book.getName() + " book shipped")).
                 op(Furniture.class, furniture -> new ShippingInfo(furniture.getName() + " furniture shipped")).
                 op(ElectronicItem.class, electronicItem -> new ShippingInfo(electronicItem.getName() + " electronic item shipped")).
-                name("log").
+                opName("log").
                 voidOp(Item.class, (Item item, Boolean isVerbose) -> {
                     if (!shippingLog.isEmpty())
                         shippingLog.append("\n");
@@ -372,7 +372,7 @@ public class DynamicClassExtensionTest {
                         shippingLog.append("\n");
                     shippingLog.append(item.getName()).append(" is about to be shipped");
                 }).
-                name("track").
+                opName("track").
                 op(Item.class, item -> new TrackingInfo(item.getName() + " item on its way")).
                 op(Item.class, (Item item, Boolean isVerbose) -> new TrackingInfo(item.getName() +
                         " item on its way" + (isVerbose ? "Status: SHIPPED" : ""))).

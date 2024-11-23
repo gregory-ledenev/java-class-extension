@@ -39,7 +39,7 @@ import java.util.function.Function;
  * as a set of lambda operations. To specify an extension:</p>
  *  <ol>
  *      <li>Create a {@code Builder} for an interface you want to compose an extension for</li>
- *      <li>Specify the name of operation using {@code Builder.name(String)}</li>
+ *      <li>Specify the name of operation using {@code Builder.opName(String)}</li>
  *      <li>List all the method implementations per particular classes with lambdas using {@code Builder.op(...)} or
  *      {@code Builder.voidOp(...)}</li>
  *      <li>Repeat 2, 3 for all operations</li>
@@ -90,6 +90,9 @@ import java.util.function.Function;
  * that are not in use. Though, to perform full cleanup either the {@code cacheCleanup()} should be used or automatic cleanup can
  * be initiated via the {@code scheduleCacheCleanup()}. If automatic cache cleanup is used - it can be stopped by calling the
  * {@code shutdownCacheCleanup()}.</p>
+ *
+ * @author Gregory Ledenev
+ * @version 0.9.2
  */
 public class DynamicClassExtension {
     <R, T, E> void addExtensionOperation(Class<T> aClass,
@@ -202,7 +205,6 @@ public class DynamicClassExtension {
      * @param anExtensionClass class of extension object to be returned
      * @return an extension object
      */
-    @SuppressWarnings({"unchecked"})
     public <T> T sharedExtensionNoCache(Object anObject, Class<T> anExtensionClass) {
         return sharedInstance().extensionNoCache(anObject, anExtensionClass);
     }
@@ -361,6 +363,9 @@ public class DynamicClassExtension {
     }
 
     /**
+     * <p>Class {@code Builder} provides an ability to design class extensions (categories) by composing extensions
+     * as a set of lambda operations.</p>
+     *
      * @param <E> an interface to build an extension for
      */
     public static class Builder<E> {
@@ -379,35 +384,76 @@ public class DynamicClassExtension {
             dynamicClassExtension = aDynamicClassExtension;
         }
 
-        public Builder<E> name(String anOperationName) {
+        /**
+         * Specifies an operation name
+         * @param anOperationName operation name. It should correspond to the name of a method defined by extension
+         *                        interface
+         * @return a copy of this {@code Builder}
+         */
+        public Builder<E> opName(String anOperationName) {
             return new Builder<>(extensionClass, anOperationName, dynamicClassExtension);
         }
 
-        public <T1> Builder<E> removeOp(Class<T1> anObjectClass, Object[] anArgs) {
-            dynamicClassExtension.removeExtensionOperation(anObjectClass, extensionClass, operationName, anArgs);
+        /**
+         * Removes an operation
+         * @param anObjectClass object class
+         * @param aParameters arguments. Pass {@code null} or an empty array to define parameterless operation; otherwise pass
+         *               an array of parameter types
+         * @return a copy of this {@code Builder}
+         */
+        public <T1> Builder<E> removeOp(Class<T1> anObjectClass, Object[] aParameters) {
+            dynamicClassExtension.removeExtensionOperation(anObjectClass, extensionClass, operationName, aParameters);
             return new Builder<>(extensionClass, operationName, dynamicClassExtension);
         }
 
+        /**
+         * Adds a non-void parameterless operation
+         * @param anObjectClass object class
+         * @param anOperation lambda that defines an operation
+         * @return a copy of this {@code Builder}
+         */
         public <R, T1> Builder<E> op(Class<T1> anObjectClass, Function<T1, R> anOperation) {
             dynamicClassExtension.addExtensionOperation(anObjectClass, extensionClass, operationName, anOperation);
             return new Builder<>(extensionClass, operationName, dynamicClassExtension);
         }
 
+        /**
+         * Adds a non-void operation having one parameter
+         * @param anObjectClass object class
+         * @param anOperation lambda that defines an operation
+         * @return a copy of this {@code Builder}
+         */
         public <R, T1, U> Builder<E> op(Class<T1> anObjectClass, BiFunction<T1, U, R> anOperation) {
             dynamicClassExtension.addExtensionOperation(anObjectClass, extensionClass, operationName, anOperation);
             return new Builder<>(extensionClass, operationName, dynamicClassExtension);
         }
 
+        /**
+         * Adds a void parameterless operation
+         * @param anObjectClass object class
+         * @param anOperation lambda that defines an operation
+         * @return a copy of this {@code Builder}
+         */
         public <T1> Builder<E> voidOp(Class<T1> anObjectClass, Consumer<T1> anOperation) {
             dynamicClassExtension.addVoidExtensionOperation(anObjectClass, extensionClass, operationName, anOperation);
             return new Builder<>(extensionClass, operationName, dynamicClassExtension);
         }
 
+        /**
+         * Adds a void operation having one parameter
+         * @param anObjectClass object class
+         * @param anOperation lambda that defines an operation
+         * @return a copy of this {@code Builder}
+         */
         public <T1, U> Builder<E> voidOp(Class<T1> anObjectClass, BiConsumer<T1, U> anOperation) {
             dynamicClassExtension.addVoidExtensionOperation(anObjectClass, extensionClass, operationName, anOperation);
             return new Builder<>(extensionClass, operationName, dynamicClassExtension);
         }
 
+        /**
+         * Terminal operation (optional)
+         * @return a {@code DynamicClassExtension} this builder was created for
+         */
         public DynamicClassExtension build() {
             return dynamicClassExtension;
         }

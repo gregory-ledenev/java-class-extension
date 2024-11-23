@@ -80,6 +80,9 @@ import java.util.Objects;
  * that are not in use. Though, to perform full cleanup either the cacheCleanup() should be used or automatic cleanup can
  * be initiated via the scheduleCacheCleanup(). If automatic cache cleanup is used - it can be stopped by calling the
  * shutdownCacheCleanup().</p>
+ *
+ * @author Gregory Ledenev
+ * @version 0.9.2
  */
 public class ClassExtension {
 
