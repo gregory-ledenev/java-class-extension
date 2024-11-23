@@ -6,8 +6,10 @@ The Java Class Extension library provides an ability to mimic class extensions (
 
 After getting extensions they can be used to perform any extended functionality as easy as:
 ```java
-ClassExtension.extension(item, Item_Shippable.class).ship();
+Item_Shippable itemShippable = ClassExtension.extension(new Book("The Mythical Man-Month"), Item_Shippable.class);
+itemShippable.ship();
 ```
+Java Class Extension library provides a valuable alternative for class extensions (not supported in Java) with just a little more verbose code and little more complex implementation.
    
 ## Introduction
 Consider a scenario where we are building a warehouse application designed to handle the shipping of various items. We have established a hierarchy of classes to represent the goods we have:
@@ -58,8 +60,9 @@ class Book_Shippable extends Item_Shippable{
 ```
 Using `ClassExtension`, shipping an item becomes as simple as calling:
 
-```java 
-ClassExtension.extension(item, Item_Shippable.class).ship()
+```java
+Book book = new Book("The Mythical Man-Month");
+ClassExtension.extension(book, Item_Shippable.class).ship()
 ``` 
 
 Shipping a collection of items is equally straightforward:
@@ -88,16 +91,75 @@ With that helper method, shipping become even more simpler and shorter:
 ```java
 Item_Shippable.extensionFor(anItem).ship()
 ```
-Supporting a new Item class using the Java Class Extension library requires just adding a new Shippable extension with a proper ship() implementation. No need to change any other code. That is it.
+Supporting a new Item class using the Java Class Extension library requires just adding a new Shippable extension with a proper `ship()` implementation. No need to change any other code. That is it.
 
-Java Class Extension library provides a valuable alternative for class extensions (not supported in Java) with just a little more verbose code and little more complex implementation.
-
-## Details
+#### Details ####
 All the extension classes must implement the `DelegateHolder` interface and must end with the name of an extension delimited by underscore e.g. `Book_Shippable` where `Book` is the name of the class and `Shippable` is the name of extension.
 
 `ClassExtension` takes care of inheritance so it is possible to design and implement class extensions hierarchy that fully or partially resembles original classes' hierarchy. If there's no explicit extension specified for particular class - its parent extension will be utilized. For example, if there's no explicit `Shippable` extension for the `Toy` class - base `Item_Shippable` will be used instead.
 
 Cashing of extension objects are supported out of the box. Cache utilizes weak references to release extension objects that are not in use. Though, to perform full cleanup either the `cacheCleanup()` should be used or automatic cleanup can be initiated via the `scheduleCacheCleanup()`. If automatic cache cleanup is used - it can be stopped by calling the `shutdownCacheCleanup()`.
+
+### Dynamic Extensions with Java Class Extension Library
+ Class `DynamicClassExtension` provides a way to mimic class extensions (categories) by composing extensions as a set of lambda operations. To specify an extension:
+  
+1. Create a `Builder` for an interface you want to compose an extension for using `DynamicClassExtension.sharedBuilder(...)` method
+2. Specify the name of operation using `Builder.opName(String)`
+3. List all the method implementations per particular classes with lambdas using `Builder.op(...)` or `Builder.voidOp(...)`
+5. Repeat 2, 3 for all operations
+  
+ For example, the following code creates `Item_Shippable` extensions for `Item classes`. There are explicit `ship()` method implementations for all the `Item` classes. Though, the `log()` method is implemented for the `Item` class only so extensions for all the `Item` descendants will utilise the same `log()` method.
+```java
+  class Item {...}
+  class Book extends Item {...}
+  class Furniture extends Item {...}
+  class ElectronicItem extends Item {...}
+  class AutoPart extends Item {...}
+
+  interface Item_Shippable {
+      ShippingInfo ship();
+      void log(boolean isVerbose);
+  }
+  ...
+ DynamicClassExtension.sharedBuilder(Item_Shippable.class).
+      nameOp("ship").
+          op(Item.class, book -> ...).
+          op(Book.class, book -> ...).
+          op(Furniture.class, furniture -> ...).
+          op(ElectronicItem.class, electronicItem -> ...).
+      nameOp("log").
+          voidOp(Item.class, (Item item, Boolean isVerbose) -> {...}).
+      build();
+```
+
+Finding an extension and calling its methods is simple and straightforward:
+```java
+Book book = new Book("The Mythical Man-Month");
+Item_Shippable itemShippable = DynamicClassExtension.sharedExtension(book, Item_Shippable.class);
+itemShippable.log(true);
+itemShippable.ship();
+```
+
+Shipping a collection of items is equally straightforward:
+```java
+Item[] items = {
+    new Book("The Mythical Man-Month"), 
+    new Furniture("Sofa"), 
+    new ElectronicItem(“Soundbar")
+};
+
+for (Item item : items) {
+    DynamicClassExtension.sharedExtension(item, Item_Shippable.class).ship();
+}
+```
+Supporting a new `Item` class using the Java Class Extension library requires just adding a new operation for that new `Item` class. No need to change any other code. That is it.
+
+#### Details ####
+For the most of the cases a shared instance of `DynamicClassExtension` should be used. But if there is a need to have different implementations of extensions in different places or domains it is possible to create and utilise new instances of `DynamicClassExtension`.
+
+`DynamicClassExtension` takes care of inheritance so it is possible to design and implement class extensions hierarchy that fully or partially resembles original classes' hierarchy. If there's no explicit extension operations specified for particular class - its parent extension will be utilised. For example, if there's no explicit extension operations defined for `AutoPart` objects - base `ship()` and `log(boolean)` operations specified for `Item` will be used instead.
+
+Cashing of extension objects are supported out of the box. Cache utilises weak references to release extension objects that are not in use. Though, to perform full cleanup either the `cacheCleanup()` should be used or automatic cleanup can be initiated via the `scheduleCacheCleanup()`. If automatic cache cleanup is used - it can be stopped by calling the `shutdownCacheCleanup()`.
 
 ## Adding to Your Build 
 To add Java Class Extension library to your build:
