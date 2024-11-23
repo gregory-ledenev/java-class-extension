@@ -95,7 +95,9 @@ Item_Shippable.extensionFor(anItem).ship()
 Supporting a new Item class using the Java Class Extension library requires just adding a new Shippable extension with a proper `ship()` implementation. No need to change any other code. That is it.
 
 #### Details ####
-All the extension classes must implement the `DelegateHolder` interface and must end with the name of an extension delimited by underscore e.g. `Book_Shippable` where `Book` is the name of the class and `Shippable` is the name of extension.
+All the static extension classes must:
+1. Implement the `DelegateHolder` interface. The `DelegateHolder.setDelegate(...)` method is used to supply extensions with objects to work with.
+2. Be named as class name followed by extension name delimited by underscore e.g. `Book_Shippable` where `Book` is the name of the class and `Shippable` is the name of extension.
 
 `ClassExtension` takes care of inheritance so it is possible to design and implement class extensions hierarchy that fully or partially resembles original classes' hierarchy. If there's no explicit extension specified for particular class - its parent extension will be utilized. For example, if there's no explicit `Shippable` extension for the `Toy` class - base `Item_Shippable` will be used instead.
 
@@ -104,8 +106,8 @@ Cashing of extension objects are supported out of the box. Cache utilizes weak r
 ### Dynamic Extensions with Java Class Extension Library
  Class `DynamicClassExtension` provides a way to mimic class extensions (categories) by composing extensions as a set of lambda operations. To specify an extension:
   
-1. Create a `Builder` for an interface you want to compose an extension for using `DynamicClassExtension.sharedBuilder(...)` method
-2. Specify the name of operation using `Builder.opName(String)`
+1. Create a `Builder` for an interface you want to compose an extension by using the `DynamicClassExtension.sharedBuilder(...)` method
+2. Specify the name of an operation using `Builder.opName(String)`
 3. List all the method implementations per particular classes with lambdas using `Builder.op(...)` or `Builder.voidOp(...)`
 5. Repeat 2, 3 for all operations
   
@@ -153,7 +155,7 @@ for (Item item : items) {
     DynamicClassExtension.sharedExtension(item, Item_Shippable.class).ship();
 }
 ```
-Supporting a new `Item` class using the Java Class Extension library requires just adding a new operation for that new `Item` class. No need to change any other code. That is it.
+Supporting a new `Item` class using the Java Class Extension library requires just adding the operations for that new `Item` class. No need to change any other code. That is it.
 
 #### Details ####
 For the most of the cases a shared instance of `DynamicClassExtension` should be used. But if there is a need to have different implementations of extensions in different places or domains it is possible to create and utilise new instances of `DynamicClassExtension`.
