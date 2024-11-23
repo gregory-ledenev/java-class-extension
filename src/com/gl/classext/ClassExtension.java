@@ -1,6 +1,8 @@
 /*
 Copyright 2024 Gregory Ledenev (gregory.ledenev37@gmail.com)
 
+MIT License
+
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the “Software”), to deal in
 the Software without restriction, including without limitation the rights to
@@ -126,6 +128,7 @@ public class ClassExtension {
         return extension(anObject, extensionName(anExtensionClass), getPackageNames(anExtensionClass, aPackageNames));
     }
 
+    @SuppressWarnings({"rawtypes"})
     private static <T extends DelegateHolder> List<String> getPackageNames(Class<T> anExtensionClass, List<String> aPackageNames) {
         List<String> packageNames = new ArrayList<>();
         packageNames.add(anExtensionClass.getPackageName());

@@ -3,8 +3,6 @@ package com.gl.classext;
 
 import org.junit.jupiter.api.Test;
 
-import java.util.concurrent.*;
-
 import static org.junit.jupiter.api.Assertions.*;
 
 public class DynamicClassExtensionTest {
@@ -109,7 +107,7 @@ public class DynamicClassExtensionTest {
 
         StringBuilder shippingLog = new StringBuilder();
 
-        setupDynamicClassExtension(shippingLog);
+        DynamicClassExtension dynamicClassExtension = setupDynamicClassExtension(shippingLog);
         Item[] items = {
                 new Book("The Mythical Man-Month"),
                 new Furniture("Sofa"),
@@ -119,7 +117,7 @@ public class DynamicClassExtensionTest {
 
         StringBuilder shippingInfos = new StringBuilder();
         for (Item item : items) {
-            Item_Shippable extension = DynamicClassExtension.sharedInstance().extension(item, Item_Shippable.class);
+            Item_Shippable extension = dynamicClassExtension.extension(item, Item_Shippable.class);
             extension.log();
             if (!shippingInfos.isEmpty())
                 shippingInfos.append("\n");
@@ -148,11 +146,177 @@ public class DynamicClassExtensionTest {
     }
 
     @Test
+    void removeOperationTest() {
+
+        StringBuilder shippingLog = new StringBuilder();
+
+        DynamicClassExtension dynamicClassExtension = setupDynamicClassExtension(shippingLog);
+        Item[] items = {
+                new Book("The Mythical Man-Month"),
+                new Furniture("Sofa"),
+                new ElectronicItem("Soundbar"),
+                new AutoPart("Tire"),
+        };
+
+        for (Item item : items) {
+            Item_Shippable extension = dynamicClassExtension.extension(item, Item_Shippable.class);
+            extension.log();
+        }
+        System.out.println(shippingLog);
+        String expectedLog = """
+                          The Mythical Man-Month is about to be shipped
+                          Sofa is about to be shipped
+                          Soundbar is about to be shipped
+                          Tire is about to be shipped""";
+        assertEquals(expectedLog, shippingLog.toString());
+
+        // remove log(boolean)
+        shippingLog.setLength(0);
+        dynamicClassExtension.builder(Item_Shippable.class).
+                name("log").
+                removeOp(Item.class, new Boolean[]{true});
+        for (Item item : items) {
+            Item_Shippable extension = dynamicClassExtension.extension(item, Item_Shippable.class);
+            extension.log();
+        }
+        System.out.println(shippingLog);
+
+        // remove log()
+        dynamicClassExtension = setupDynamicClassExtension(shippingLog);
+        shippingLog.setLength(0);
+        dynamicClassExtension.builder(Item_Shippable.class).
+                name("log").
+                removeOp(Item.class, null);
+        try {
+            for (Item item : items) {
+                Item_Shippable extension = dynamicClassExtension.extension(item, Item_Shippable.class);
+                extension.log();
+            }
+            fail("Unexpectedly utilised missing log()");
+        } catch (Exception ex) {
+            System.out.println(ex.getMessage());
+        }
+    }
+
+    @Test
+    void noOperationNameTest() {
+        try {
+            new DynamicClassExtension().builder(Item_Shippable.class).
+                    op(Item.class, book -> null).
+                    build();
+            fail("Somehow created an operation with no name");
+        } catch (Exception ex) {
+            ex.printStackTrace();
+        }
+    }
+
+    @Test
+    void operationFailedToDetectDuplicateTest() {
+        try {
+            new DynamicClassExtension().builder(Item_Shippable.class).
+                    name("ship").
+                        op(Item.class, book -> null).
+                        op(Item.class, book -> null).
+                    build();
+            fail("Failed to detect duplicated operation: T ship()");
+        } catch (Exception ex) {
+            System.out.println(ex.getMessage());
+        }
+
+        try {
+            new DynamicClassExtension().builder(Item_Shippable.class).
+                    name("ship").
+                        op(Item.class, book -> null).
+                        voidOp(Item.class, book -> {}).
+                    build();
+            fail("Failed to detect duplicated operation: void ship()");
+        } catch (Exception ex) {
+            System.out.println(ex.getMessage());
+        }
+
+        try {
+            new DynamicClassExtension().builder(Item_Shippable.class).
+                    name("ship").
+                        voidOp(Item.class, book -> {}).
+                        op(Item.class, book -> null).
+                    build();
+            fail("Failed to detect duplicated operation: ship()");
+        } catch (Exception ex) {
+            System.out.println(ex.getMessage());
+        }
+
+        try {
+            new DynamicClassExtension().builder(Item_Shippable.class).
+                    name("ship").
+                    op(Item.class, (Item book, Boolean isVerbose) -> null).
+                    op(Item.class, (Item book, Boolean isVerbose) -> null).
+                    build();
+            fail("Failed to detect duplicated operation: T ship(boolean)");
+        } catch (Exception ex) {
+            System.out.println(ex.getMessage());
+        }
+
+        try {
+            new DynamicClassExtension().builder(Item_Shippable.class).
+                    name("ship").
+                        voidOp(Item.class, (Item book, Boolean isVerbose) -> {}).
+                        op(Item.class, (Item book, Boolean isVerbose) -> null).
+                    build();
+            fail("Failed to detect duplicated operation: T ship(boolean)");
+        } catch (Exception ex) {
+            System.out.println(ex.getMessage());
+        }
+    }
+
+    @Test
+    void operationWronglyDetectedDuplicateTest() {
+        try {
+            new DynamicClassExtension().builder(Item_Shippable.class).
+                    name("ship").
+                        op(Item.class, book -> null).
+                        op(Item.class, (Item book, Boolean isVerbose) -> null).
+                    build();
+        } catch (Exception ex) {
+            fail("Wrongly detected duplicated operation: T ship(boolean)");
+        }
+
+        try {
+            new DynamicClassExtension().builder(Item_Shippable.class).
+                    name("ship").
+                        op(Item.class, (Item book, Boolean isVerbose) -> null).
+                        op(Item.class, book -> null).
+                    build();
+        } catch (Exception ex) {
+            fail("Wrongly detected duplicated operation: T ship()");
+        }
+
+        try {
+            new DynamicClassExtension().builder(Item_Shippable.class).
+                    name("ship").
+                        op(Item.class, book -> null).
+                        voidOp(Item.class, (Item book, Boolean isVerbose) -> {}).
+                    build();
+        } catch (Exception ex) {
+            fail("Wrongly detected duplicated operation: void ship(boolean)");
+        }
+
+        try {
+            new DynamicClassExtension().builder(Item_Shippable.class).
+                    name("ship").
+                        voidOp(Item.class, (Item book, Boolean isVerbose) -> {}).
+                        op(Item.class, book -> null).
+                    build();
+        } catch (Exception ex) {
+            fail("Wrongly detected duplicated operation: T ship()");
+        }
+    }
+
+    @Test
     void verboseOperationUsingBuilderTest() {
 
         StringBuilder shippingLog = new StringBuilder();
 
-        setupDynamicClassExtension(shippingLog);
+        DynamicClassExtension dynamicClassExtension = setupDynamicClassExtension(shippingLog);
         Item[] items = {
                 new Book("The Mythical Man-Month"),
                 new Furniture("Sofa"),
@@ -162,7 +326,7 @@ public class DynamicClassExtensionTest {
 
         StringBuilder shippingInfos = new StringBuilder();
         for (Item item : items) {
-            Item_Shippable extension = DynamicClassExtension.sharedInstance().extension(item, Item_Shippable.class);
+            Item_Shippable extension = dynamicClassExtension.extension(item, Item_Shippable.class);
             extension.log(true);
             if (!shippingInfos.isEmpty())
                 shippingInfos.append("\n");
@@ -190,28 +354,29 @@ public class DynamicClassExtensionTest {
                 shippingInfos.toString());
     }
 
-    private static void setupDynamicClassExtension(StringBuilder shippingLog) {
-        DynamicClassExtension.sharedBuilder(Item_Shippable.class).
+    private static DynamicClassExtension setupDynamicClassExtension(StringBuilder shippingLog) {
+        return new DynamicClassExtension().builder(Item_Shippable.class).
                 name("ship").
-                    op(Item.class, book -> new ShippingInfo(book.getName() + " item NOT shipped")).
-                    op(Book.class, book -> new ShippingInfo(book.getName() + " book shipped")).
-                    op(Furniture.class, furniture -> new ShippingInfo(furniture.getName() + " furniture shipped")).
-                    op(ElectronicItem.class, electronicItem -> new ShippingInfo(electronicItem.getName() + " electronic item shipped")).
+                op(Item.class, book -> new ShippingInfo(book.getName() + " item NOT shipped")).
+                op(Book.class, book -> new ShippingInfo(book.getName() + " book shipped")).
+                op(Furniture.class, furniture -> new ShippingInfo(furniture.getName() + " furniture shipped")).
+                op(ElectronicItem.class, electronicItem -> new ShippingInfo(electronicItem.getName() + " electronic item shipped")).
                 name("log").
-                    voidOp(Item.class, (Item item, Boolean isVerbose) -> {
-                        if (! shippingLog.isEmpty())
-                            shippingLog.append("\n");
-                        shippingLog.append(item.getName()).append(" is about to be shipped in 1 hour");
-                    }).
-                    voidOp(Item.class, item -> {
-                        if (! shippingLog.isEmpty())
-                            shippingLog.append("\n");
-                        shippingLog.append(item.getName()).append(" is about to be shipped");
-                    }).
+                voidOp(Item.class, (Item item, Boolean isVerbose) -> {
+                    if (!shippingLog.isEmpty())
+                        shippingLog.append("\n");
+                    shippingLog.append(item.getName()).append(" is about to be shipped in 1 hour");
+                }).
+                voidOp(Item.class, item -> {
+                    if (!shippingLog.isEmpty())
+                        shippingLog.append("\n");
+                    shippingLog.append(item.getName()).append(" is about to be shipped");
+                }).
                 name("track").
-                    op(Item.class, item -> new TrackingInfo(item.getName() + " item on its way")).
-                    op(Item.class, (Item item, Boolean isVerbose) -> new TrackingInfo(item.getName() +
-                            " item on its way" + (isVerbose ? "Status: SHIPPED" : "")));
+                op(Item.class, item -> new TrackingInfo(item.getName() + " item on its way")).
+                op(Item.class, (Item item, Boolean isVerbose) -> new TrackingInfo(item.getName() +
+                        " item on its way" + (isVerbose ? "Status: SHIPPED" : ""))).
+                build();
     }
 
     /**
@@ -219,10 +384,10 @@ public class DynamicClassExtensionTest {
      */
     @Test
     void cacheTest() {
-        setupDynamicClassExtension(new StringBuilder());
+        DynamicClassExtension dynamicClassExtension = setupDynamicClassExtension(new StringBuilder());
         Book book = new Book("The Mythical Man-Month");
-        Item_Shippable extension = DynamicClassExtension.sharedInstance().extension(book, Item_Shippable.class);
-        assertSame(extension, DynamicClassExtension.sharedInstance().extension(book, Item_Shippable.class));
+        Item_Shippable extension = dynamicClassExtension.extension(book, Item_Shippable.class);
+        assertSame(extension, dynamicClassExtension.extension(book, Item_Shippable.class));
     }
 
     /**
@@ -231,12 +396,12 @@ public class DynamicClassExtensionTest {
     @SuppressWarnings("unchecked")
     @Test
     void cacheEntryRemovalTest() {
-        setupDynamicClassExtension(new StringBuilder());
+        DynamicClassExtension dynamicClassExtension = setupDynamicClassExtension(new StringBuilder());
         Book book = new Book("The Mythical Man-Month");
-        Item_Shippable extension = DynamicClassExtension.sharedInstance().extension(book, Item_Shippable.class);
-        assertSame(extension, DynamicClassExtension.sharedInstance().extension(book, Item_Shippable.class));
-        DynamicClassExtension.sharedInstance().extensionCache.remove(book);
-        assertNotSame(extension, DynamicClassExtension.sharedInstance().extension(book, Item_Shippable.class));
+        Item_Shippable extension = dynamicClassExtension.extension(book, Item_Shippable.class);
+        assertSame(extension, dynamicClassExtension.extension(book, Item_Shippable.class));
+        dynamicClassExtension.extensionCache.remove(book);
+        assertNotSame(extension, dynamicClassExtension.extension(book, Item_Shippable.class));
     }
 
     /**
@@ -244,10 +409,10 @@ public class DynamicClassExtensionTest {
      */
     @Test
     void nonCacheTest() {
-        setupDynamicClassExtension(new StringBuilder());
+        DynamicClassExtension dynamicClassExtension = setupDynamicClassExtension(new StringBuilder());
         Book book = new Book("The Mythical Man-Month");
-        Item_Shippable extension = DynamicClassExtension.sharedInstance().extensionNoCache(book, Item_Shippable.class);
-        assertNotSame(extension, DynamicClassExtension.sharedInstance().extensionNoCache(book, Item_Shippable.class));
+        Item_Shippable extension = dynamicClassExtension.extensionNoCache(book, Item_Shippable.class);
+        assertNotSame(extension, dynamicClassExtension.extensionNoCache(book, Item_Shippable.class));
     }
 
     /**
@@ -255,32 +420,15 @@ public class DynamicClassExtensionTest {
      */
     @Test
     void cacheCleanupTest() {
-        setupDynamicClassExtension(new StringBuilder());
+        DynamicClassExtension dynamicClassExtension = setupDynamicClassExtension(new StringBuilder());
         Book book = new Book("The Mythical Man-Month");
-        Item_Shippable extension = DynamicClassExtension.sharedInstance().extension(book, Item_Shippable.class);
 
-        ScheduledExecutorService executor = Executors.newScheduledThreadPool(1);
-        ScheduledFuture<?> future = executor.schedule(() -> {
-            DynamicClassExtension.sharedInstance().extension(book, Item_Shippable.class);
-            try {
-                Thread.sleep(5000);
-            } catch (InterruptedException aE) {
-                // do nothing
-            }
-        }, 5, TimeUnit.SECONDS);
-        try {
-            future.get();
-            System.gc();
-        } catch (InterruptedException | ExecutionException e) {
-            e.printStackTrace();
-        } finally {
-            executor.shutdown();
-        }
-        assertNotSame(extension, DynamicClassExtension.sharedInstance().extension(book, Item_Shippable.class));
-        System.gc();
-        assertFalse(ClassExtension.cacheIsEmpty());
-        ClassExtension.cacheCleanup();
-        assertTrue(ClassExtension.cacheIsEmpty());
+        Item_Shippable extension = dynamicClassExtension.extension(book, Item_Shippable.class);
+        assertSame(extension, dynamicClassExtension.extension(book, Item_Shippable.class));
+
+        assertFalse(dynamicClassExtension.cacheIsEmpty());
+        dynamicClassExtension.cacheCleanup();
+        assertFalse(dynamicClassExtension.cacheIsEmpty());
     }
 
     /**
@@ -288,13 +436,13 @@ public class DynamicClassExtensionTest {
      */
     @Test
     void cacheClearTest() {
-        setupDynamicClassExtension(new StringBuilder());
+        DynamicClassExtension dynamicClassExtension = setupDynamicClassExtension(new StringBuilder());
         Book book = new Book("The Mythical Man-Month");
-        Item_Shippable extension = DynamicClassExtension.sharedInstance().extension(book, Item_Shippable.class);
-        assertSame(extension, DynamicClassExtension.sharedInstance().extension(book, Item_Shippable.class));
-        DynamicClassExtension.sharedInstance().cacheClear();
-        assertTrue(ClassExtension.cacheIsEmpty());
-        assertNotSame(extension, DynamicClassExtension.sharedInstance().extension(book, Item_Shippable.class));
+        Item_Shippable extension = dynamicClassExtension.extension(book, Item_Shippable.class);
+        assertSame(extension, dynamicClassExtension.extension(book, Item_Shippable.class));
+        dynamicClassExtension.cacheClear();
+        assertTrue(dynamicClassExtension.cacheIsEmpty());
+        assertNotSame(extension, dynamicClassExtension.extension(book, Item_Shippable.class));
     }
 
     /**
@@ -302,23 +450,23 @@ public class DynamicClassExtensionTest {
      */
     @Test
     void scheduledCleanupCacheTest() {
-        setupDynamicClassExtension(new StringBuilder());
+        DynamicClassExtension dynamicClassExtension = setupDynamicClassExtension(new StringBuilder());
         Book book = new Book("The Mythical Man-Month");
 
-        DynamicClassExtension.sharedInstance().scheduleCacheCleanup();
+        dynamicClassExtension.scheduleCacheCleanup();
         try {
-            DynamicClassExtension.sharedInstance().extension(book, Item_Shippable.class);
+            dynamicClassExtension.extension(book, Item_Shippable.class);
             System.gc();
-            assertFalse(DynamicClassExtension.sharedInstance().cacheIsEmpty());
+            assertFalse(dynamicClassExtension.cacheIsEmpty());
             try {
                 System.out.println("Waiting 1.5 minutes for automatic cache cleanup...");
                 Thread.sleep(90000);
             } catch (InterruptedException aE) {
                 // do nothing
             }
-            assertTrue(DynamicClassExtension.sharedInstance().cacheIsEmpty());
+            assertTrue(dynamicClassExtension.cacheIsEmpty());
         } finally {
-            DynamicClassExtension.sharedInstance().shutdownCacheCleanup();
+            dynamicClassExtension.shutdownCacheCleanup();
         }
     }
 }

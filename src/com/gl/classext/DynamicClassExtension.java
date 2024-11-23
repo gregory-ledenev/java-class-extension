@@ -1,3 +1,27 @@
+/*
+Copyright 2024 Gregory Ledenev (gregory.ledenev37@gmail.com)
+
+MIT License
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of
+this software and associated documentation files (the “Software”), to deal in
+the Software without restriction, including without limitation the rights to
+use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
+of the Software, and to permit persons to whom the Software is furnished to do
+so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+*/
+
 package com.gl.classext;
 
 import java.lang.reflect.Method;
@@ -10,59 +34,128 @@ import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
+/**
+ * <p>Class {@code DynamicClassExtension} provides a way to mimic class extensions (categories) by composing extensions
+ * as a set of lambda operations. To specify an extension:</p>
+ *  <ol>
+ *      <li>Create a {@code Builder} for an interface you want to compose an extension for</li>
+ *      <li>Specify the name of operation using {@code Builder.name(String)}</li>
+ *      <li>List all the method implementations per particular classes with lambdas using {@code Builder.op(...)} or
+ *      {@code Builder.voidOp(...)}</li>
+ *      <li>Repeat 2, 3 for all operations</li>
+ *  </ol>
+ *  <p>For example, the following code creates {@code Item_Shippable} extensions for {@code Item classes}. There are explicit
+ *  {@code ship()} method implementations for all the {@code Item} classes. Though, the {@code log()} method is implemented
+ *  for the {@code Item} class only so extensions for all the {@code Item} descendants will utilise the same {@code log()}
+ *  method.</p>
+ *  <pre><code>
+ *  class Item {...}
+ *  class Book extends Item {...}
+ *  class Furniture extends Item {...}
+ *  class ElectronicItem extends Item {...}
+ *  class AutoPart extends Item {...}
+ *
+ *  interface Item_Shippable {
+ *      ShippingInfo ship();
+ *      void log(boolean isVerbose);
+ *  }
+ *  ...
+ * DynamicClassExtension.sharedBuilder(Item_Shippable.class).
+ *      name("ship").
+ *          op(Item.class, book -> ...).
+ *          op(Book.class, book -> ...).
+ *          op(Furniture.class, furniture -> ...).
+ *          op(ElectronicItem.class, electronicItem -> ...).
+ *      name("log").
+ *          voidOp(Item.class, (Item item, Boolean isVerbose) -> {...}).
+ *      build();
+ *  </code></pre>
+ *  <p>Finding an extension and calling its methods is simple and straightforward:</p>
+ *  <pre><code>
+ *      Item_Shippable itemShippable = DynamicClassExtension.sharedExtension(new Book("The Mythical Man-Month"), Item_Shippable.class);
+ *      itemShippable.log(true);
+ *      itemShippable.ship();
+ *  </code></pre>
+ *
+ *  <p>For the most of the cases a shared instance of DynamicClassExtension should be used. But if there is a need to have
+ *  different implementations of extensions in different places or domains it is possible to create and utilize new
+ *  instances of DynamicClassExtension.</p>
+ *
+ * <p>{@code DynamicClassExtension} takes care of inheritance so it is possible to design and implement class extensions hierarchy
+ * that fully or partially resembles original classes' hierarchy. If there's no explicit extension operations specified for particular
+ * class - its parent extension will be utilised. For example, if there's no explicit extension operations defined for
+ * {@code AutoPart} objects - base {@code ship()} and {@code log(boolean)} operations specified for {@code Item} will be used instead.</p>
+ *
+ * <p>Cashing of extension objects are supported out of the box. Cache utilises weak references to release extension objects
+ * that are not in use. Though, to perform full cleanup either the {@code cacheCleanup()} should be used or automatic cleanup can
+ * be initiated via the {@code scheduleCacheCleanup()}. If automatic cache cleanup is used - it can be stopped by calling the
+ * {@code shutdownCacheCleanup()}.</p>
+ */
 public class DynamicClassExtension {
-    public <R, T, E> void addExtensionOperation(Class<T> aClass,
-                                                          Class<E> anExtensionClass,
-                                                          String anOperationName,
-                                                          Function<T, R> anOperation) {
-        Objects.requireNonNull(aClass);
-        Objects.requireNonNull(anExtensionClass);
-        Objects.requireNonNull(anOperationName);
-        Objects.requireNonNull(anOperation);
+    <R, T, E> void addExtensionOperation(Class<T> aClass,
+                                         Class<E> anExtensionClass,
+                                         String anOperationName,
+                                         Function<T, R> anOperation) {
+        checkAddOperationArguments(aClass, anExtensionClass, anOperationName, anOperation);
 
-        operationsMap.put(new OperationKey(aClass, anExtensionClass, operationName(anOperationName, null)), anOperation);
+        OperationKey key = new OperationKey(aClass, anExtensionClass, operationName(anOperationName, null));
+        if (operationsMap.containsKey(key))
+            duplicateOperationError(displayOperationName(anOperationName, false, null));
+        operationsMap.put(key, anOperation);
+    }
+
+    private static <R, T, E> void checkAddOperationArguments(Class<T> aClass, Class<E> anExtensionClass, String anOperationName, Object anOperation) {
+        Objects.requireNonNull(aClass, "Object class is not specified");
+        Objects.requireNonNull(anExtensionClass, "Extension interface is not specified");
+        Objects.requireNonNull(anOperationName, "Operation name is not specified");
+        Objects.requireNonNull(anOperation, "Operation is not specified");
+    }
+
+    void duplicateOperationError(String anOperationName) {
+        throw new IllegalArgumentException("Duplicate operation: " + anOperationName);
     }
 
     static final private String[] DUMMY_ARGS = {"true"};
-    public <R, T, U, E> void addExtensionOperation(Class<T> aClass,
-                                                   Class<E> anExtensionClass,
-                                                   String anOperationName,
-                                                   BiFunction<T, U, R> anOperation) {
-        Objects.requireNonNull(aClass);
-        Objects.requireNonNull(anExtensionClass);
-        Objects.requireNonNull(anOperationName);
-        Objects.requireNonNull(anOperation);
 
-        operationsMap.put(new OperationKey(aClass, anExtensionClass, operationName(anOperationName, DUMMY_ARGS)), anOperation);
+    <R, T, U, E> void addExtensionOperation(Class<T> aClass,
+                                            Class<E> anExtensionClass,
+                                            String anOperationName,
+                                            BiFunction<T, U, R> anOperation) {
+        checkAddOperationArguments(aClass, anExtensionClass, anOperationName, anOperation);
+
+        OperationKey key = new OperationKey(aClass, anExtensionClass, operationName(anOperationName, DUMMY_ARGS));
+        if (operationsMap.containsKey(key))
+            duplicateOperationError(displayOperationName(anOperationName, false, DUMMY_ARGS));
+        operationsMap.put(key, anOperation);
     }
 
-    public <T, E> void addVoidExtensionOperation(Class<T> aClass,
-                                                    Class<E> anExtensionClass,
-                                                    String anOperationName,
-                                                    Consumer<T> anOperation) {
-        Objects.requireNonNull(aClass);
-        Objects.requireNonNull(anExtensionClass);
-        Objects.requireNonNull(anOperationName);
-        Objects.requireNonNull(anOperation);
+    <T, E> void addVoidExtensionOperation(Class<T> aClass,
+                                          Class<E> anExtensionClass,
+                                          String anOperationName,
+                                          Consumer<T> anOperation) {
+        checkAddOperationArguments(aClass, anExtensionClass, anOperationName, anOperation);
 
-        operationsMap.put(new OperationKey(aClass, anExtensionClass, operationName(anOperationName, null)), anOperation);
+        OperationKey key = new OperationKey(aClass, anExtensionClass, operationName(anOperationName, null));
+        if (operationsMap.containsKey(key))
+            duplicateOperationError(displayOperationName(anOperationName, true, null));
+        operationsMap.put(key, anOperation);
     }
 
-    public <T, U, E> void addVoidExtensionOperation(Class<T> aClass,
-                                                    Class<E> anExtensionClass,
-                                                    String anOperationName,
-                                                    BiConsumer<T, U> anOperation) {
-        Objects.requireNonNull(aClass);
-        Objects.requireNonNull(anExtensionClass);
-        Objects.requireNonNull(anOperationName);
-        Objects.requireNonNull(anOperation);
+    <T, U, E> void addVoidExtensionOperation(Class<T> aClass,
+                                             Class<E> anExtensionClass,
+                                             String anOperationName,
+                                             BiConsumer<T, U> anOperation) {
+        checkAddOperationArguments(aClass, anExtensionClass, anOperationName, anOperation);
 
-        operationsMap.put(new OperationKey(aClass, anExtensionClass, operationName(anOperationName, DUMMY_ARGS)), anOperation);
+        OperationKey key = new OperationKey(aClass, anExtensionClass, operationName(anOperationName, DUMMY_ARGS));
+        if (operationsMap.containsKey(key))
+            duplicateOperationError(displayOperationName(anOperationName, true, DUMMY_ARGS));
+        operationsMap.put(key, anOperation);
     }
 
-    public <T, E> Object getExtensionOperation(Class<T> aClass,
-                                               Class<E> anExtensionClass,
-                                               String anOperationName) {
+    <T, E> Object getExtensionOperation(Class<T> aClass,
+                                        Class<E> anExtensionClass,
+                                        String anOperationName) {
         Objects.requireNonNull(aClass);
         Objects.requireNonNull(anExtensionClass);
         Objects.requireNonNull(anOperationName);
@@ -70,14 +163,15 @@ public class DynamicClassExtension {
         return operationsMap.get(new OperationKey(aClass, anExtensionClass, anOperationName));
     }
 
-    public <T, E> void removeExtensionOperation(Class<T> aClass,
-                                                Class<E> anExtensionClass,
-                                                String anOperationName) {
+    <T, E> void removeExtensionOperation(Class<T> aClass,
+                                         Class<E> anExtensionClass,
+                                         String anOperationName,
+                                         Object[] anArgs) {
         Objects.requireNonNull(aClass);
         Objects.requireNonNull(anExtensionClass);
         Objects.requireNonNull(anOperationName);
 
-        operationsMap.remove(new OperationKey(aClass, anExtensionClass, anOperationName));
+        operationsMap.remove(new OperationKey(aClass, anExtensionClass, operationName(anOperationName, anArgs)));
     }
 
     /**
@@ -100,6 +194,20 @@ public class DynamicClassExtension {
     }
 
     /**
+     * Finds and returns a shared extension object according to a supplied class. You should use calls of
+     * {@code addExtensionOperation()} to compose dynamic extensions before calling the {@code dynamicExtension} method.
+     * Otherwise, an empty dynamic extension having no operations will be returned.
+     *
+     * @param anObject         object to return an extension object for
+     * @param anExtensionClass class of extension object to be returned
+     * @return an extension object
+     */
+    @SuppressWarnings({"unchecked"})
+    public <T> T sharedExtensionNoCache(Object anObject, Class<T> anExtensionClass) {
+        return sharedInstance().extensionNoCache(anObject, anExtensionClass);
+    }
+
+    /**
      * Finds and returns an extension object according to a supplied class. You should use calls of
      * {@code addExtensionOperation()} to compose dynamic extensions before calling the {@code dynamicExtension} method.
      * Otherwise, an empty dynamic extension having no operations will be returned. It uses cache to avoid redundant
@@ -115,6 +223,20 @@ public class DynamicClassExtension {
         Objects.requireNonNull(anExtensionClass);
 
         return (T) extensionCache.getOrCreate(anObject, () -> extensionNoCache(anObject, anExtensionClass));
+    }
+
+    /**
+     * Finds and returns a shared extension object according to a supplied class. You should use calls of
+     * {@code addExtensionOperation()} to compose dynamic extensions before calling the {@code dynamicExtension} method.
+     * Otherwise, an empty dynamic extension having no operations will be returned. It uses cache to avoid redundant
+     * objects creation.
+     *
+     * @param anObject         object to return an extension object for
+     * @param anExtensionClass class of extension object to be returned
+     * @return an extension object
+     */
+    public static <T> T sharedExtension(Object anObject, Class<T> anExtensionClass) {
+        return sharedInstance().extension(anObject, anExtensionClass);
     }
 
     @SuppressWarnings({"rawtypes", "unchecked"})
@@ -142,8 +264,8 @@ public class DynamicClassExtension {
                     result = ((BiFunction) operation).apply(anObject, args[0]);
                 }
             } else {
-                throw new IllegalArgumentException(MessageFormat.format("No {0} operation for {1}",
-                        method.getName(), anObject));
+                throw new IllegalArgumentException(MessageFormat.format("No \"{0}\" operation for \"{1}\"",
+                         displayOperationName(method.getName(), void.class.equals(method.getReturnType()), args), anObject));
             }
         }
 
@@ -164,6 +286,13 @@ public class DynamicClassExtension {
 
     String operationName(String anOperationName, Object[] anArgs) {
         return anArgs == null || anArgs.length == 0 ? anOperationName : anOperationName + "Bi";
+    }
+
+    String displayOperationName(String anOperationName, boolean isVoid, Object[] anArgs) {
+        return MessageFormat.format("{0} {1}({2})",
+                isVoid ? "void" : "T",
+                anOperationName,
+                anArgs != null && anArgs.length > 0 ? "T" : "");
     }
 
     @SuppressWarnings({"rawtypes"})
@@ -207,6 +336,7 @@ public class DynamicClassExtension {
 
     /**
      * Check if cache is empty
+     *
      * @return true if cache is empty; false otherwise
      */
     boolean cacheIsEmpty() {
@@ -222,10 +352,17 @@ public class DynamicClassExtension {
         return dynamicClassExtension.builder(aExtensionClass);
     }
 
-    public <E> Builder<E> builder(Class<E> aExtensionClass) {
-        return new Builder<>(aExtensionClass, this);
+    public <E> Builder<E> builder(Class<E> anExtensionClass) {
+        Objects.requireNonNull(anExtensionClass, "Extension interface is not specified");
+        if (! anExtensionClass.isInterface())
+            throw new IllegalArgumentException(anExtensionClass.getName() + " is not an interface");
+
+        return new Builder<>(anExtensionClass, this);
     }
 
+    /**
+     * @param <E> an interface to build an extension for
+     */
     public static class Builder<E> {
         private final DynamicClassExtension dynamicClassExtension;
         private final Class<E> extensionClass;
@@ -244,6 +381,11 @@ public class DynamicClassExtension {
 
         public Builder<E> name(String anOperationName) {
             return new Builder<>(extensionClass, anOperationName, dynamicClassExtension);
+        }
+
+        public <T1> Builder<E> removeOp(Class<T1> anObjectClass, Object[] anArgs) {
+            dynamicClassExtension.removeExtensionOperation(anObjectClass, extensionClass, operationName, anArgs);
+            return new Builder<>(extensionClass, operationName, dynamicClassExtension);
         }
 
         public <R, T1> Builder<E> op(Class<T1> anObjectClass, Function<T1, R> anOperation) {
