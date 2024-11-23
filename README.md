@@ -6,7 +6,8 @@ The Java Class Extension library provides an ability to mimic class extensions (
 
 After getting extensions they can be used to perform any extended functionality as easy as:
 ```java
-Item_Shippable itemShippable = ClassExtension.extension(new Book("The Mythical Man-Month"), Item_Shippable.class);
+Book book = new Book("The Mythical Man-Month");
+Item_Shippable itemShippable = ClassExtension.extension(book, Item_Shippable.class);
 itemShippable.ship();
 ```
 Java Class Extension library provides a valuable alternative for class extensions (not supported in Java) with just a little more verbose code and little more complex implementation.
