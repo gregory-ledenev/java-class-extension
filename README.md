@@ -4,19 +4,42 @@ The Java Class Extension library provides a way to mimic class extensions (categ
 ## Introduction
 Consider a scenario where we are building a warehouse application designed to handle the shipping of various items. We have established a hierarchy of classes to represent the goods we have:
 ```java
-class Item {}
-class Book extends Item {}
-class Furniture extends Item {}
-class ElectronicItem extends Item {}
+class Item {…}
+class Book extends Item {…}
+class Furniture extends Item {…}
+class ElectronicItem extends Item {…}
 ```
 To implement shipping logic for each item, one might be tempted to add a `ship()` method directly to each `Item` class. While this is straightforward, it can lead to bloated classes filled with unrelated operations—such as shipping, storing, retrieving from a database, and rendering.
 
-Instead of mixing these responsibilities, it’s better to keep items as primarily data classes and separate domain-specific logic from them. We can create an `Item_Shippable` class that acts as a `Shippable` extension (category) and provides a `ship()` method. This class must implement the `DelegateHolder` interface to allow it to work with items. Then we should subclass `Item_Shippable` and provide class extensions for each particular `Item` classes.
+Instead of mixing these responsibilities, it’s better to keep items as primarily data classes and separate domain-specific logic from them. 
+
+### Shipping Logic - Functional Style
+
+To ship an item, we could define a method that uses a modern switch statement with pattern matching:
+```java
+public ShippingInfo ship(Item item) {
+    return switch (item) {
+        case Book book -> shipBook(book);
+        case Furniture furniture -> shipFurniture(furniture);
+        case ElectronicItem electronicItem -> shipElectronicItem(electronicItem);
+    };
+}
+```
+While this method is simple and direct, it comes with several disadvantages:
+
+1. Breaks OOP Principles: They mimic polymorphism in an outdated style.
+2. Violates SOLID Principles: Adding a new Item class necessitates changes in the shipping logic.
+3. Inconvenient and Error-Prone: Without dedicated ship() methods, shipping logic can become scattered and duplicated across the codebase, making it hard to alter it.
+
+### Shipping Logic - Java Class Extension Library
+
+We can create an `Item_Shippable` class that acts as a `Shippable` extension (category) and provides a `ship()` method. This class must implement the `DelegateHolder` interface to allow it to work with items. Then we should subclass `Item_Shippable` and provide class extensions for each particular `Item` classes.
 ```java
 class Item_Shippable implements ClassExtension.DelegateHolder<Item> {
     public ShippingInfo ship() {
         return …;
     }
+    …
 }
 
 class Book_Shippable extends Item_Shippable{
@@ -25,7 +48,13 @@ class Book_Shippable extends Item_Shippable{
     }
 }
 ```
-The core of the library is the `ClassExtension` class, which offers methods for dynamically finding and creating extension objects as needed. Using `ClassExtension`, shipping an item becomes as simple as calling `ClassExtension.extension(item, Item_Shippable.class).ship()`. Shipping a collection of items is equally straightforward:
+The core of the library is the `ClassExtension` class, which offers methods for dynamically finding and creating extension objects as needed. Using `ClassExtension`, shipping an item becomes as simple as calling:
+
+```java 
+ClassExtension.extension(item, Item_Shippable.class).ship()
+``` 
+
+Shipping a collection of items is equally straightforward:
 ```java
 Item[] items = {
     new Book("The Mythical Man-Month"), 
@@ -37,6 +66,23 @@ for (Item item : items) {
     ClassExtension.extension(item, Item_Shippable.class).ship();
 }
 ```
+It is possible to further simplify things by adding an `extensionFor(Item)` helper method to the `Item_Shippable`:
+```java
+public static class Item_Shippable implements ClassExtension.DelegateHolder<Item> {
+	public static Item_Shippable extensionFor(Item anItem) {
+    	return ClassExtension.extension(anItem, Item_Shippable.class);
+	}
+  ...
+}
+```
+
+With that helper method, shipping become even more simpler and shorter:
+```java
+Item_Shippable.extensionFor(anItem).ship()
+```
+Supporting a new Item class using the Java Class Extension library requires just adding a new Shippable extension with a proper ship() implementation. No need to change any other code. That is it.
+
+Java Class Extension library provides a valuable alternative for class extensions (not supported in Java) with just a little more verbose code and little more complex implementation.
 
 ## Details
 All the extension classes must implement the `DelegateHolder` interface and must end with the name of an extension delimited by underscore e.g. `Book_Shippable` where `Book` is the name of the class and `Shippable` is the name of extension.
