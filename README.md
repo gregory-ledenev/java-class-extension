@@ -1,6 +1,14 @@
 # Java Class Extension Library
-The Java Class Extension library provides a way to mimic class extensions (categories) by finding matching extension objects and using them to perform any extended functionality.
+The Java Class Extension library provides an ability to mimic class extensions (categories) in Java. The library supports the following approaches:
 
+1. **Static:** define and implement extensions as usual Java classes and then utilize the Java Class Extension library to find matching extension classes and create extension objects.
+2. **Dynamic:** utilize the Java Class Extension library to define extensions by composing them as sets of lambda operations and let the library to create extensions dynamically on the fly.
+
+After getting extensions they can be used to perform any extended functionality as easy as:
+```java
+ClassExtension.extension(item, Item_Shippable.class).ship();
+```
+   
 ## Introduction
 Consider a scenario where we are building a warehouse application designed to handle the shipping of various items. We have established a hierarchy of classes to represent the goods we have:
 ```java
@@ -13,7 +21,7 @@ To implement shipping logic for each item, one might be tempted to add a `ship()
 
 Instead of mixing these responsibilities, it’s better to keep items as primarily data classes and separate domain-specific logic from them. 
 
-### Shipping Logic - Functional Style
+### Functional Style
 
 To ship an item, we could define a method that uses a modern switch statement with pattern matching:
 ```java
@@ -31,9 +39,9 @@ While this method is simple and direct, it comes with several disadvantages:
 2. Violates SOLID Principles: Adding a new Item class necessitates changes in the shipping logic.
 3. Inconvenient and Error-Prone: Without dedicated ship() methods, shipping logic can become scattered and duplicated across the codebase, making it hard to alter it.
 
-### Shipping Logic - Java Class Extension Library
+### Static Extensions with Java Class Extension Library
 
-We can create an `Item_Shippable` class that acts as a `Shippable` extension (category) and provides a `ship()` method. This class must implement the `DelegateHolder` interface to allow it to work with items. Then we should subclass `Item_Shippable` and provide class extensions for each particular `Item` classes.
+The core of the library is the `ClassExtension` class, which offers methods for dynamically finding and creating extension objects as needed. We can create an `Item_Shippable` class that acts as a `Shippable` extension (category) and provides a `ship()` method. This class must implement the `DelegateHolder` interface to allow it to work with items. Then we should subclass `Item_Shippable` and provide class extensions for each particular `Item` classes.
 ```java
 class Item_Shippable implements ClassExtension.DelegateHolder<Item> {
     public ShippingInfo ship() {
@@ -48,7 +56,7 @@ class Book_Shippable extends Item_Shippable{
     }
 }
 ```
-The core of the library is the `ClassExtension` class, which offers methods for dynamically finding and creating extension objects as needed. Using `ClassExtension`, shipping an item becomes as simple as calling:
+Using `ClassExtension`, shipping an item becomes as simple as calling:
 
 ```java 
 ClassExtension.extension(item, Item_Shippable.class).ship()
