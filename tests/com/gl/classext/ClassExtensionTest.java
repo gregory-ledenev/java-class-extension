@@ -160,7 +160,7 @@ public class ClassExtensionTest {
             ClassExtension.DelegateHolder extension = ClassExtension.extension(new Book("noname"), ClassExtension.DelegateHolder.class);
             fail("Unexpected extension found: " + extension);
         } catch (Exception ex) {
-            ex.printStackTrace();
+            System.out.println(ex.getMessage());
         }
     }
 
@@ -172,6 +172,29 @@ public class ClassExtensionTest {
         Book book = new Book("");
         String extension = Item_Shippable.extensionFor(book).toString();
         assertEquals(extension, Item_Shippable.extensionFor(book).toString());
+    }
+
+    /**
+     * Test for cached extension
+     */
+    @SuppressWarnings("unchecked")
+    @Test
+    void cacheEntryRemovalTest() {
+        Book book = new Book("");
+        String extension = Item_Shippable.extensionFor(book).toString();
+        assertEquals(extension, Item_Shippable.extensionFor(book).toString());
+        ClassExtension.extensionCache.remove(book);
+        assertNotEquals(extension, Item_Shippable.extensionFor(book).toString());
+    }
+
+    /**
+     * Test for not cached extension
+     */
+    @Test
+    void nonCacheTest() {
+        Book book = new Book("");
+        Item_Shippable extension = ClassExtension.extensionNoCache(book, Item_Shippable.class);
+        assertNotEquals(extension, ClassExtension.extensionNoCache(book, Item_Shippable.class));
     }
 
     /**

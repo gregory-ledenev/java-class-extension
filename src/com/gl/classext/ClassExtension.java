@@ -81,10 +81,6 @@ import java.util.Objects;
  */
 public class ClassExtension {
 
-    @SuppressWarnings("rawtypes")
-    static final ThreadSafeWeakCache extensionCache = new ThreadSafeWeakCache();
-
-
     /**
      * The interface all the class extensions must implement. It defines the 'delegate' property which is used to supply
      * extension objects with values to work with
@@ -127,11 +123,15 @@ public class ClassExtension {
         Objects.requireNonNull(anObject);
         Objects.requireNonNull(anExtensionClass);
 
+        return extension(anObject, extensionName(anExtensionClass), getPackageNames(anExtensionClass, aPackageNames));
+    }
+
+    private static <T extends DelegateHolder> List<String> getPackageNames(Class<T> anExtensionClass, List<String> aPackageNames) {
         List<String> packageNames = new ArrayList<>();
         packageNames.add(anExtensionClass.getPackageName());
         if (aPackageNames != null)
             packageNames.addAll(aPackageNames);
-        return extension(anObject, extensionName(anExtensionClass), packageNames);
+        return packageNames;
     }
 
     /**
@@ -146,7 +146,7 @@ public class ClassExtension {
         Objects.requireNonNull(anObject);
         Objects.requireNonNull(anExtensionClass);
 
-        return extensionNoCache(anObject, extensionName(anExtensionClass), null);
+        return extensionNoCache(anObject, anExtensionClass, null);
     }
 
     /**
@@ -162,11 +162,7 @@ public class ClassExtension {
         Objects.requireNonNull(anObject);
         Objects.requireNonNull(anExtensionClass);
 
-        List<String> packageNames = new ArrayList<>();
-        packageNames.add(anExtensionClass.getPackageName());
-        if (aPackageNames != null)
-            packageNames.addAll(aPackageNames);
-        return extensionNoCache(anObject, extensionName(anExtensionClass), packageNames);
+        return extensionNoCache(anObject, extensionName(anExtensionClass), getPackageNames(anExtensionClass, aPackageNames));
     }
 
     /**
@@ -214,6 +210,9 @@ public class ClassExtension {
     }
 
     static <T> Class<T> extensionClassForObject(Object anObject, String anExtensionName, List<String> aPackageNames) {
+        if (aPackageNames == null)
+            return null;
+
         Class<T> result = null;
         List<String> packageNames = new ArrayList<>(aPackageNames);
         Collections.reverse(packageNames);
@@ -250,6 +249,9 @@ public class ClassExtension {
     }
 
     static String extensionNames(List<String> aPackageNames, String aSimpleClassName, String extensionName) {
+        if (aPackageNames == null)
+            return null;
+
         StringBuilder result = new StringBuilder();
         for (String packageName : aPackageNames) {
             if (result.isEmpty())
@@ -266,6 +268,9 @@ public class ClassExtension {
     }
 
     //region Cache methods
+
+    @SuppressWarnings("rawtypes")
+    static final ThreadSafeWeakCache extensionCache = new ThreadSafeWeakCache();
 
     /**
      * Cleanups cache by removing keys for all already garbage collected values
@@ -295,6 +300,10 @@ public class ClassExtension {
         extensionCache.shutdownCleanup();
     }
 
+    /**
+     * Check if cache is empty
+     * @return true if cache is empty; false otherwise
+     */
     static boolean cacheIsEmpty() {
         return extensionCache.isEmpty();
     }

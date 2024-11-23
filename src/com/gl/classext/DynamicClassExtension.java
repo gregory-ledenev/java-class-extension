@@ -20,9 +20,10 @@ public class DynamicClassExtension {
         Objects.requireNonNull(anOperationName);
         Objects.requireNonNull(anOperation);
 
-        operationsMap.put(new OperationKey(aClass, anExtensionClass, anOperationName), anOperation);
+        operationsMap.put(new OperationKey(aClass, anExtensionClass, operationName(anOperationName, null)), anOperation);
     }
 
+    static final private String[] DUMMY_ARGS = {"true"};
     public <R, T, U, E> void addExtensionOperation(Class<T> aClass,
                                                    Class<E> anExtensionClass,
                                                    String anOperationName,
@@ -32,7 +33,7 @@ public class DynamicClassExtension {
         Objects.requireNonNull(anOperationName);
         Objects.requireNonNull(anOperation);
 
-        operationsMap.put(new OperationKey(aClass, anExtensionClass, anOperationName), anOperation);
+        operationsMap.put(new OperationKey(aClass, anExtensionClass, operationName(anOperationName, DUMMY_ARGS)), anOperation);
     }
 
     public <T, E> void addVoidExtensionOperation(Class<T> aClass,
@@ -44,7 +45,7 @@ public class DynamicClassExtension {
         Objects.requireNonNull(anOperationName);
         Objects.requireNonNull(anOperation);
 
-        operationsMap.put(new OperationKey(aClass, anExtensionClass, anOperationName), anOperation);
+        operationsMap.put(new OperationKey(aClass, anExtensionClass, operationName(anOperationName, null)), anOperation);
     }
 
     public <T, U, E> void addVoidExtensionOperation(Class<T> aClass,
@@ -56,7 +57,7 @@ public class DynamicClassExtension {
         Objects.requireNonNull(anOperationName);
         Objects.requireNonNull(anOperation);
 
-        operationsMap.put(new OperationKey(aClass, anExtensionClass, anOperationName), anOperation);
+        operationsMap.put(new OperationKey(aClass, anExtensionClass, operationName(anOperationName, DUMMY_ARGS)), anOperation);
     }
 
     public <T, E> Object getExtensionOperation(Class<T> aClass,
@@ -82,7 +83,27 @@ public class DynamicClassExtension {
     /**
      * Finds and returns an extension object according to a supplied class. You should use calls of
      * {@code addExtensionOperation()} to compose dynamic extensions before calling the {@code dynamicExtension} method.
-     * Otherwise, a dynamic extension having no operations will be returned.
+     * Otherwise, an empty dynamic extension having no operations will be returned.
+     *
+     * @param anObject         object to return an extension object for
+     * @param anExtensionClass class of extension object to be returned
+     * @return an extension object
+     */
+    @SuppressWarnings({"unchecked"})
+    public <T> T extensionNoCache(Object anObject, Class<T> anExtensionClass) {
+        Objects.requireNonNull(anObject);
+        Objects.requireNonNull(anExtensionClass);
+
+        return (T) Proxy.newProxyInstance(anExtensionClass.getClassLoader(),
+                new Class<?>[]{anExtensionClass},
+                (proxy, method, args) -> performOperation(anObject, anExtensionClass, method, args));
+    }
+
+    /**
+     * Finds and returns an extension object according to a supplied class. You should use calls of
+     * {@code addExtensionOperation()} to compose dynamic extensions before calling the {@code dynamicExtension} method.
+     * Otherwise, an empty dynamic extension having no operations will be returned. It uses cache to avoid redundant
+     * objects creation.
      *
      * @param anObject         object to return an extension object for
      * @param anExtensionClass class of extension object to be returned
@@ -93,9 +114,7 @@ public class DynamicClassExtension {
         Objects.requireNonNull(anObject);
         Objects.requireNonNull(anExtensionClass);
 
-        return (T) Proxy.newProxyInstance(anExtensionClass.getClassLoader(),
-                new Class<?>[]{anExtensionClass},
-                (proxy, method, args) -> performOperation(anObject, anExtensionClass, method, args));
+        return (T) extensionCache.getOrCreate(anObject, () -> extensionNoCache(anObject, anExtensionClass));
     }
 
     @SuppressWarnings({"rawtypes", "unchecked"})
@@ -109,7 +128,7 @@ public class DynamicClassExtension {
         } else if ("toString".equals(method.getName())) {
             return anObject.toString();
         } else {
-            Object operation = findExtensionOperation(anObject, anExtensionClass, method);
+            Object operation = findExtensionOperation(anObject, anExtensionClass, method, args);
             if (operation != null) {
                 if (void.class.equals(method.getReturnType())) {
                     if (args == null || args.length == 0) {
@@ -132,15 +151,19 @@ public class DynamicClassExtension {
     }
 
     @SuppressWarnings({"rawtypes", "unchecked"})
-    <T> Object findExtensionOperation(Object anObject, Class<T> anExtensionClass, Method method) {
+    <T> Object findExtensionOperation(Object anObject, Class<T> anExtensionClass, Method method, Object[] anArgs) {
         Object result;
 
         Class current = anObject.getClass();
         do {
-            result = getExtensionOperation(current, anExtensionClass, method.getName());
+            result = getExtensionOperation(current, anExtensionClass, operationName(method.getName(), anArgs));
             current = current.getSuperclass();
         } while (current != null && result == null);
         return result;
+    }
+
+    String operationName(String anOperationName, Object[] anArgs) {
+        return anArgs == null || anArgs.length == 0 ? anOperationName : anOperationName + "Bi";
     }
 
     @SuppressWarnings({"rawtypes"})
@@ -149,6 +172,47 @@ public class DynamicClassExtension {
 
     private final ConcurrentHashMap<OperationKey, Object> operationsMap = new ConcurrentHashMap<>();
     private static final DynamicClassExtension dynamicClassExtension = new DynamicClassExtension();
+    //region Cache methods
+
+    @SuppressWarnings("rawtypes")
+    final ThreadSafeWeakCache extensionCache = new ThreadSafeWeakCache();
+
+    /**
+     * Cleanups cache by removing keys for all already garbage collected values
+     */
+    public void cacheCleanup() {
+        extensionCache.cleanup();
+    }
+
+    /**
+     * Clears cache
+     */
+    public void cacheClear() {
+        extensionCache.clear();
+    }
+
+    /**
+     * Schedules automatic cache cleanup that should be performed once a minute
+     */
+    public void scheduleCacheCleanup() {
+        extensionCache.scheduleCleanup();
+    }
+
+    /**
+     * Shutdowns automatic cache cleanup
+     */
+    public void shutdownCacheCleanup() {
+        extensionCache.shutdownCleanup();
+    }
+
+    /**
+     * Check if cache is empty
+     * @return true if cache is empty; false otherwise
+     */
+    boolean cacheIsEmpty() {
+        return extensionCache.isEmpty();
+    }
+    //endregion
 
     public static DynamicClassExtension sharedInstance() {
         return dynamicClassExtension;
