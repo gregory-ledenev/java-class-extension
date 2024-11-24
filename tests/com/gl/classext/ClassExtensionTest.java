@@ -49,12 +49,20 @@ record ShippingInfo(String result) {
 }
 
 class Item_Shippable implements ClassExtension.DelegateHolder<Item> {
+    static final StringBuilder LOG = new StringBuilder();
+
     public static Item_Shippable extensionFor(Item anItem) {
         return ClassExtension.extension(anItem, Item_Shippable.class);
     }
 
     public ShippingInfo ship() {
         return new ShippingInfo(getDelegate() + " NOT shipped");
+    }
+
+    public void log() {
+        if (!LOG.isEmpty())
+            LOG.append("\n");
+        LOG.append(delegate.getName()).append(" is about to be shipped");
     }
 
     private Item delegate;
@@ -247,5 +255,28 @@ public class ClassExtensionTest {
         } finally {
             ClassExtension.shutdownCacheCleanup();
         }
+    }
+
+    @Test
+    void performanceTest() {
+        performanceTestStatic();
+    }
+
+    public static void performanceTestStatic() {
+        Item[] items = {
+                new Book("The Mythical Man-Month"),
+                new Furniture("Sofa"),
+                new ElectronicItem("Soundbar"),
+                new AutoPart("Tire"),
+        };
+
+        long startTime = System.currentTimeMillis();
+        for (int i = 0; i < 1000000; i++) {
+            for (Item item : items) {
+                Item_Shippable extension = ClassExtension.extension(item, Item_Shippable.class);
+                extension.log();
+            }
+        }
+        System.out.println("STATIC - Elapsed time: " + ((System.currentTimeMillis()-startTime) / 1000f));
     }
 }

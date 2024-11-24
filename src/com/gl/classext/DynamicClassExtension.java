@@ -38,8 +38,8 @@ import java.util.function.Function;
  * <p>Class {@code DynamicClassExtension} provides a way to mimic class extensions (categories) by composing extensions
  * as a set of lambda operations. To specify an extension:</p>
  *  <ol>
- *      <li>Create a {@code Builder} for an interface you want to compose an extension for</li>
- *      <li>Specify the name of operation using {@code Builder.opName(String)}</li>
+ *      <li>Create a {@code Builder} for an interface you want to compose an extension for by using the DynamicClassExtension.sharedBuilder(...) method</li>
+ *      <li>Specify the name of an operation using {@code Builder.opName(String)}</li>
  *      <li>List all the method implementations per particular classes with lambdas using {@code Builder.op(...)} or
  *      {@code Builder.voidOp(...)}</li>
  *      <li>Repeat 2, 3 for all operations</li>

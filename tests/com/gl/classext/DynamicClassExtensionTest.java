@@ -469,5 +469,29 @@ public class DynamicClassExtensionTest {
             dynamicClassExtension.shutdownCacheCleanup();
         }
     }
+
+    @Test
+    void performanceTest() {
+
+        StringBuilder shippingLog = new StringBuilder();
+
+        DynamicClassExtension dynamicClassExtension = setupDynamicClassExtension(shippingLog);
+        Item[] items = {
+                new Book("The Mythical Man-Month"),
+                new Furniture("Sofa"),
+                new ElectronicItem("Soundbar"),
+                new AutoPart("Tire"),
+        };
+
+        long startTime = System.currentTimeMillis();
+        for (int i = 0; i < 1000000; i++) {
+            for (Item item : items) {
+                Item_Shippable extension = dynamicClassExtension.extension(item, Item_Shippable.class);
+                extension.log();
+            }
+        }
+        System.out.println("DYNAMIC - Elapsed time: " + ((System.currentTimeMillis()-startTime) / 1000f));
+        ClassExtensionTest.performanceTestStatic();
+    }
 }
 
