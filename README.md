@@ -128,7 +128,7 @@ Cashing of extension objects are supported out of the box. Cache utilizes weak r
   ...
  DynamicClassExtension.sharedBuilder(Item_Shippable.class).
       nameOp("ship").
-          op(Item.class, book -> ...).
+          op(Item.class, item -> ...).
           op(Book.class, book -> ...).
           op(Furniture.class, furniture -> ...).
           op(ElectronicItem.class, electronicItem -> ...).
