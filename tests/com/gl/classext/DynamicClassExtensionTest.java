@@ -115,6 +115,8 @@ public class DynamicClassExtensionTest {
                 new AutoPart("Tire"),
         };
 
+        System.out.println(dynamicClassExtension.toString());
+
         StringBuilder shippingInfos = new StringBuilder();
         for (Item item : items) {
             Item_Shippable extension = dynamicClassExtension.extension(item, Item_Shippable.class);
@@ -355,28 +357,35 @@ public class DynamicClassExtensionTest {
     }
 
     private static DynamicClassExtension setupDynamicClassExtension(StringBuilder shippingLog) {
-        return new DynamicClassExtension().builder(Item_Shippable.class).
+        DynamicClassExtension result = new DynamicClassExtension().builder(Item_Shippable.class).
                 opName("ship").
-                op(Item.class, book -> new ShippingInfo(book.getName() + " item NOT shipped")).
-                op(Book.class, book -> new ShippingInfo(book.getName() + " book shipped")).
-                op(Furniture.class, furniture -> new ShippingInfo(furniture.getName() + " furniture shipped")).
-                op(ElectronicItem.class, electronicItem -> new ShippingInfo(electronicItem.getName() + " electronic item shipped")).
+                    op(Item.class, book -> new ShippingInfo(book.getName() + " item NOT shipped")).
+                    op(Book.class, book -> new ShippingInfo(book.getName() + " book shipped")).
+                    op(Furniture.class, furniture -> new ShippingInfo(furniture.getName() + " furniture shipped")).
+                    op(ElectronicItem.class, electronicItem -> new ShippingInfo(electronicItem.getName() + " electronic item shipped")).
                 opName("log").
-                voidOp(Item.class, (Item item, Boolean isVerbose) -> {
-                    if (!shippingLog.isEmpty())
-                        shippingLog.append("\n");
-                    shippingLog.append(item.getName()).append(" is about to be shipped in 1 hour");
-                }).
-                voidOp(Item.class, item -> {
-                    if (!shippingLog.isEmpty())
-                        shippingLog.append("\n");
-                    shippingLog.append(item.getName()).append(" is about to be shipped");
-                }).
+                    voidOp(Item.class, (Item item, Boolean isVerbose) -> {
+                        if (!shippingLog.isEmpty())
+                            shippingLog.append("\n");
+                        shippingLog.append(item.getName()).append(" is about to be shipped in 1 hour");
+                    }).
+                    voidOp(Item.class, item -> {
+                        if (!shippingLog.isEmpty())
+                            shippingLog.append("\n");
+                        shippingLog.append(item.getName()).append(" is about to be shipped");
+                    }).
                 opName("track").
-                op(Item.class, item -> new TrackingInfo(item.getName() + " item on its way")).
-                op(Item.class, (Item item, Boolean isVerbose) -> new TrackingInfo(item.getName() +
-                        " item on its way" + (isVerbose ? "Status: SHIPPED" : ""))).
+                    op(Item.class, item -> new TrackingInfo(item.getName() + " item on its way")).
+                    op(Item.class, (Item item, Boolean isVerbose) -> new TrackingInfo(item.getName() +
+                            " item on its way" + (isVerbose ? "Status: SHIPPED" : ""))).
                 build();
+
+        result = result.builder(ClassExtension.DelegateHolder.class).
+                opName("getDelegate").
+                    op(String.class, item -> null).
+                build();
+
+        return result;
     }
 
     /**

@@ -27,12 +27,15 @@ package com.gl.classext;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.text.MessageFormat;
+import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 
 /**
  * <p>Class {@code DynamicClassExtension} provides a way to mimic class extensions (categories) by composing extensions
@@ -95,6 +98,9 @@ import java.util.function.Function;
  * @version 0.9.2
  */
 public class DynamicClassExtension {
+
+    static final String SUFFIX_BI = "Bi";
+
     <R, T, E> void addExtensionOperation(Class<T> aClass,
                                          Class<E> anExtensionClass,
                                          String anOperationName,
@@ -286,8 +292,9 @@ public class DynamicClassExtension {
         return result;
     }
 
+
     String operationName(String anOperationName, Object[] anArgs) {
-        return anArgs == null || anArgs.length == 0 ? anOperationName : anOperationName + "Bi";
+        return anArgs == null || anArgs.length == 0 ? anOperationName : anOperationName + SUFFIX_BI;
     }
 
     String displayOperationName(String anOperationName, boolean isVoid, Object[] anArgs) {
@@ -298,11 +305,60 @@ public class DynamicClassExtension {
     }
 
     @SuppressWarnings({"rawtypes"})
-    record OperationKey(Class clazz, Class extensionClass, String operationName) {
+    record OperationKey(Class objectClass, Class extensionClass, String operationName) implements Comparable<OperationKey> {
+        @Override
+        public int compareTo(OperationKey o) {
+            return objectClass.getName().compareTo(o.objectClass.getName());
+        }
+
+        public String simpleOperationName() {
+            return operationName.endsWith(SUFFIX_BI) ?
+                    operationName.substring(0, operationName.length() - SUFFIX_BI.length()) :
+                    operationName;
+        }
+    }
+
+    @SuppressWarnings({"rawtypes"})
+    @Override
+    public String toString() {
+        StringBuilder result = new StringBuilder();
+
+        Map<Class, List<OperationKey>> byExtensionClass = operationsMap.keySet().stream().
+                collect(Collectors.groupingBy(OperationKey::extensionClass));
+        byExtensionClass.keySet().stream().
+                sorted((o1, o2) -> o1.getName().compareTo(o2.getName())).
+                forEach(aClass -> {
+            result.append(aClass).append(" {\n");
+            Map<String, List<OperationKey>> byOperation = byExtensionClass.get(aClass).stream().
+                    collect(Collectors.groupingBy(OperationKey::simpleOperationName));
+
+            byOperation.keySet().stream().
+                    sorted().
+                    forEach(anOperation -> {
+                result.append("    ").append(anOperation).append(" {\n");
+                byOperation.get(anOperation).stream().sorted().forEach(anOperationKey -> {
+                    result.append("    ").append("    ").append(anOperationKey.objectClass.getName()).append(".class -> ");
+                    Object lambda = operationsMap.get(anOperationKey);
+                    if (lambda instanceof Function)
+                        result.append(MessageFormat.format("T {0}()\n", anOperation));
+                    else if (lambda instanceof BiFunction)
+                        result.append(MessageFormat.format("T {0}(T)\n", anOperation));
+                    else if (lambda instanceof Consumer)
+                        result.append(MessageFormat.format("void {0}()\n", anOperation));
+                    else if (lambda instanceof BiConsumer)
+                        result.append(MessageFormat.format("void {0}(T)\n", anOperation));
+                });
+                result.append("    ").append("}\n");
+            });
+            result.append("}\n");
+        });
+
+        return result.toString();
     }
 
     private final ConcurrentHashMap<OperationKey, Object> operationsMap = new ConcurrentHashMap<>();
     private static final DynamicClassExtension dynamicClassExtension = new DynamicClassExtension();
+
     //region Cache methods
 
     @SuppressWarnings("rawtypes")
