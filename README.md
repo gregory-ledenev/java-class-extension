@@ -138,7 +138,8 @@ Cashing of extension objects are supported out of the box. Cache utilizes weak r
 Finding an extension and calling its methods is simple and straightforward:
 ```java
 Book book = new Book("The Mythical Man-Month");
-Item_Shippable itemShippable = DynamicClassExtension.sharedExtension(book, Item_Shippable.class);
+Item_Shippable itemShippable = DynamicClassExtension.sharedExtension(book,
+	Item_Shippable.class);
 itemShippable.log(true);
 itemShippable.ship();
 ```
