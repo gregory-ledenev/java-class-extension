@@ -106,7 +106,7 @@ Cashing of extension objects are supported out of the box. Cache utilizes weak r
 ### Dynamic Extensions with Java Class Extension Library
  Class `DynamicClassExtension` provides a way to mimic class extensions (categories) by composing extensions as a set of lambda operations. To specify an extension:
   
-1. Create a `Builder` for an interface you want to compose an extension by using the `DynamicClassExtension.sharedBuilder(...)` method
+1. Create a `Builder` for an interface you want to compose an extension for by using the `DynamicClassExtension.sharedBuilder(...)` method
 2. Specify the name of an operation using `Builder.opName(String)`
 3. List all the method implementations per particular classes with lambdas using `Builder.op(...)` or `Builder.voidOp(...)`
 5. Repeat 2, 3 for all operations
