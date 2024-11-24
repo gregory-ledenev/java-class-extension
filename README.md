@@ -4,6 +4,8 @@ The Java Class Extension library provides an ability to mimic class extensions (
 1. **Static:** define and implement extensions as usual Java classes and then utilize the Java Class Extension library to find matching extension classes and create extension objects.
 2. **Dynamic:** utilize the Java Class Extension library to define extensions by composing them as sets of lambda operations and let the library to create extensions dynamically on the fly.
 
+Both approaches offer comparable performance, so the choice between them ultimately depends on personal preferences, style, habits, and specific requirements. 
+
 After getting extensions they can be used to perform any extended functionality as easy as:
 ```java
 Book book = new Book("The Mythical Man-Month");
