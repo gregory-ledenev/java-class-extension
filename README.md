@@ -168,7 +168,7 @@ For the most of the cases a shared instance of `DynamicClassExtension` should be
 Cashing of extension objects are supported out of the box. Cache utilizes weak references to release extension objects that are not in use. Though, to perform full cleanup either the `cacheCleanup()` should be used or automatic cleanup can be initiated via the `scheduleCacheCleanup()`. If automatic cache cleanup is used - it can be stopped by calling the `shutdownCacheCleanup()`.
 
 The following are limitations of `DynamicClassExtension`:
-1. Overloaded operations are not supported. So for example, it is not possible to define both `log(boolean)` and `log(String)`
+1. Overloaded operations are not supported. So for example, it is not possible to define both `log(boolean)` and `log(String)` operations
 2. Operations having more than one parameter are not supported.
 
 ## Adding to Your Build 
