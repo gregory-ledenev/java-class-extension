@@ -170,7 +170,7 @@ public class DynamicClassExtension {
         throw new IllegalArgumentException("Duplicate operation: " + anOperationName);
     }
 
-    static final private String[] DUMMY_ARGS = {"true"};
+    static final private Class<?>[] SINGLE_PARAMETERS = {Object.class};
 
     <R, T, U, E> void addExtensionOperation(Class<T> aClass,
                                             Class<E> anExtensionClass,
@@ -178,9 +178,9 @@ public class DynamicClassExtension {
                                             BiFunctionPerformer<T, U, R> anOperation) {
         checkAddOperationArguments(aClass, anExtensionClass, anOperationName, anOperation);
 
-        OperationKey key = new OperationKey(aClass, anExtensionClass, operationName(anOperationName, DUMMY_ARGS));
+        OperationKey key = new OperationKey(aClass, anExtensionClass, operationName(anOperationName, SINGLE_PARAMETERS));
         if (operationsMap.containsKey(key))
-            duplicateOperationError(displayOperationName(anOperationName, false, DUMMY_ARGS));
+            duplicateOperationError(displayOperationName(anOperationName, false, SINGLE_PARAMETERS));
         operationsMap.put(key, anOperation);
     }
 
@@ -202,9 +202,9 @@ public class DynamicClassExtension {
                                              BiConsumerPerformer<T, U> anOperation) {
         checkAddOperationArguments(aClass, anExtensionClass, anOperationName, anOperation);
 
-        OperationKey key = new OperationKey(aClass, anExtensionClass, operationName(anOperationName, DUMMY_ARGS));
+        OperationKey key = new OperationKey(aClass, anExtensionClass, operationName(anOperationName, SINGLE_PARAMETERS));
         if (operationsMap.containsKey(key))
-            duplicateOperationError(displayOperationName(anOperationName, true, DUMMY_ARGS));
+            duplicateOperationError(displayOperationName(anOperationName, true, SINGLE_PARAMETERS));
         operationsMap.put(key, anOperation);
     }
 
@@ -221,12 +221,12 @@ public class DynamicClassExtension {
     <T, E> void removeExtensionOperation(Class<T> aClass,
                                          Class<E> anExtensionClass,
                                          String anOperationName,
-                                         Object[] anArgs) {
+                                         Class<?>[] aParameterTypes) {
         Objects.requireNonNull(aClass);
         Objects.requireNonNull(anExtensionClass);
         Objects.requireNonNull(anOperationName);
 
-        operationsMap.remove(new OperationKey(aClass, anExtensionClass, operationName(anOperationName, anArgs)));
+        operationsMap.remove(new OperationKey(aClass, anExtensionClass, operationName(anOperationName, aParameterTypes)));
     }
 
     /**
@@ -326,15 +326,26 @@ public class DynamicClassExtension {
 
         Class current = anObject.getClass();
         do {
-            result = getExtensionOperation(current, anExtensionClass, operationName(method.getName(), anArgs));
+            result = getExtensionOperation(current, anExtensionClass, operationName(method.getName(), parameterTypes(anArgs)));
             current = current.getSuperclass();
         } while (current != null && result == null);
         return result;
     }
 
+    private Class<?>[] parameterTypes(Object[] anArgs) {
+        if (anArgs == null)
+            return null;
 
-    String operationName(String anOperationName, Object[] anArgs) {
-        return anArgs == null || anArgs.length == 0 ? anOperationName : anOperationName + SUFFIX_BI;
+        Class<?>[] result = new Class<?>[anArgs.length];
+        for (int i = 0; i < anArgs.length; i++) {
+            result[i] = anArgs[i] != null ? anArgs[i].getClass() : Object.class;
+        }
+        return result;
+    }
+
+
+    String operationName(String anOperationName, Class<?>[] aParameterTypes) {
+        return aParameterTypes == null || aParameterTypes.length == 0 ? anOperationName : anOperationName + SUFFIX_BI;
     }
 
     String displayOperationName(String anOperationName, boolean isVoid, Object[] anArgs) {
@@ -356,6 +367,10 @@ public class DynamicClassExtension {
                     operationName.substring(0, operationName.length() - SUFFIX_BI.length()) :
                     operationName;
         }
+
+        public String objectClassName() {
+            return objectClass.getName();
+        }
     }
 
     @Override
@@ -366,7 +381,7 @@ public class DynamicClassExtension {
         operationsMap.keySet().stream().
                 collect(Collectors.groupingBy(OperationKey::extensionClass,
                         Collectors.groupingBy(OperationKey::simpleOperationName))).
-                entrySet().stream().sorted(Map.Entry.comparingByKey((c1, c2) -> c1.getName().compareTo(c2.getName()))).
+                entrySet().stream().sorted(Map.Entry.comparingByKey(Comparator.comparing(Class::getName))).
                 forEach(anEntryByClass -> {
                     result.append(anEntryByClass.getKey()).append(" {\n");
 
@@ -377,11 +392,13 @@ public class DynamicClassExtension {
                                 result.append("    ").append(anEntryByOperationName.getKey()).append(" {\n");
 
                                 // circle through operation keys
-                                anEntryByOperationName.getValue().stream().sorted(Comparator.comparing(OperationKey::operationName)).
+                                anEntryByOperationName.getValue().stream().sorted(
+                                                 Comparator.comparing(OperationKey::objectClassName).
+                                                        thenComparing(OperationKey::operationName)).
                                         forEach(anOperationKey -> {
 
                                             result.append("        ").
-                                                    append(anOperationKey.objectClass.getName()).append(".class -> ").
+                                                    append(anOperationKey.objectClass.getName()).append(" -> ").
                                                     append(operationKeyToString(anOperationKey));
                                         });
                                 result.append("    }\n");
@@ -506,12 +523,12 @@ public class DynamicClassExtension {
         /**
          * Removes an operation
          * @param anObjectClass object class
-         * @param aParameters arguments. Pass {@code null} or an empty array to define parameterless operation; otherwise pass
+         * @param aParameterTypes arguments. Pass {@code null} or an empty array to define parameterless operation; otherwise pass
          *               an array of parameter types
          * @return a copy of this {@code Builder}
          */
-        public <T1> Builder<E> removeOp(Class<T1> anObjectClass, Object[] aParameters) {
-            dynamicClassExtension.removeExtensionOperation(anObjectClass, extensionClass, operationName, aParameters);
+        public <T1> Builder<E> removeOp(Class<T1> anObjectClass, Class<?>[] aParameterTypes) {
+            dynamicClassExtension.removeExtensionOperation(anObjectClass, extensionClass, operationName, aParameterTypes);
             return new Builder<>(extensionClass, operationName, dynamicClassExtension);
         }
 

@@ -154,23 +154,23 @@ public class DynamicClassExtensionTest {
         assertEquals("""
                      interface com.gl.classext.ClassExtension$DelegateHolder {
                          getDelegate {
-                             java.lang.String.class -> T getDelegate()
+                             java.lang.String -> T getDelegate()
                          }
                      }
                      interface com.gl.classext.DynamicClassExtensionTest$Item_Shippable {
                          log {
-                             com.gl.classext.DynamicClassExtensionTest$Item.class -> void log()
-                             com.gl.classext.DynamicClassExtensionTest$Item.class -> void log(T)
+                             com.gl.classext.DynamicClassExtensionTest$Item -> void log()
+                             com.gl.classext.DynamicClassExtensionTest$Item -> void log(T)
                          }
                          ship {
-                             com.gl.classext.DynamicClassExtensionTest$ElectronicItem.class -> T ship()
-                             com.gl.classext.DynamicClassExtensionTest$Furniture.class -> T ship()
-                             com.gl.classext.DynamicClassExtensionTest$Item.class -> T ship()
-                             com.gl.classext.DynamicClassExtensionTest$Book.class -> T ship()
+                             com.gl.classext.DynamicClassExtensionTest$Book -> T ship()
+                             com.gl.classext.DynamicClassExtensionTest$ElectronicItem -> T ship()
+                             com.gl.classext.DynamicClassExtensionTest$Furniture -> T ship()
+                             com.gl.classext.DynamicClassExtensionTest$Item -> T ship()
                          }
                          track {
-                             com.gl.classext.DynamicClassExtensionTest$Item.class -> T track()
-                             com.gl.classext.DynamicClassExtensionTest$Item.class -> T track(T)
+                             com.gl.classext.DynamicClassExtensionTest$Item -> T track()
+                             com.gl.classext.DynamicClassExtensionTest$Item -> T track(T)
                          }
                      }
                      """, dynamicClassExtension.toString());
@@ -205,7 +205,7 @@ public class DynamicClassExtensionTest {
         shippingLog.setLength(0);
         dynamicClassExtension.builder(Item_Shippable.class).
                 opName("log").
-                removeOp(Item.class, new Boolean[]{true});
+                removeOp(Item.class, new Class<?>[]{Boolean.class});
         for (Item item : items) {
             Item_Shippable extension = dynamicClassExtension.extension(item, Item_Shippable.class);
             extension.log();
