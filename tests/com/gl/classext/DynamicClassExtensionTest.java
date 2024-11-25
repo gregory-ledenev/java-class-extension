@@ -3,6 +3,8 @@ package com.gl.classext;
 
 import org.junit.jupiter.api.Test;
 
+import java.text.MessageFormat;
+
 import static org.junit.jupiter.api.Assertions.*;
 
 public class DynamicClassExtensionTest {
@@ -19,7 +21,7 @@ public class DynamicClassExtensionTest {
 
         @Override
         public String toString() {
-            return getName();
+            return MessageFormat.format("{0}[\"{1}\"]", getClass().getSimpleName(), getName());
         }
 
         public String getName() {
@@ -63,6 +65,9 @@ public class DynamicClassExtensionTest {
         TrackingInfo track();
         void log(boolean isVerbose);
         void log();
+
+        @OptionalMethod
+        float calculateShippingCost();
     }
 
 
@@ -177,6 +182,20 @@ public class DynamicClassExtensionTest {
     }
 
     @Test
+    void missingOperationTest() {
+        StringBuilder shippingLog = new StringBuilder();
+
+        DynamicClassExtension dynamicClassExtension = setupDynamicClassExtension(shippingLog);
+        try {
+            Item_Shippable extension = dynamicClassExtension.extension(new Book("The Mythical Man-Month"), Item_Shippable.class);
+            extension.calculateShippingCost();
+            fail("Unexpectedly succeeded call: float calculateShippingCost()");
+        } catch (Exception ex) {
+            System.out.println(ex.getMessage());
+        }
+    }
+
+    @Test
     void removeOperationTest() {
 
         StringBuilder shippingLog = new StringBuilder();
@@ -223,7 +242,7 @@ public class DynamicClassExtensionTest {
                 Item_Shippable extension = dynamicClassExtension.extension(item, Item_Shippable.class);
                 extension.log();
             }
-            fail("Unexpectedly utilised missing log()");
+            fail("Unexpectedly succeeded call: log()");
         } catch (Exception ex) {
             System.out.println(ex.getMessage());
         }
@@ -530,6 +549,30 @@ public class DynamicClassExtensionTest {
         }
         System.out.println("DYNAMIC - Elapsed time: " + ((System.currentTimeMillis()-startTime) / 1000f));
         ClassExtensionTest.performanceTestStatic();
+    }
+
+    @Test
+    void checkAllOperationsImplementedTest() {
+        StringBuilder shippingLog = new StringBuilder();
+        DynamicClassExtension dynamicClassExtension = setupDynamicClassExtension(shippingLog);
+
+        try {
+            dynamicClassExtension.checkValid(new ElectronicItem("Soundbar"), Item_Shippable.class);
+            fail("Unexpectedly valid extension: " + Item_Shippable.class.getName());
+        } catch (Exception ex) {
+            System.out.println(ex.getMessage());
+        }
+    }
+
+    @Test
+    void checkOperationsImplementedTest() {
+        StringBuilder shippingLog = new StringBuilder();
+        DynamicClassExtension dynamicClassExtension = setupDynamicClassExtension(shippingLog);
+
+        ElectronicItem item = new ElectronicItem("Soundbar");
+        assertFalse(dynamicClassExtension.isPresent(item, Item_Shippable.class, "calculateShippingCost", null));
+        assertTrue(dynamicClassExtension.isPresent(item, Item_Shippable.class, "log", new Class<?>[]{boolean.class}));
+        assertTrue(dynamicClassExtension.isPresent(item, Item_Shippable.class, "log", null));
     }
 }
 

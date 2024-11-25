@@ -98,7 +98,7 @@ import java.util.stream.Collectors;
 public class DynamicClassExtension {
 
     @FunctionalInterface
-    public static interface Performer<R> {
+    public interface Performer<R> {
         R perform(Object[] anArgs);
     }
 
@@ -130,7 +130,7 @@ public class DynamicClassExtension {
     public interface FunctionPerformer<T, R> extends Performer<R>, Function<T, R> {
         @Override
         default R perform(Object[] anArgs) {
-            return (R) apply(anArgs != null && anArgs.length > 0 ? (T) anArgs[0] : null);
+            return apply(anArgs != null && anArgs.length > 0 ? (T) anArgs[0] : null);
         }
     }
 
@@ -139,7 +139,7 @@ public class DynamicClassExtension {
     public interface BiFunctionPerformer<T, R, U> extends Performer<R>, BiFunction<T, U, R> {
         @Override
         default R perform(Object[] anArgs) {
-            return (R) ((anArgs == null) ?
+            return ((anArgs == null) ?
                     apply(null, null) :
                     apply(anArgs.length > 0 ? (T) anArgs[0] : null, anArgs.length > 1 ? (U) anArgs[1] : null));
         }
@@ -159,7 +159,7 @@ public class DynamicClassExtension {
         operationsMap.put(key, anOperation);
     }
 
-    private static <R, T, E> void checkAddOperationArguments(Class<T> aClass, Class<E> anExtensionClass, String anOperationName, Object anOperation) {
+    private static <T, E> void checkAddOperationArguments(Class<T> aClass, Class<E> anExtensionClass, String anOperationName, Object anOperation) {
         Objects.requireNonNull(aClass, "Object class is not specified");
         Objects.requireNonNull(anExtensionClass, "Extension interface is not specified");
         Objects.requireNonNull(anOperationName, "Operation name is not specified");
@@ -295,7 +295,7 @@ public class DynamicClassExtension {
 
     @SuppressWarnings({"rawtypes"})
     <T> Object performOperation(Object anObject, Class<T> anExtensionClass, Method method, Object[] args) {
-        Object result = null;
+        Object result;
 
         if ("equals".equals(method.getName())) {
             result = anObject.equals(args[0]);
@@ -318,6 +318,53 @@ public class DynamicClassExtension {
         }
 
         return result;
+    }
+
+    /**
+     * Checks if there is a valid extension defined for a passed object. An extension is considered valid if there are
+     * corresponding operations registered for all its methods
+     *
+     * @param anObject         object to check an extension for
+     * @param anExtensionClass class of extension
+     * @throws IllegalArgumentException if an extension is invalid
+     */
+    @SuppressWarnings({"rawtypes"})
+    public <T> void checkValid(Object anObject, Class<T> anExtensionClass) {
+        Objects.requireNonNull(anObject);
+        Objects.requireNonNull(anExtensionClass);
+
+        for (Method method : anExtensionClass.getMethods()) {
+            if (method.isAnnotationPresent(OptionalMethod.class))
+                continue;
+            Performer operation = (Performer) findExtensionOperation(anObject, anExtensionClass, method, method.getParameterTypes());
+            if (operation == null)
+                throw new IllegalArgumentException(MessageFormat.format("No \"{0}\" operation for {1} in \"{2}\" extension",
+                        displayOperationName(method.getName(), void.class.equals(method.getReturnType()), method.getParameterTypes()),
+                        anObject,
+                        anExtensionClass.getName()));
+        }
+    }
+
+    /**
+     * Checks if an operation is present in an extension for a passed object.
+     *
+     * @param anObject         object to check an extension for
+     * @param anExtensionClass class of extension
+     * @param anOperation      operation to check
+     * @param aParameterTypes  parameter types of an operation to check
+     * @throws IllegalArgumentException if an extension is invalid
+     */
+    public boolean isPresent(Object anObject, Class<?> anExtensionClass, String anOperation, Class<?>[] aParameterTypes) {
+        Objects.requireNonNull(anOperation);
+        Objects.requireNonNull(anObject);
+        Objects.requireNonNull(anExtensionClass);
+
+        try {
+            Method method = anExtensionClass.getMethod(anOperation, aParameterTypes);
+            return findExtensionOperation(anObject, anExtensionClass, method, method.getParameterTypes()) != null;
+        } catch (NoSuchMethodException aE) {
+            return false;
+        }
     }
 
     @SuppressWarnings({"rawtypes", "unchecked"})
@@ -395,12 +442,9 @@ public class DynamicClassExtension {
                                 anEntryByOperationName.getValue().stream().sorted(
                                                  Comparator.comparing(OperationKey::objectClassName).
                                                         thenComparing(OperationKey::operationName)).
-                                        forEach(anOperationKey -> {
-
-                                            result.append("        ").
-                                                    append(anOperationKey.objectClass.getName()).append(" -> ").
-                                                    append(operationKeyToString(anOperationKey));
-                                        });
+                                        forEach(anOperationKey -> result.append("        ").
+                                                append(anOperationKey.objectClass.getName()).append(" -> ").
+                                                append(operationKeyToString(anOperationKey)));
                                 result.append("    }\n");
                             });
                     result.append("}\n");
@@ -585,3 +629,4 @@ public class DynamicClassExtension {
         }
     }
 }
+
