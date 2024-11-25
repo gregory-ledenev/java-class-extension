@@ -27,10 +27,7 @@ package com.gl.classext;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.text.MessageFormat;
-import java.util.Comparator;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
@@ -100,12 +97,60 @@ import java.util.stream.Collectors;
  */
 public class DynamicClassExtension {
 
+    @FunctionalInterface
+    public static interface Performer<R> {
+        R perform(Object[] anArgs);
+    }
+
+    @FunctionalInterface
+    @SuppressWarnings({"unchecked"})
+    public interface ConsumerPerformer<T> extends Performer<Void>, Consumer<T> {
+        @Override
+        default Void perform(Object[] anArgs) {
+            accept(anArgs != null && anArgs.length > 0 ? (T) anArgs[0] : null);
+            return null;
+        }
+    }
+
+    @FunctionalInterface
+    @SuppressWarnings({"unchecked"})
+    public interface BiConsumerPerformer<T, U> extends Performer<Void>, BiConsumer<T, U> {
+        @Override
+        default Void perform(Object[] anArgs) {
+            if (anArgs == null)
+                accept(null, null);
+            else
+                accept(anArgs.length > 0 ? (T) anArgs[0] : null, anArgs.length > 1 ? (U) anArgs[1] : null);
+            return null;
+        }
+    }
+
+    @FunctionalInterface
+    @SuppressWarnings({"unchecked"})
+    public interface FunctionPerformer<T, R> extends Performer<R>, Function<T, R> {
+        @Override
+        default R perform(Object[] anArgs) {
+            return (R) apply(anArgs != null && anArgs.length > 0 ? (T) anArgs[0] : null);
+        }
+    }
+
+    @FunctionalInterface
+    @SuppressWarnings({"unchecked"})
+    public interface BiFunctionPerformer<T, R, U> extends Performer<R>, BiFunction<T, U, R> {
+        @Override
+        default R perform(Object[] anArgs) {
+            return (R) ((anArgs == null) ?
+                    apply(null, null) :
+                    apply(anArgs.length > 0 ? (T) anArgs[0] : null, anArgs.length > 1 ? (U) anArgs[1] : null));
+        }
+    }
+
     static final String SUFFIX_BI = "Bi";
 
     <R, T, E> void addExtensionOperation(Class<T> aClass,
                                          Class<E> anExtensionClass,
                                          String anOperationName,
-                                         Function<T, R> anOperation) {
+                                         FunctionPerformer<T, R> anOperation) {
         checkAddOperationArguments(aClass, anExtensionClass, anOperationName, anOperation);
 
         OperationKey key = new OperationKey(aClass, anExtensionClass, operationName(anOperationName, null));
@@ -130,7 +175,7 @@ public class DynamicClassExtension {
     <R, T, U, E> void addExtensionOperation(Class<T> aClass,
                                             Class<E> anExtensionClass,
                                             String anOperationName,
-                                            BiFunction<T, U, R> anOperation) {
+                                            BiFunctionPerformer<T, U, R> anOperation) {
         checkAddOperationArguments(aClass, anExtensionClass, anOperationName, anOperation);
 
         OperationKey key = new OperationKey(aClass, anExtensionClass, operationName(anOperationName, DUMMY_ARGS));
@@ -142,7 +187,7 @@ public class DynamicClassExtension {
     <T, E> void addVoidExtensionOperation(Class<T> aClass,
                                           Class<E> anExtensionClass,
                                           String anOperationName,
-                                          Consumer<T> anOperation) {
+                                          ConsumerPerformer<T> anOperation) {
         checkAddOperationArguments(aClass, anExtensionClass, anOperationName, anOperation);
 
         OperationKey key = new OperationKey(aClass, anExtensionClass, operationName(anOperationName, null));
@@ -154,7 +199,7 @@ public class DynamicClassExtension {
     <T, U, E> void addVoidExtensionOperation(Class<T> aClass,
                                              Class<E> anExtensionClass,
                                              String anOperationName,
-                                             BiConsumer<T, U> anOperation) {
+                                             BiConsumerPerformer<T, U> anOperation) {
         checkAddOperationArguments(aClass, anExtensionClass, anOperationName, anOperation);
 
         OperationKey key = new OperationKey(aClass, anExtensionClass, operationName(anOperationName, DUMMY_ARGS));
@@ -248,7 +293,7 @@ public class DynamicClassExtension {
         return sharedInstance().extension(anObject, anExtensionClass);
     }
 
-    @SuppressWarnings({"rawtypes", "unchecked"})
+    @SuppressWarnings({"rawtypes"})
     <T> Object performOperation(Object anObject, Class<T> anExtensionClass, Method method, Object[] args) {
         Object result = null;
 
@@ -259,19 +304,13 @@ public class DynamicClassExtension {
         } else if ("toString".equals(method.getName())) {
             return anObject.toString();
         } else {
-            Object operation = findExtensionOperation(anObject, anExtensionClass, method, args);
+            Performer operation = (Performer) findExtensionOperation(anObject, anExtensionClass, method, args);
             if (operation != null) {
-                if (void.class.equals(method.getReturnType())) {
-                    if (args == null || args.length == 0) {
-                        ((Consumer) operation).accept(anObject);
-                    } else if (args.length == 1) {
-                        ((BiConsumer) operation).accept(anObject, args[0]);
-                    }
-                } else if (args == null || args.length == 0) {
-                    result = ((Function) operation).apply(anObject);
-                } else if (args.length == 1) {
-                    result = ((BiFunction) operation).apply(anObject, args[0]);
-                }
+                List<Object> arguments = new ArrayList<>();
+                arguments.add(anObject);
+                if (args != null)
+                    arguments.addAll(Arrays.asList(args));
+                result = operation.perform(arguments.toArray());
             } else {
                 throw new IllegalArgumentException(MessageFormat.format("No \"{0}\" operation for \"{1}\"",
                          displayOperationName(method.getName(), void.class.equals(method.getReturnType()), args), anObject));
@@ -319,44 +358,55 @@ public class DynamicClassExtension {
         }
     }
 
-    @SuppressWarnings({"rawtypes"})
     @Override
     public String toString() {
         StringBuilder result = new StringBuilder();
 
-        Map<Class, Map<String, List<OperationKey>>> groupedOperationKeys = operationsMap.keySet().stream().
-                collect(Collectors.groupingBy(OperationKey::extensionClass,
-                        Collectors.groupingBy(OperationKey::simpleOperationName)));
-
         // circle through extension classes
-        groupedOperationKeys.keySet().stream().sorted(Comparator.comparing(Class::getName)).forEach(aClass -> {
-            result.append(aClass).append(" {\n");
+        operationsMap.keySet().stream().
+                collect(Collectors.groupingBy(OperationKey::extensionClass,
+                        Collectors.groupingBy(OperationKey::simpleOperationName))).
+                entrySet().stream().sorted(Map.Entry.comparingByKey((c1, c2) -> c1.getName().compareTo(c2.getName()))).
+                forEach(anEntryByClass -> {
+                    result.append(anEntryByClass.getKey()).append(" {\n");
 
-            // circle through extension operation names
-            groupedOperationKeys.get(aClass).keySet().stream().sorted().forEach(anOperationName -> {
+                    // circle through extension operation names
+                    anEntryByClass.getValue().entrySet().stream().sorted(Map.Entry.comparingByKey()).
+                            forEach(anEntryByOperationName -> {
 
-                result.append("    ").append(anOperationName).append(" {\n");
+                                result.append("    ").append(anEntryByOperationName.getKey()).append(" {\n");
 
-                // circle through operation keys
-                groupedOperationKeys.get(aClass).get(anOperationName).stream().sorted().forEach(anOperationKey -> {
+                                // circle through operation keys
+                                anEntryByOperationName.getValue().stream().sorted(Comparator.comparing(OperationKey::operationName)).
+                                        forEach(anOperationKey -> {
 
-                    result.append("    ").append("    ").append(anOperationKey.objectClass.getName()).append(".class -> ");
-                    Object lambda = operationsMap.get(anOperationKey);
-                    if (lambda instanceof Function)
-                        result.append(MessageFormat.format("T {0}()\n", anOperationName));
-                    else if (lambda instanceof BiFunction)
-                        result.append(MessageFormat.format("T {0}(T)\n", anOperationName));
-                    else if (lambda instanceof Consumer)
-                        result.append(MessageFormat.format("void {0}()\n", anOperationName));
-                    else if (lambda instanceof BiConsumer)
-                        result.append(MessageFormat.format("void {0}(T)\n", anOperationName));
+                                            result.append("        ").
+                                                    append(anOperationKey.objectClass.getName()).append(".class -> ").
+                                                    append(operationKeyToString(anOperationKey));
+                                        });
+                                result.append("    }\n");
+                            });
+                    result.append("}\n");
                 });
-                result.append("    }\n");
-            });
-            result.append("}\n");
-        });
 
         return result.toString();
+    }
+
+    String operationKeyToString(OperationKey anOperationKey) {
+        String result = null;
+
+        Object lambda = operationsMap.get(anOperationKey);
+        String operationName = anOperationKey.simpleOperationName();
+        if (lambda instanceof Function)
+            result = MessageFormat.format("T {0}()\n", operationName);
+        else if (lambda instanceof BiFunction)
+            result = MessageFormat.format("T {0}(T)\n", operationName);
+        else if (lambda instanceof Consumer)
+            result = MessageFormat.format("void {0}()\n", operationName);
+        else if (lambda instanceof BiConsumer)
+            result = MessageFormat.format("void {0}(T)\n", operationName);
+
+        return result;
     }
 
     private final ConcurrentHashMap<OperationKey, Object> operationsMap = new ConcurrentHashMap<>();
@@ -471,7 +521,7 @@ public class DynamicClassExtension {
          * @param anOperation lambda that defines an operation
          * @return a copy of this {@code Builder}
          */
-        public <R, T1> Builder<E> op(Class<T1> anObjectClass, Function<T1, R> anOperation) {
+        public <R, T1> Builder<E> op(Class<T1> anObjectClass, FunctionPerformer<T1, R> anOperation) {
             dynamicClassExtension.addExtensionOperation(anObjectClass, extensionClass, operationName, anOperation);
             return new Builder<>(extensionClass, operationName, dynamicClassExtension);
         }
@@ -482,7 +532,7 @@ public class DynamicClassExtension {
          * @param anOperation lambda that defines an operation
          * @return a copy of this {@code Builder}
          */
-        public <R, T1, U> Builder<E> op(Class<T1> anObjectClass, BiFunction<T1, U, R> anOperation) {
+        public <R, T1, U> Builder<E> op(Class<T1> anObjectClass, BiFunctionPerformer<T1, U, R> anOperation) {
             dynamicClassExtension.addExtensionOperation(anObjectClass, extensionClass, operationName, anOperation);
             return new Builder<>(extensionClass, operationName, dynamicClassExtension);
         }
@@ -493,7 +543,7 @@ public class DynamicClassExtension {
          * @param anOperation lambda that defines an operation
          * @return a copy of this {@code Builder}
          */
-        public <T1> Builder<E> voidOp(Class<T1> anObjectClass, Consumer<T1> anOperation) {
+        public <T1> Builder<E> voidOp(Class<T1> anObjectClass, ConsumerPerformer<T1> anOperation) {
             dynamicClassExtension.addVoidExtensionOperation(anObjectClass, extensionClass, operationName, anOperation);
             return new Builder<>(extensionClass, operationName, dynamicClassExtension);
         }
@@ -504,7 +554,7 @@ public class DynamicClassExtension {
          * @param anOperation lambda that defines an operation
          * @return a copy of this {@code Builder}
          */
-        public <T1, U> Builder<E> voidOp(Class<T1> anObjectClass, BiConsumer<T1, U> anOperation) {
+        public <T1, U> Builder<E> voidOp(Class<T1> anObjectClass, BiConsumerPerformer<T1, U> anOperation) {
             dynamicClassExtension.addVoidExtensionOperation(anObjectClass, extensionClass, operationName, anOperation);
             return new Builder<>(extensionClass, operationName, dynamicClassExtension);
         }

@@ -115,8 +115,6 @@ public class DynamicClassExtensionTest {
                 new AutoPart("Tire"),
         };
 
-        System.out.println(dynamicClassExtension.toString());
-
         StringBuilder shippingInfos = new StringBuilder();
         for (Item item : items) {
             Item_Shippable extension = dynamicClassExtension.extension(item, Item_Shippable.class);
@@ -145,6 +143,37 @@ public class DynamicClassExtensionTest {
                      ShippingInfo[result=Tire item NOT shipped]
                      TrackingInfo[result=Tire item on its way]""",
                 shippingInfos.toString());
+    }
+
+    @Test
+    void toStringTest() {
+        StringBuilder shippingLog = new StringBuilder();
+
+        DynamicClassExtension dynamicClassExtension = setupDynamicClassExtension(shippingLog);
+        System.out.println(dynamicClassExtension.toString());
+        assertEquals("""
+                     interface com.gl.classext.ClassExtension$DelegateHolder {
+                         getDelegate {
+                             java.lang.String.class -> T getDelegate()
+                         }
+                     }
+                     interface com.gl.classext.DynamicClassExtensionTest$Item_Shippable {
+                         log {
+                             com.gl.classext.DynamicClassExtensionTest$Item.class -> void log()
+                             com.gl.classext.DynamicClassExtensionTest$Item.class -> void log(T)
+                         }
+                         ship {
+                             com.gl.classext.DynamicClassExtensionTest$ElectronicItem.class -> T ship()
+                             com.gl.classext.DynamicClassExtensionTest$Furniture.class -> T ship()
+                             com.gl.classext.DynamicClassExtensionTest$Item.class -> T ship()
+                             com.gl.classext.DynamicClassExtensionTest$Book.class -> T ship()
+                         }
+                         track {
+                             com.gl.classext.DynamicClassExtensionTest$Item.class -> T track()
+                             com.gl.classext.DynamicClassExtensionTest$Item.class -> T track(T)
+                         }
+                     }
+                     """, dynamicClassExtension.toString());
     }
 
     @Test
