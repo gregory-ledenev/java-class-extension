@@ -27,6 +27,7 @@ package com.gl.classext;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.text.MessageFormat;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -323,32 +324,34 @@ public class DynamicClassExtension {
     public String toString() {
         StringBuilder result = new StringBuilder();
 
-        Map<Class, List<OperationKey>> byExtensionClass = operationsMap.keySet().stream().
-                collect(Collectors.groupingBy(OperationKey::extensionClass));
-        byExtensionClass.keySet().stream().
-                sorted((o1, o2) -> o1.getName().compareTo(o2.getName())).
-                forEach(aClass -> {
-            result.append(aClass).append(" {\n");
-            Map<String, List<OperationKey>> byOperation = byExtensionClass.get(aClass).stream().
-                    collect(Collectors.groupingBy(OperationKey::simpleOperationName));
+        Map<Class, Map<String, List<OperationKey>>> groupedOperationKeys = operationsMap.keySet().stream().
+                collect(Collectors.groupingBy(OperationKey::extensionClass,
+                        Collectors.groupingBy(OperationKey::simpleOperationName)));
 
-            byOperation.keySet().stream().
-                    sorted().
-                    forEach(anOperation -> {
-                result.append("    ").append(anOperation).append(" {\n");
-                byOperation.get(anOperation).stream().sorted().forEach(anOperationKey -> {
+        // circle through extension classes
+        groupedOperationKeys.keySet().stream().sorted(Comparator.comparing(Class::getName)).forEach(aClass -> {
+            result.append(aClass).append(" {\n");
+
+            // circle through extension operation names
+            groupedOperationKeys.get(aClass).keySet().stream().sorted().forEach(anOperationName -> {
+
+                result.append("    ").append(anOperationName).append(" {\n");
+
+                // circle through operation keys
+                groupedOperationKeys.get(aClass).get(anOperationName).stream().sorted().forEach(anOperationKey -> {
+
                     result.append("    ").append("    ").append(anOperationKey.objectClass.getName()).append(".class -> ");
                     Object lambda = operationsMap.get(anOperationKey);
                     if (lambda instanceof Function)
-                        result.append(MessageFormat.format("T {0}()\n", anOperation));
+                        result.append(MessageFormat.format("T {0}()\n", anOperationName));
                     else if (lambda instanceof BiFunction)
-                        result.append(MessageFormat.format("T {0}(T)\n", anOperation));
+                        result.append(MessageFormat.format("T {0}(T)\n", anOperationName));
                     else if (lambda instanceof Consumer)
-                        result.append(MessageFormat.format("void {0}()\n", anOperation));
+                        result.append(MessageFormat.format("void {0}()\n", anOperationName));
                     else if (lambda instanceof BiConsumer)
-                        result.append(MessageFormat.format("void {0}(T)\n", anOperation));
+                        result.append(MessageFormat.format("void {0}(T)\n", anOperationName));
                 });
-                result.append("    ").append("}\n");
+                result.append("    }\n");
             });
             result.append("}\n");
         });
