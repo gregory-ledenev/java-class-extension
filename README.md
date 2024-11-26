@@ -163,13 +163,19 @@ Supporting a new `Item` class using the Java Class Extension library requires ju
 #### Details ####
 For the most of the cases a shared instance of `DynamicClassExtension` should be used. But if there is a need to have different implementations of extensions in different places or domains it is possible to create and utilize new instances of `DynamicClassExtension`.
 
+##### Inheritance Support #####
 `DynamicClassExtension` takes care of inheritance so it is possible to design and implement class extensions hierarchy that fully or partially resembles original classes' hierarchy. If there's no explicit extension operations specified for particular class - its parent extension will be utilized. For example, if there's no explicit extension operations defined for `AutoPart` objects - base `ship()` and `log(boolean)` operations specified for `Item` will be used instead.
 
+##### Cashing #####
 Cashing of extension objects are supported out of the box. Cache utilizes weak references to release extension objects that are not in use. Though, to perform full cleanup either the `cacheCleanup()` should be used or automatic cleanup can be initiated via the `scheduleCacheCleanup()`. If automatic cache cleanup is used - it can be stopped by calling the `shutdownCacheCleanup()`.
 
+##### Validation #####
+DynamicClassExtension offers a capability to validate extensions for a given class through its checkValid(...) method. This feature is particularly valuable for testing purposes. An extension is deemed valid when corresponding operations are registered for all its methods. However, in certain scenarios, it's desirable to maintain extension validity while supporting only a subset of operations. This flexibility can be achieved by annotating specific methods in the extension interface with @OptionalMethods annotation.
+
+##### Limitations #####
 The following are limitations of `DynamicClassExtension`:
-1. Overloaded operations are not supported. So for example, it is not possible to define both `log(boolean)` and `log(String)` operations
-2. Operations having more than one parameter are not supported.
+1. Overloaded operations are not supported yet. So for example, it is not possible to define both `log(boolean)` and `log(String)` operations
+2. Operations having more than one parameter are not supported yet.
 
 ## Adding to Your Build 
 To add Java Class Extension library to your build:
