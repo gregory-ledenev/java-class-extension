@@ -66,7 +66,6 @@ public class DynamicClassExtensionTest {
         void log(boolean isVerbose);
         void log();
 
-        @OptionalMethod
         float calculateShippingCost();
     }
 
