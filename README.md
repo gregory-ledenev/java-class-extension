@@ -1,5 +1,5 @@
 # Java Class Extension Library
-The Java Class Extension library provides an ability to mimic class extensions (categories) in Java. The library supports the following approaches:
+The Java Class Extension library provides an ability to emulate class extensions (categories) in Java. The library supports the following approaches:
 
 1. **Static:** define and implement extensions as usual Java classes and then utilize the Java Class Extension library to find matching extension classes and create extension objects.
 2. **Dynamic:** utilize the Java Class Extension library to define extensions by composing them as sets of lambda operations and let the library to create extensions dynamically on the fly.
