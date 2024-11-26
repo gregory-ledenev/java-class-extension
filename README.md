@@ -40,10 +40,10 @@ public ShippingInfo ship(Item item) {
 ```
 While this method is simple and direct, it comes with several disadvantages:
 
-1. Breaks OOP Principles: They mimic polymorphism in an outdated style.
-2. Violates SOLID Principles: Adding a new Item class necessitates changes in the shipping logic.
-3. Inconvenient and Error-Prone: Without dedicated ship() methods, shipping logic can become scattered and duplicated across the codebase, making it hard to alter it.
-
+1. It bypasses polymorphism, opting instead for an outdated imitation of it.
+2. It violates SOLID principles, as introducing a new class (Item) requires modifications to existing code.
+3. It is inconvenient and error-prone because the code can become scattered and duplicated throughout the project, potentially with varying content, making it difficult to locate and modify.
+   
 ### Static Extensions with Java Class Extension Library
 
 The core of the library is the `ClassExtension` class, which offers methods for dynamically finding and creating extension objects as needed. We can create an `Item_Shippable` class that acts as a `Shippable` extension (category) and provides a `ship()` method. This class must implement the `DelegateHolder` interface to allow it to work with items. Then we should subclass `Item_Shippable` and provide class extensions for each particular `Item` classes.
