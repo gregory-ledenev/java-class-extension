@@ -40,10 +40,10 @@ public ShippingInfo ship(Item item) {
 ```
 While this method is simple and direct, it comes with several disadvantages:
 
-1. Breaks OOP Principles: They mimic polymorphism in an outdated style.
-2. Violates SOLID Principles: Adding a new Item class necessitates changes in the shipping logic.
-3. Inconvenient and Error-Prone: Without dedicated ship() methods, shipping logic can become scattered and duplicated across the codebase, making it hard to alter it.
-
+1. It bypasses polymorphism, opting instead for an outdated imitation of it.
+2. It violates SOLID principles, as introducing a new class (Item) requires modifications to existing code.
+3. It is inconvenient and error-prone because the code can become scattered and duplicated throughout the project, potentially with varying content, making it difficult to locate and modify.
+   
 ### Static Extensions with Java Class Extension Library
 
 The core of the library is the `ClassExtension` class, which offers methods for dynamically finding and creating extension objects as needed. We can create an `Item_Shippable` class that acts as a `Shippable` extension (category) and provides a `ship()` method. This class must implement the `DelegateHolder` interface to allow it to work with items. Then we should subclass `Item_Shippable` and provide class extensions for each particular `Item` classes.
@@ -98,11 +98,13 @@ Supporting a new Item class using the Java Class Extension library requires just
 
 #### Details ####
 All the static extension classes must:
-1. Implement the `DelegateHolder` interface. The `DelegateHolder.setDelegate(...)` method is used to supply extensions with objects to work with.
+1. Implement the `DelegateHolder` interface. The `DelegateHolder.setDelegate(...)` method is used to supply extensions with objects to work with. Usually, it is fine to implement the `DelegateHolder` interface in a common root of some classes hierarchy.
 2. Be named as a class name followed by an extension name delimited by underscore e.g. `Book_Shippable` where `Book` is the name of the class and `Shippable` is the name of extension.
 
+##### Inheritance Support #####
 `ClassExtension` takes care of inheritance so it is possible to design and implement class extensions hierarchy that fully or partially resembles original classes' hierarchy. If there's no explicit extension specified for particular class - its parent extension will be utilized. For example, if there's no explicit `Shippable` extension for the `Toy` class - base `Item_Shippable` will be used instead.
 
+##### Cashing #####
 Cashing of extension objects are supported out of the box. Cache utilizes weak references to release extension objects that are not in use. Though, to perform full cleanup either the `cacheCleanup()` should be used or automatic cleanup can be initiated via the `scheduleCacheCleanup()`. If automatic cache cleanup is used - it can be stopped by calling the `shutdownCacheCleanup()`.
 
 ### Dynamic Extensions with Java Class Extension Library
@@ -163,13 +165,19 @@ Supporting a new `Item` class using the Java Class Extension library requires ju
 #### Details ####
 For the most of the cases a shared instance of `DynamicClassExtension` should be used. But if there is a need to have different implementations of extensions in different places or domains it is possible to create and utilize new instances of `DynamicClassExtension`.
 
+##### Inheritance Support #####
 `DynamicClassExtension` takes care of inheritance so it is possible to design and implement class extensions hierarchy that fully or partially resembles original classes' hierarchy. If there's no explicit extension operations specified for particular class - its parent extension will be utilized. For example, if there's no explicit extension operations defined for `AutoPart` objects - base `ship()` and `log(boolean)` operations specified for `Item` will be used instead.
 
+##### Cashing #####
 Cashing of extension objects are supported out of the box. Cache utilizes weak references to release extension objects that are not in use. Though, to perform full cleanup either the `cacheCleanup()` should be used or automatic cleanup can be initiated via the `scheduleCacheCleanup()`. If automatic cache cleanup is used - it can be stopped by calling the `shutdownCacheCleanup()`.
 
+##### Validation #####
+`DynamicClassExtension` offers a capability to validate extensions for a given class through its `checkValid(...)` method. This feature is particularly valuable for testing purposes. An extension is deemed valid when corresponding operations are registered for all its methods. However, in certain scenarios, it's desirable to maintain extension validity while supporting only a subset of operations. This flexibility can be achieved by annotating specific methods in the extension interface with `@OptionalMethods` annotation.
+
+##### Limitations #####
 The following are limitations of `DynamicClassExtension`:
-1. Overloaded operations are not supported. So for example, it is not possible to define both `log(boolean)` and `log(String)` operations
-2. Operations having more than one parameter are not supported.
+1. Overloaded operations are not supported yet. So for example, it is not possible to define both `log(boolean)` and `log(String)` operations
+2. Operations having more than one parameter are not supported yet.
 
 ## Adding to Your Build 
 To add Java Class Extension library to your build:
