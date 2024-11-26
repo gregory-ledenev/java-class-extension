@@ -551,12 +551,12 @@ public class DynamicClassExtensionTest {
     }
 
     @Test
-    void checkAllOperationsImplementedTest() {
+    void validationTest() {
         StringBuilder shippingLog = new StringBuilder();
         DynamicClassExtension dynamicClassExtension = setupDynamicClassExtension(shippingLog);
 
         try {
-            dynamicClassExtension.checkValid(new ElectronicItem("Soundbar"), Item_Shippable.class);
+            dynamicClassExtension.checkValid(ElectronicItem.class, Item_Shippable.class);
             fail("Unexpectedly valid extension: " + Item_Shippable.class.getName());
         } catch (Exception ex) {
             System.out.println(ex.getMessage());

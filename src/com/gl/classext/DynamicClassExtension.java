@@ -93,15 +93,26 @@ import java.util.stream.Collectors;
  * {@code shutdownCacheCleanup()}.</p>
  *
  * @author Gregory Ledenev
- * @version 0.9.2
+ * @version 0.9.6
  */
 public class DynamicClassExtension {
 
     @FunctionalInterface
-    public interface Performer<R> {
+    interface Performer<R> {
         R perform(Object[] anArgs);
     }
 
+
+    /**
+     * Represents an operation that accepts a single input argument and returns no
+     * result. Unlike most other functional interfaces, {@code Consumer} is expected
+     * to operate via side-effects.
+     *
+     * <p>This is a <a href="package-summary.html">functional interface</a>
+     * whose functional method is {@link #accept(Object)}.
+     *
+     * @param <T> the type of the input to the operation
+     */
     @FunctionalInterface
     @SuppressWarnings({"unchecked"})
     public interface ConsumerPerformer<T> extends Performer<Void>, Consumer<T> {
@@ -112,6 +123,20 @@ public class DynamicClassExtension {
         }
     }
 
+    /**
+     * Represents an operation that accepts two input arguments and returns no
+     * result.  This is the two-arity specialization of {@link Consumer}.
+     * Unlike most other functional interfaces, {@code BiConsumer} is expected
+     * to operate via side-effects.
+     *
+     * <p>This is a <a href="package-summary.html">functional interface</a>
+     * whose functional method is {@link #accept(Object, Object)}.
+     *
+     * @param <T> the type of the first argument to the operation
+     * @param <U> the type of the second argument to the operation
+     *
+     * @see Consumer
+     */
     @FunctionalInterface
     @SuppressWarnings({"unchecked"})
     public interface BiConsumerPerformer<T, U> extends Performer<Void>, BiConsumer<T, U> {
@@ -125,6 +150,15 @@ public class DynamicClassExtension {
         }
     }
 
+    /**
+     * Represents a function that accepts one argument and produces a result.
+     *
+     * <p>This is a <a href="package-summary.html">functional interface</a>
+     * whose functional method is {@link #apply(Object)}.
+     *
+     * @param <T> the type of the input to the function
+     * @param <R> the type of the result of the function
+     */
     @FunctionalInterface
     @SuppressWarnings({"unchecked"})
     public interface FunctionPerformer<T, R> extends Performer<R>, Function<T, R> {
@@ -134,9 +168,22 @@ public class DynamicClassExtension {
         }
     }
 
+    /**
+     * Represents a function that accepts two arguments and produces a result.
+     * This is the two-arity specialization of {@link Function}.
+     *
+     * <p>This is a <a href="package-summary.html">functional interface</a>
+     * whose functional method is {@link #apply(Object, Object)}.
+     *
+     * @param <T> the type of the first argument to the function
+     * @param <U> the type of the second argument to the function
+     * @param <R> the type of the result of the function
+     *
+     * @see Function
+     */
     @FunctionalInterface
     @SuppressWarnings({"unchecked"})
-    public interface BiFunctionPerformer<T, R, U> extends Performer<R>, BiFunction<T, U, R> {
+    public interface BiFunctionPerformer<T, U, R> extends Performer<R>, BiFunction<T, U, R> {
         @Override
         default R perform(Object[] anArgs) {
             return ((anArgs == null) ?
@@ -324,23 +371,23 @@ public class DynamicClassExtension {
      * Checks if there is a valid extension defined for a passed object. An extension is considered valid if there are
      * corresponding operations registered for all its methods
      *
-     * @param anObject         object to check an extension for
+     * @param aClass         object to check an extension for
      * @param anExtensionClass class of extension
      * @throws IllegalArgumentException if an extension is invalid
      */
     @SuppressWarnings({"rawtypes"})
-    public <T> void checkValid(Object anObject, Class<T> anExtensionClass) {
-        Objects.requireNonNull(anObject);
+    public <T> void checkValid(Class<?> aClass, Class<T> anExtensionClass) {
+        Objects.requireNonNull(aClass);
         Objects.requireNonNull(anExtensionClass);
 
         for (Method method : anExtensionClass.getMethods()) {
             if (method.isAnnotationPresent(OptionalMethod.class))
                 continue;
-            Performer operation = (Performer) findExtensionOperation(anObject, anExtensionClass, method, method.getParameterTypes());
+            Performer operation = (Performer) findExtensionOperation(aClass, anExtensionClass, method, method.getParameterTypes());
             if (operation == null)
                 throw new IllegalArgumentException(MessageFormat.format("No \"{0}\" operation for {1} in \"{2}\" extension",
                         displayOperationName(method.getName(), void.class.equals(method.getReturnType()), method.getParameterTypes()),
-                        anObject,
+                        aClass,
                         anExtensionClass.getName()));
         }
     }
@@ -367,11 +414,14 @@ public class DynamicClassExtension {
         }
     }
 
-    @SuppressWarnings({"rawtypes", "unchecked"})
     <T> Object findExtensionOperation(Object anObject, Class<T> anExtensionClass, Method method, Object[] anArgs) {
-        Object result;
+        return findExtensionOperation(anObject.getClass(), anExtensionClass, method, anArgs);
+    }
 
-        Class current = anObject.getClass();
+    @SuppressWarnings({"rawtypes", "unchecked"})
+    <T> Object findExtensionOperation(Class<?> anObjectClass, Class<T> anExtensionClass, Method method, Object[] anArgs) {
+        Object result;
+        Class current = anObjectClass;
         do {
             result = getExtensionOperation(current, anExtensionClass, operationName(method.getName(), parameterTypes(anArgs)));
             current = current.getSuperclass();

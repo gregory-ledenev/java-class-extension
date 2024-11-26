@@ -82,7 +82,7 @@ import java.util.Objects;
  * shutdownCacheCleanup().</p>
  *
  * @author Gregory Ledenev
- * @version 0.9.2
+ * @version 0.9.6
  */
 public class ClassExtension {
 
