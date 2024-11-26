@@ -98,11 +98,13 @@ Supporting a new Item class using the Java Class Extension library requires just
 
 #### Details ####
 All the static extension classes must:
-1. Implement the `DelegateHolder` interface. The `DelegateHolder.setDelegate(...)` method is used to supply extensions with objects to work with.
+1. Implement the `DelegateHolder` interface. The `DelegateHolder.setDelegate(...)` method is used to supply extensions with objects to work with. Usually, it is fine to implement the `DelegateHolder` interface in a common root of some classes hierarchy.
 2. Be named as a class name followed by an extension name delimited by underscore e.g. `Book_Shippable` where `Book` is the name of the class and `Shippable` is the name of extension.
 
+##### Inheritance Support #####
 `ClassExtension` takes care of inheritance so it is possible to design and implement class extensions hierarchy that fully or partially resembles original classes' hierarchy. If there's no explicit extension specified for particular class - its parent extension will be utilized. For example, if there's no explicit `Shippable` extension for the `Toy` class - base `Item_Shippable` will be used instead.
 
+##### Cashing #####
 Cashing of extension objects are supported out of the box. Cache utilizes weak references to release extension objects that are not in use. Though, to perform full cleanup either the `cacheCleanup()` should be used or automatic cleanup can be initiated via the `scheduleCacheCleanup()`. If automatic cache cleanup is used - it can be stopped by calling the `shutdownCacheCleanup()`.
 
 ### Dynamic Extensions with Java Class Extension Library
