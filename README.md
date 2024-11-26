@@ -172,7 +172,7 @@ For the most of the cases a shared instance of `DynamicClassExtension` should be
 Cashing of extension objects are supported out of the box. Cache utilizes weak references to release extension objects that are not in use. Though, to perform full cleanup either the `cacheCleanup()` should be used or automatic cleanup can be initiated via the `scheduleCacheCleanup()`. If automatic cache cleanup is used - it can be stopped by calling the `shutdownCacheCleanup()`.
 
 ##### Validation #####
-DynamicClassExtension offers a capability to validate extensions for a given class through its checkValid(...) method. This feature is particularly valuable for testing purposes. An extension is deemed valid when corresponding operations are registered for all its methods. However, in certain scenarios, it's desirable to maintain extension validity while supporting only a subset of operations. This flexibility can be achieved by annotating specific methods in the extension interface with @OptionalMethods annotation.
+`DynamicClassExtension` offers a capability to validate extensions for a given class through its `checkValid(...)` method. This feature is particularly valuable for testing purposes. An extension is deemed valid when corresponding operations are registered for all its methods. However, in certain scenarios, it's desirable to maintain extension validity while supporting only a subset of operations. This flexibility can be achieved by annotating specific methods in the extension interface with `@OptionalMethods` annotation.
 
 ##### Limitations #####
 The following are limitations of `DynamicClassExtension`:
