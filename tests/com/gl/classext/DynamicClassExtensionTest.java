@@ -59,7 +59,7 @@ public class DynamicClassExtensionTest {
     record TrackingInfo(String result) {
     }
 
-    interface Item_Shippable {
+    interface Item_Shippable extends ItemInterface {
         ShippingInfo ship();
         TrackingInfo track(boolean isVerbose);
         TrackingInfo track();
@@ -67,6 +67,8 @@ public class DynamicClassExtensionTest {
         void log();
 
         float calculateShippingCost();
+        @OptionalMethod
+        float calculateShippingCost(String anInstructions);
     }
 
 
@@ -150,6 +152,54 @@ public class DynamicClassExtensionTest {
     }
 
     @Test
+    void polymorphismTest() {
+
+        StringBuilder shippingLog = new StringBuilder();
+
+        DynamicClassExtension dynamicClassExtension = setupDynamicClassExtension(shippingLog);
+        Item[] items = {
+                new Book("The Mythical Man-Month"),
+                new Furniture("Sofa"),
+                new ElectronicItem("Soundbar"),
+                new AutoPart("Tire"),
+        };
+
+        StringBuilder names = new StringBuilder();
+        for (Item item : items) {
+            Item_Shippable extension = dynamicClassExtension.extension(item, Item_Shippable.class);
+            assertEquals((Object) extension, (Object) item);
+            if (!names.isEmpty()) {
+                names.append("\n");
+            }
+            names.append(extension.toString());
+        }
+        System.out.println(names);
+
+        assertEquals("""
+                     Book["The Mythical Man-Month"]
+                     Furniture["Sofa"]
+                     ElectronicItem["Soundbar"]
+                     AutoPart["Tire"]""", names.toString());
+
+        names.setLength(0);
+        for (Item item : items) {
+            Item_Shippable extension = dynamicClassExtension.extension(item, Item_Shippable.class);
+            assertEquals((Object) extension, (Object) item);
+            if (!names.isEmpty()) {
+                names.append("\n");
+            }
+            names.append(extension.getName());
+        }
+        System.out.println(names);
+
+        assertEquals("""
+                     The Mythical Man-Month
+                     Sofa
+                     Soundbar
+                     Tire[OVERRIDDEN]""", names.toString());
+    }
+
+    @Test
     void toStringTest() {
         StringBuilder shippingLog = new StringBuilder();
 
@@ -162,6 +212,9 @@ public class DynamicClassExtensionTest {
                          }
                      }
                      interface com.gl.classext.DynamicClassExtensionTest$Item_Shippable {
+                         getName {
+                             com.gl.classext.DynamicClassExtensionTest$AutoPart -> T getName()
+                         }
                          log {
                              com.gl.classext.DynamicClassExtensionTest$Item -> void log()
                              com.gl.classext.DynamicClassExtensionTest$Item -> void log(T)
@@ -176,8 +229,7 @@ public class DynamicClassExtensionTest {
                              com.gl.classext.DynamicClassExtensionTest$Item -> T track()
                              com.gl.classext.DynamicClassExtensionTest$Item -> T track(T)
                          }
-                     }
-                     """, dynamicClassExtension.toString());
+                     }""", dynamicClassExtension.toString());
     }
 
     @Test
@@ -425,6 +477,8 @@ public class DynamicClassExtensionTest {
                     op(Item.class, item -> new TrackingInfo(item.getName() + " item on its way")).
                     op(Item.class, (Item item, Boolean isVerbose) -> new TrackingInfo(item.getName() +
                             " item on its way" + (isVerbose ? "Status: SHIPPED" : ""))).
+                opName("getName").
+                    op(AutoPart.class, item -> item.getName()  + "[OVERRIDDEN]").
                 build();
 
         result = result.builder(ClassExtension.DelegateHolder.class).
@@ -568,10 +622,9 @@ public class DynamicClassExtensionTest {
         StringBuilder shippingLog = new StringBuilder();
         DynamicClassExtension dynamicClassExtension = setupDynamicClassExtension(shippingLog);
 
-        ElectronicItem item = new ElectronicItem("Soundbar");
-        assertFalse(dynamicClassExtension.isPresent(item, Item_Shippable.class, "calculateShippingCost", null));
-        assertTrue(dynamicClassExtension.isPresent(item, Item_Shippable.class, "log", new Class<?>[]{boolean.class}));
-        assertTrue(dynamicClassExtension.isPresent(item, Item_Shippable.class, "log", null));
+        assertFalse(dynamicClassExtension.isPresent(ElectronicItem.class, Item_Shippable.class, "calculateShippingCost", null));
+        assertTrue(dynamicClassExtension.isPresent(ElectronicItem.class, Item_Shippable.class, "log", new Class<?>[]{boolean.class}));
+        assertTrue(dynamicClassExtension.isPresent(ElectronicItem.class, Item_Shippable.class, "log", null));
     }
 }
 

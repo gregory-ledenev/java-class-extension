@@ -340,27 +340,52 @@ public class DynamicClassExtension {
         return sharedInstance().extension(anObject, anExtensionClass);
     }
 
+    Method findMethod(Class<?> aClass, String aMethodName, Class<?>[] aParameterTypes) {
+        Method result = null;
+        all: for (Method method : aClass.getMethods()) {
+            Class<?>[] parameterTypes = method.getParameterTypes();
+            if (method.getName().equals(aMethodName) &&
+                    (parameterTypes == aParameterTypes ||
+                    (aParameterTypes != null && parameterTypes.length == aParameterTypes.length))) {
+                if (aParameterTypes.length == 0) {
+                    result = method;
+                    break all;
+                } else {
+                    for (int i = 0; i < aParameterTypes.length; i++) {
+                        Class<?> parameterType = aParameterTypes[i];
+                        if (parameterTypes[i].isAssignableFrom(parameterType)) {
+                            result = method;
+                            break all;
+                        }
+                    }
+                }
+            }
+        }
+        return result;
+    }
+
     @SuppressWarnings({"rawtypes"})
     <T> Object performOperation(Object anObject, Class<T> anExtensionClass, Method method, Object[] args) {
         Object result;
 
-        if ("equals".equals(method.getName())) {
-            result = anObject.equals(args[0]);
-        } else if ("hashCode".equals(method.getName())) {
-            return anObject.hashCode();
-        } else if ("toString".equals(method.getName())) {
-            return anObject.toString();
+        Performer operation = (Performer) findExtensionOperation(anObject, anExtensionClass, method, args);
+        if (operation != null) {
+            List<Object> arguments = new ArrayList<>();
+            arguments.add(anObject);
+            if (args != null)
+                arguments.addAll(Arrays.asList(args));
+            result = operation.perform(arguments.toArray());
         } else {
-            Performer operation = (Performer) findExtensionOperation(anObject, anExtensionClass, method, args);
-            if (operation != null) {
-                List<Object> arguments = new ArrayList<>();
-                arguments.add(anObject);
-                if (args != null)
-                    arguments.addAll(Arrays.asList(args));
-                result = operation.perform(arguments.toArray());
+            Method delegateMethod = findMethod(anObject.getClass(), method.getName(), parameterTypes(args));
+            if (delegateMethod != null) {
+                try {
+                    result = delegateMethod.invoke(anObject, args);
+                } catch (Exception ex) {
+                    throw new RuntimeException(ex);
+                }
             } else {
                 throw new IllegalArgumentException(MessageFormat.format("No \"{0}\" operation for \"{1}\"",
-                         displayOperationName(method.getName(), void.class.equals(method.getReturnType()), args), anObject));
+                        displayOperationName(method.getName(), void.class.equals(method.getReturnType()), args), anObject));
             }
         }
 
@@ -395,20 +420,20 @@ public class DynamicClassExtension {
     /**
      * Checks if an operation is present in an extension for a passed object.
      *
-     * @param anObject         object to check an extension for
+     * @param anObjectClass    object class to check an extension for
      * @param anExtensionClass class of extension
      * @param anOperation      operation to check
      * @param aParameterTypes  parameter types of an operation to check
      * @throws IllegalArgumentException if an extension is invalid
      */
-    public boolean isPresent(Object anObject, Class<?> anExtensionClass, String anOperation, Class<?>[] aParameterTypes) {
+    public boolean isPresent(Class<?> anObjectClass, Class<?> anExtensionClass, String anOperation, Class<?>[] aParameterTypes) {
         Objects.requireNonNull(anOperation);
-        Objects.requireNonNull(anObject);
+        Objects.requireNonNull(anObjectClass);
         Objects.requireNonNull(anExtensionClass);
 
         try {
             Method method = anExtensionClass.getMethod(anOperation, aParameterTypes);
-            return findExtensionOperation(anObject, anExtensionClass, method, method.getParameterTypes()) != null;
+            return findExtensionOperation(anObjectClass, anExtensionClass, method, method.getParameterTypes()) != null;
         } catch (NoSuchMethodException aE) {
             return false;
         }
@@ -431,7 +456,7 @@ public class DynamicClassExtension {
 
     private Class<?>[] parameterTypes(Object[] anArgs) {
         if (anArgs == null)
-            return null;
+            return new Class<?>[0];
 
         Class<?>[] result = new Class<?>[anArgs.length];
         for (int i = 0; i < anArgs.length; i++) {
@@ -500,7 +525,8 @@ public class DynamicClassExtension {
                     result.append("}\n");
                 });
 
-        return result.toString();
+        String resultStr = result.toString();
+        return resultStr.endsWith("\n") ? resultStr.substring(0, result.toString().length()-1)  :resultStr;
     }
 
     String operationKeyToString(OperationKey anOperationKey) {
