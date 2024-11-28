@@ -500,7 +500,7 @@ public class DynamicClassExtension {
         StringBuilder result = new StringBuilder();
 
         // circle through extension classes
-        operationsMap.keySet().stream().
+        new HashMap<>(operationsMap).keySet().stream().
                 collect(Collectors.groupingBy(OperationKey::extensionClass,
                         Collectors.groupingBy(OperationKey::simpleOperationName))).
                 entrySet().stream().sorted(Map.Entry.comparingByKey(Comparator.comparing(Class::getName))).
