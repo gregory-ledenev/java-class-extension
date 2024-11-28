@@ -170,7 +170,7 @@ For the most of the cases a shared instance of `DynamicClassExtension` should be
 
 Dynamic operations can override methods defined in the objects class. For example, if you add a `toString` operation to the `AutoPart` class - it will override the `toString()` method defined in the `Object` class.
 
-Objects and extensions can be utilized uniformly as similar objects if they implement the same base interfaces. For example, if both `Item` and `Item_Shippable` extends (implements) the same `ItemInterface` interface having the `getName()` method - both items and their extensions can use that method with the same results.
+Objects and extensions can be utilized uniformly as similar objects if they implement the same base interfaces. For example, if both `Item` and `Item_Shippable` implements(extends) the same `ItemInterface` interface having the `getName()` method - both items and their extensions can use that method with the same results.
 
 ```java
 interface ItemInterface {

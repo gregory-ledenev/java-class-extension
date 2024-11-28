@@ -1,7 +1,6 @@
 package com.gl.classext.com.gl.classext.shipment;
 
-import com.gl.classext.ClassExtension;
-
+@SuppressWarnings("unused")
 public class Items {
     public static class Item {
         private final String name;
@@ -40,20 +39,19 @@ public class Items {
 
     public record ShippingInfo(String result) {}
 
-    public static class Item_Shippable implements ClassExtension.DelegateHolder<Item> {
+    public static class Item_Shippable {
         public ShippingInfo ship() {
-            return new ShippingInfo(getDelegate() + " NOT shipped");
+            return new ShippingInfo(delegate + " NOT shipped");
         }
 
-        private Item delegate;
-        @Override
+        public Item_Shippable(Item aDelegate) {
+            delegate = aDelegate;
+        }
+
         public Item getDelegate() {
             return delegate;
         }
 
-        @Override
-        public void setDelegate(Item aDelegate) {
-            delegate = aDelegate;
-        }
+        private final Item delegate;
     }
 }

@@ -4,7 +4,7 @@ import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-public class ClassExtensionInnerClassesTest {
+public class StaticClassExtensionInnerClassesTest {
     public static class Item {
         private final String name;
 
@@ -49,9 +49,9 @@ public class ClassExtensionInnerClassesTest {
     public record ShippingInfo(String result) {
     }
 
-    public static class Item_Shippable implements ClassExtension.DelegateHolder<Item> {
+    public static class Item_Shippable implements StaticClassExtension.DelegateHolder<Item> {
         public static Item_Shippable extensionFor(Item anItem) {
-            return ClassExtension.extension(anItem, Item_Shippable.class);
+            return StaticClassExtension.sharedExtension(anItem, Item_Shippable.class);
         }
 
         public ShippingInfo ship() {
@@ -153,10 +153,10 @@ public class ClassExtensionInnerClassesTest {
     @SuppressWarnings({"rawtypes"})
     void noShippableClassFoundTest() {
         try {
-            ClassExtension.DelegateHolder extension = ClassExtension.extension(new Book("noname"), ClassExtension.DelegateHolder.class);
+            StaticClassExtension.DelegateHolder extension = StaticClassExtension.sharedExtension(new Book("noname"), StaticClassExtension.DelegateHolder.class);
             fail("Unexpected extension found: " + extension);
         } catch (Exception ex) {
-            ex.printStackTrace();
+            System.out.println(ex.getMessage());
         }
     }
 
@@ -169,9 +169,9 @@ public class ClassExtensionInnerClassesTest {
      */
     @Test
     void cacheTest() {
-        ClassExtensionRecordsTest.Book book = new ClassExtensionRecordsTest.Book("");
-        String extension = ClassExtensionRecordsTest.Item_Shippable.extensionFor(book).toString();
+        StaticClassExtensionRecordsTest.Book book = new StaticClassExtensionRecordsTest.Book("");
+        String extension = StaticClassExtensionRecordsTest.Item_Shippable.extensionFor(book).toString();
         System.gc();
-        assertNotEquals(extension, ClassExtensionRecordsTest.Item_Shippable.extensionFor(book).toString());
+        assertNotEquals(extension, StaticClassExtensionRecordsTest.Item_Shippable.extensionFor(book).toString());
     }
 }

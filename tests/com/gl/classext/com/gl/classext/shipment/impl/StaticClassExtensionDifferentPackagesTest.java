@@ -1,6 +1,6 @@
 package com.gl.classext.com.gl.classext.shipment.impl;
 
-import com.gl.classext.ClassExtension;
+import com.gl.classext.StaticClassExtension;
 import com.gl.classext.com.gl.classext.shipment.Items.*;
 import org.junit.jupiter.api.Test;
 
@@ -8,7 +8,7 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-public class ClassExtensionDifferentPackagesTest {
+public class StaticClassExtensionDifferentPackagesTest {
     @Test
     void shipmentTest() {
         Item[] items = {new Book("book"), new Furniture("furniture"), new ElectronicItem("electronic item")};
@@ -29,6 +29,6 @@ public class ClassExtensionDifferentPackagesTest {
     }
 
     public ShippingInfo ship(Item anItem) {
-        return ((Item_Shippable) ClassExtension.extension(anItem, "Shippable", List.of("com.gl.classext.com.gl.classext.shipment.impl"))).ship();
+        return ((Item_Shippable) StaticClassExtension.sharedExtension(anItem, "Shippable", List.of("com.gl.classext.com.gl.classext.shipment.impl"))).ship();
     }
 }

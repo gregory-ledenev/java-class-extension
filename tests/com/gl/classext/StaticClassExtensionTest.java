@@ -48,11 +48,11 @@ class AutoPart extends Item {
 record ShippingInfo(String result) {
 }
 
-class Item_Shippable implements ClassExtension.DelegateHolder<Item> {
+class Item_Shippable implements StaticClassExtension.DelegateHolder<Item> {
     static final StringBuilder LOG = new StringBuilder();
 
     public static Item_Shippable extensionFor(Item anItem) {
-        return ClassExtension.extension(anItem, Item_Shippable.class);
+        return StaticClassExtension.sharedExtension(anItem, Item_Shippable.class);
     }
 
     public ShippingInfo ship() {
@@ -99,7 +99,7 @@ class ElectronicItem_Shippable extends Item_Shippable {
     }
 }
 
-public class ClassExtensionTest {
+public class StaticClassExtensionTest {
     /**
      * Tests for exact match when a matching extension is defined for the passed object's class
      */
@@ -165,7 +165,7 @@ public class ClassExtensionTest {
     @SuppressWarnings({"rawtypes"})
     void noShippableClassFoundTest() {
         try {
-            ClassExtension.DelegateHolder extension = ClassExtension.extension(new Book("noname"), ClassExtension.DelegateHolder.class);
+            StaticClassExtension.DelegateHolder extension = StaticClassExtension.sharedExtension(new Book("noname"), StaticClassExtension.DelegateHolder.class);
             fail("Unexpected extension found: " + extension);
         } catch (Exception ex) {
             System.out.println(ex.getMessage());
@@ -191,7 +191,7 @@ public class ClassExtensionTest {
         Book book = new Book("");
         String extension = Item_Shippable.extensionFor(book).toString();
         assertEquals(extension, Item_Shippable.extensionFor(book).toString());
-        ClassExtension.extensionCache.remove(book);
+        StaticClassExtension.sharedInstance().extensionCache.remove(book);
         assertNotEquals(extension, Item_Shippable.extensionFor(book).toString());
     }
 
@@ -201,8 +201,8 @@ public class ClassExtensionTest {
     @Test
     void nonCacheTest() {
         Book book = new Book("");
-        Item_Shippable extension = ClassExtension.extensionNoCache(book, Item_Shippable.class);
-        assertNotEquals(extension, ClassExtension.extensionNoCache(book, Item_Shippable.class));
+        Item_Shippable extension = StaticClassExtension.sharedExtensionNoCache(book, Item_Shippable.class);
+        assertNotEquals(extension, StaticClassExtension.sharedExtensionNoCache(book, Item_Shippable.class));
     }
 
     /**
@@ -216,9 +216,9 @@ public class ClassExtensionTest {
         System.gc();
         assertNotEquals(extension, Item_Shippable.extensionFor(book).toString());
         System.gc();
-        assertFalse(ClassExtension.cacheIsEmpty());
-        ClassExtension.cacheCleanup();
-        assertTrue(ClassExtension.cacheIsEmpty());
+        assertFalse(StaticClassExtension.sharedInstance().cacheIsEmpty());
+        StaticClassExtension.sharedInstance().cacheCleanup();
+        assertTrue(StaticClassExtension.sharedInstance().cacheIsEmpty());
     }
 
     /**
@@ -229,8 +229,8 @@ public class ClassExtensionTest {
         Book book = new Book("");
         String extension = Item_Shippable.extensionFor(book).toString();
         assertEquals(extension, Item_Shippable.extensionFor(book).toString());
-        ClassExtension.cacheClear();
-        assertTrue(ClassExtension.cacheIsEmpty());
+        StaticClassExtension.sharedInstance().cacheClear();
+        assertTrue(StaticClassExtension.sharedInstance().cacheIsEmpty());
         assertNotEquals(extension, Item_Shippable.extensionFor(book).toString());
     }
 
@@ -239,21 +239,21 @@ public class ClassExtensionTest {
      */
     @Test
     void scheduledCleanupCacheTest() {
-        ClassExtension.scheduleCacheCleanup();
+        StaticClassExtension.sharedInstance().scheduleCacheCleanup();
         try {
             Book book = new Book("");
             Item_Shippable.extensionFor(book);
             System.gc();
-            assertFalse(ClassExtension.cacheIsEmpty());
+            assertFalse(StaticClassExtension.sharedInstance().cacheIsEmpty());
             try {
                 System.out.println("Waiting 1.5 minutes for automatic cache cleanup...");
                 Thread.sleep(90000);
             } catch (InterruptedException aE) {
                 // do nothing
             }
-            assertTrue(ClassExtension.cacheIsEmpty());
+            assertTrue(StaticClassExtension.sharedInstance().cacheIsEmpty());
         } finally {
-            ClassExtension.shutdownCacheCleanup();
+            StaticClassExtension.sharedInstance().shutdownCacheCleanup();
         }
     }
 
@@ -273,7 +273,7 @@ public class ClassExtensionTest {
         long startTime = System.currentTimeMillis();
         for (int i = 0; i < 1000000; i++) {
             for (Item item : items) {
-                Item_Shippable extension = ClassExtension.extension(item, Item_Shippable.class);
+                Item_Shippable extension = StaticClassExtension.sharedInstance().extension(item, Item_Shippable.class);
                 extension.log();
             }
         }

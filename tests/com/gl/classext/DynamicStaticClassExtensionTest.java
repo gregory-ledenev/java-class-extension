@@ -7,7 +7,8 @@ import java.text.MessageFormat;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-public class DynamicClassExtensionTest {
+@SuppressWarnings("unused")
+public class DynamicStaticClassExtensionTest {
     interface ItemInterface {
         String getName();
     }
@@ -167,7 +168,7 @@ public class DynamicClassExtensionTest {
         StringBuilder names = new StringBuilder();
         for (Item item : items) {
             Item_Shippable extension = dynamicClassExtension.extension(item, Item_Shippable.class);
-            assertEquals((Object) extension, (Object) item);
+            assertEquals(extension, item);
             if (!names.isEmpty()) {
                 names.append("\n");
             }
@@ -184,7 +185,7 @@ public class DynamicClassExtensionTest {
         names.setLength(0);
         for (Item item : items) {
             Item_Shippable extension = dynamicClassExtension.extension(item, Item_Shippable.class);
-            assertEquals((Object) extension, (Object) item);
+            assertEquals(extension, item);
             if (!names.isEmpty()) {
                 names.append("\n");
             }
@@ -481,7 +482,7 @@ public class DynamicClassExtensionTest {
                     op(AutoPart.class, item -> item.getName()  + "[OVERRIDDEN]").
                 build();
 
-        result = result.builder(ClassExtension.DelegateHolder.class).
+        result = result.builder(StaticClassExtension.DelegateHolder.class).
                 opName("getDelegate").
                     op(String.class, item -> null).
                 build();
@@ -601,7 +602,7 @@ public class DynamicClassExtensionTest {
             }
         }
         System.out.println("DYNAMIC - Elapsed time: " + ((System.currentTimeMillis()-startTime) / 1000f));
-        ClassExtensionTest.performanceTestStatic();
+        StaticClassExtensionTest.performanceTestStatic();
     }
 
     @Test

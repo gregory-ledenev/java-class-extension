@@ -3,9 +3,9 @@ package com.gl.classext;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotEquals;
 
-public class ClassExtensionRecordsTest {
+@SuppressWarnings("unused")
+public class StaticClassExtensionRecordsTest {
     public interface Item {
         String name();
     }
@@ -22,9 +22,9 @@ public class ClassExtensionRecordsTest {
     public record ShippingInfo(String result) {
     }
 
-    public static class Item_Shippable implements ClassExtension.DelegateHolder<Item> {
+    public static class Item_Shippable implements StaticClassExtension.DelegateHolder<Item> {
         public static Item_Shippable extensionFor(Item anItem) {
-            return ClassExtension.extension(anItem, Item_Shippable.class);
+            return StaticClassExtension.sharedExtension(anItem, Item_Shippable.class);
         }
 
         public ShippingInfo ship() {

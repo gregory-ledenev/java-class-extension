@@ -95,7 +95,7 @@ import java.util.stream.Collectors;
  * @author Gregory Ledenev
  * @version 0.9.6
  */
-public class DynamicClassExtension {
+public class DynamicClassExtension implements ClassExtension {
 
     @FunctionalInterface
     interface Performer<R> {
@@ -195,20 +195,20 @@ public class DynamicClassExtension {
     static final String SUFFIX_BI = "Bi";
 
     <R, T, E> void addExtensionOperation(Class<T> aClass,
-                                         Class<E> anExtensionClass,
+                                         Class<E> anExtensionInterface,
                                          String anOperationName,
                                          FunctionPerformer<T, R> anOperation) {
-        checkAddOperationArguments(aClass, anExtensionClass, anOperationName, anOperation);
+        checkAddOperationArguments(aClass, anExtensionInterface, anOperationName, anOperation);
 
-        OperationKey key = new OperationKey(aClass, anExtensionClass, operationName(anOperationName, null));
+        OperationKey key = new OperationKey(aClass, anExtensionInterface, operationName(anOperationName, null));
         if (operationsMap.containsKey(key))
             duplicateOperationError(displayOperationName(anOperationName, false, null));
         operationsMap.put(key, anOperation);
     }
 
-    private static <T, E> void checkAddOperationArguments(Class<T> aClass, Class<E> anExtensionClass, String anOperationName, Object anOperation) {
+    private static <T, E> void checkAddOperationArguments(Class<T> aClass, Class<E> anExtensionInterface, String anOperationName, Object anOperation) {
         Objects.requireNonNull(aClass, "Object class is not specified");
-        Objects.requireNonNull(anExtensionClass, "Extension interface is not specified");
+        Objects.requireNonNull(anExtensionInterface, "Extension interface is not specified");
         Objects.requireNonNull(anOperationName, "Operation name is not specified");
         Objects.requireNonNull(anOperation, "Operation is not specified");
     }
@@ -220,49 +220,49 @@ public class DynamicClassExtension {
     static final private Class<?>[] SINGLE_PARAMETERS = {Object.class};
 
     <R, T, U, E> void addExtensionOperation(Class<T> aClass,
-                                            Class<E> anExtensionClass,
+                                            Class<E> anExtensionInterface,
                                             String anOperationName,
                                             BiFunctionPerformer<T, U, R> anOperation) {
-        checkAddOperationArguments(aClass, anExtensionClass, anOperationName, anOperation);
+        checkAddOperationArguments(aClass, anExtensionInterface, anOperationName, anOperation);
 
-        OperationKey key = new OperationKey(aClass, anExtensionClass, operationName(anOperationName, SINGLE_PARAMETERS));
+        OperationKey key = new OperationKey(aClass, anExtensionInterface, operationName(anOperationName, SINGLE_PARAMETERS));
         if (operationsMap.containsKey(key))
             duplicateOperationError(displayOperationName(anOperationName, false, SINGLE_PARAMETERS));
         operationsMap.put(key, anOperation);
     }
 
     <T, E> void addVoidExtensionOperation(Class<T> aClass,
-                                          Class<E> anExtensionClass,
+                                          Class<E> anExtensionInterface,
                                           String anOperationName,
                                           ConsumerPerformer<T> anOperation) {
-        checkAddOperationArguments(aClass, anExtensionClass, anOperationName, anOperation);
+        checkAddOperationArguments(aClass, anExtensionInterface, anOperationName, anOperation);
 
-        OperationKey key = new OperationKey(aClass, anExtensionClass, operationName(anOperationName, null));
+        OperationKey key = new OperationKey(aClass, anExtensionInterface, operationName(anOperationName, null));
         if (operationsMap.containsKey(key))
             duplicateOperationError(displayOperationName(anOperationName, true, null));
         operationsMap.put(key, anOperation);
     }
 
     <T, U, E> void addVoidExtensionOperation(Class<T> aClass,
-                                             Class<E> anExtensionClass,
+                                             Class<E> anExtensionInterface,
                                              String anOperationName,
                                              BiConsumerPerformer<T, U> anOperation) {
-        checkAddOperationArguments(aClass, anExtensionClass, anOperationName, anOperation);
+        checkAddOperationArguments(aClass, anExtensionInterface, anOperationName, anOperation);
 
-        OperationKey key = new OperationKey(aClass, anExtensionClass, operationName(anOperationName, SINGLE_PARAMETERS));
+        OperationKey key = new OperationKey(aClass, anExtensionInterface, operationName(anOperationName, SINGLE_PARAMETERS));
         if (operationsMap.containsKey(key))
             duplicateOperationError(displayOperationName(anOperationName, true, SINGLE_PARAMETERS));
         operationsMap.put(key, anOperation);
     }
 
     <T, E> Object getExtensionOperation(Class<T> aClass,
-                                        Class<E> anExtensionClass,
+                                        Class<E> anExtensionInterface,
                                         String anOperationName) {
         Objects.requireNonNull(aClass);
-        Objects.requireNonNull(anExtensionClass);
+        Objects.requireNonNull(anExtensionInterface);
         Objects.requireNonNull(anOperationName);
 
-        return operationsMap.get(new OperationKey(aClass, anExtensionClass, anOperationName));
+        return operationsMap.get(new OperationKey(aClass, anExtensionInterface, anOperationName));
     }
 
     <T, E> void removeExtensionOperation(Class<T> aClass,
@@ -282,17 +282,17 @@ public class DynamicClassExtension {
      * Otherwise, an empty dynamic extension having no operations will be returned.
      *
      * @param anObject         object to return an extension object for
-     * @param anExtensionClass class of extension object to be returned
+     * @param anExtensionInterface class of extension object to be returned
      * @return an extension object
      */
     @SuppressWarnings({"unchecked"})
-    public <T> T extensionNoCache(Object anObject, Class<T> anExtensionClass) {
+    public <T> T extensionNoCache(Object anObject, Class<T> anExtensionInterface) {
         Objects.requireNonNull(anObject);
-        Objects.requireNonNull(anExtensionClass);
+        Objects.requireNonNull(anExtensionInterface);
 
-        return (T) Proxy.newProxyInstance(anExtensionClass.getClassLoader(),
-                new Class<?>[]{anExtensionClass},
-                (proxy, method, args) -> performOperation(anObject, anExtensionClass, method, args));
+        return (T) Proxy.newProxyInstance(anExtensionInterface.getClassLoader(),
+                new Class<?>[]{anExtensionInterface},
+                (proxy, method, args) -> performOperation(anObject, anExtensionInterface, method, args));
     }
 
     /**
@@ -301,11 +301,12 @@ public class DynamicClassExtension {
      * Otherwise, an empty dynamic extension having no operations will be returned.
      *
      * @param anObject         object to return an extension object for
-     * @param anExtensionClass class of extension object to be returned
+     * @param anExtensionInterface class of extension object to be returned
      * @return an extension object
      */
-    public <T> T sharedExtensionNoCache(Object anObject, Class<T> anExtensionClass) {
-        return sharedInstance().extensionNoCache(anObject, anExtensionClass);
+    @SuppressWarnings("unused")
+    public <T> T sharedExtensionNoCache(Object anObject, Class<T> anExtensionInterface) {
+        return sharedInstance().extensionNoCache(anObject, anExtensionInterface);
     }
 
     /**
@@ -315,15 +316,15 @@ public class DynamicClassExtension {
      * objects creation.
      *
      * @param anObject         object to return an extension object for
-     * @param anExtensionClass class of extension object to be returned
+     * @param anExtensionInterface class of extension object to be returned
      * @return an extension object
      */
     @SuppressWarnings({"unchecked"})
-    public <T> T extension(Object anObject, Class<T> anExtensionClass) {
+    public <T> T extension(Object anObject, Class<T> anExtensionInterface) {
         Objects.requireNonNull(anObject);
-        Objects.requireNonNull(anExtensionClass);
+        Objects.requireNonNull(anExtensionInterface);
 
-        return (T) extensionCache.getOrCreate(anObject, () -> extensionNoCache(anObject, anExtensionClass));
+        return (T) extensionCache.getOrCreate(anObject, () -> extensionNoCache(anObject, anExtensionInterface));
     }
 
     /**
@@ -333,11 +334,12 @@ public class DynamicClassExtension {
      * objects creation.
      *
      * @param anObject         object to return an extension object for
-     * @param anExtensionClass class of extension object to be returned
+     * @param anExtensionInterface class of extension object to be returned
      * @return an extension object
      */
-    public static <T> T sharedExtension(Object anObject, Class<T> anExtensionClass) {
-        return sharedInstance().extension(anObject, anExtensionClass);
+    @SuppressWarnings("unused")
+    public static <T> T sharedExtension(Object anObject, Class<T> anExtensionInterface) {
+        return sharedInstance().extension(anObject, anExtensionInterface);
     }
 
     Method findMethod(Class<?> aClass, String aMethodName, Class<?>[] aParameterTypes) {
@@ -349,7 +351,7 @@ public class DynamicClassExtension {
                     (aParameterTypes != null && parameterTypes.length == aParameterTypes.length))) {
                 if (aParameterTypes.length == 0) {
                     result = method;
-                    break all;
+                    break;
                 } else {
                     for (int i = 0; i < aParameterTypes.length; i++) {
                         Class<?> parameterType = aParameterTypes[i];
@@ -439,16 +441,16 @@ public class DynamicClassExtension {
         }
     }
 
-    <T> Object findExtensionOperation(Object anObject, Class<T> anExtensionClass, Method method, Object[] anArgs) {
-        return findExtensionOperation(anObject.getClass(), anExtensionClass, method, anArgs);
+    <T> Object findExtensionOperation(Object anObject, Class<T> anExtensionInterface, Method method, Object[] anArgs) {
+        return findExtensionOperation(anObject.getClass(), anExtensionInterface, method, anArgs);
     }
 
     @SuppressWarnings({"rawtypes", "unchecked"})
-    <T> Object findExtensionOperation(Class<?> anObjectClass, Class<T> anExtensionClass, Method method, Object[] anArgs) {
+    <T> Object findExtensionOperation(Class<?> anObjectClass, Class<T> anExtensionInterface, Method method, Object[] anArgs) {
         Object result;
         Class current = anObjectClass;
         do {
-            result = getExtensionOperation(current, anExtensionClass, operationName(method.getName(), parameterTypes(anArgs)));
+            result = getExtensionOperation(current, anExtensionInterface, operationName(method.getName(), parameterTypes(anArgs)));
             current = current.getSuperclass();
         } while (current != null && result == null);
         return result;
@@ -596,16 +598,17 @@ public class DynamicClassExtension {
         return dynamicClassExtension;
     }
 
+    @SuppressWarnings("unused")
     public static <E> Builder<E> sharedBuilder(Class<E> aExtensionClass) {
         return dynamicClassExtension.builder(aExtensionClass);
     }
 
-    public <E> Builder<E> builder(Class<E> anExtensionClass) {
-        Objects.requireNonNull(anExtensionClass, "Extension interface is not specified");
-        if (! anExtensionClass.isInterface())
-            throw new IllegalArgumentException(anExtensionClass.getName() + " is not an interface");
+    public <E> Builder<E> builder(Class<E> anExtensionInterface) {
+        Objects.requireNonNull(anExtensionInterface, "Extension interface is not specified");
+        if (! anExtensionInterface.isInterface())
+            throw new IllegalArgumentException(anExtensionInterface.getName() + " is not an interface");
 
-        return new Builder<>(anExtensionClass, this);
+        return new Builder<>(anExtensionInterface, this);
     }
 
     /**
@@ -647,6 +650,7 @@ public class DynamicClassExtension {
          *               an array of parameter types
          * @return a copy of this {@code Builder}
          */
+        @SuppressWarnings("unused")
         public <T1> Builder<E> removeOp(Class<T1> anObjectClass, Class<?>[] aParameterTypes) {
             dynamicClassExtension.removeExtensionOperation(anObjectClass, extensionClass, operationName, aParameterTypes);
             return new Builder<>(extensionClass, operationName, dynamicClassExtension);
