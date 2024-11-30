@@ -22,9 +22,9 @@ public class StaticClassExtensionRecordsTest {
     public record ShippingInfo(String result) {
     }
 
-    public static class Item_Shippable implements StaticClassExtension.DelegateHolder<Item> {
-        public static Item_Shippable extensionFor(Item anItem) {
-            return StaticClassExtension.sharedExtension(anItem, Item_Shippable.class);
+    public static class Shippable implements StaticClassExtension.DelegateHolder<Item> {
+        public static Shippable extensionFor(Item anItem) {
+            return StaticClassExtension.sharedExtension(anItem, Shippable.class);
         }
 
         public ShippingInfo ship() {
@@ -44,19 +44,19 @@ public class StaticClassExtensionRecordsTest {
         }
     }
 
-    static class Book_Shippable extends Item_Shippable {
+    static class BookShippable extends Shippable {
         public ShippingInfo ship() {
             return new ShippingInfo(getDelegate() + " book shipped");
         }
     }
 
-    static class Furniture_Shippable extends Item_Shippable {
+    static class FurnitureShippable extends Shippable {
         public ShippingInfo ship() {
             return new ShippingInfo(getDelegate() + " furniture shipped");
         }
     }
 
-    static class ElectronicItem_Shippable extends Item_Shippable {
+    static class ElectronicItemShippable extends Shippable {
         public ShippingInfo ship() {
             return new ShippingInfo(getDelegate() + " electronic item shipped");
         }
@@ -82,6 +82,6 @@ public class StaticClassExtensionRecordsTest {
     }
 
     public ShippingInfo ship(Item anItem) {
-        return Item_Shippable.extensionFor(anItem).ship();
+        return Shippable.extensionFor(anItem).ship();
     }
 }

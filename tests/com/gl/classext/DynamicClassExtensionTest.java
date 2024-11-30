@@ -8,7 +8,7 @@ import java.text.MessageFormat;
 import static org.junit.jupiter.api.Assertions.*;
 
 @SuppressWarnings("unused")
-public class DynamicStaticClassExtensionTest {
+public class DynamicClassExtensionTest {
     interface ItemInterface {
         String getName();
     }

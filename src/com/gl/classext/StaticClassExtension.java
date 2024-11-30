@@ -25,11 +25,12 @@ SOFTWARE.
 package com.gl.classext;
 
 import java.lang.reflect.Constructor;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
+import java.lang.reflect.Proxy;
 import java.text.MessageFormat;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Objects;
+import java.util.*;
+import java.util.stream.Collectors;
 
 /**
  * <p>Class {@code ClassExtension} provides a way to mimic class extensions (categories) by finding matching extension objects and
@@ -117,7 +118,7 @@ public class StaticClassExtension implements ClassExtension{
         Objects.requireNonNull(anObject);
         Objects.requireNonNull(anExtensionInterface);
 
-        return extension(anObject, anExtensionInterface, null);
+        return extension(anObject, anExtensionInterface, getPackageNames(anExtensionInterface, null));
     }
 
     /**
@@ -129,7 +130,7 @@ public class StaticClassExtension implements ClassExtension{
      * @return an extension object
      */
     public static <T> T sharedExtension(Object anObject, Class<T> anExtensionClass) {
-        return sharedInstance().extension(anObject, anExtensionClass, null);
+        return sharedInstance().extension(anObject, anExtensionClass);
     }
 
     /**
@@ -137,15 +138,16 @@ public class StaticClassExtension implements ClassExtension{
      * creation.
      *
      * @param anObject         object to return an extension object for
-     * @param anExtensionClass class of extension object to be returned
+     * @param anExtensionInterface class of extension object to be returned
      * @param aPackageNames    additional packages to lookup for extensions
      * @return an extension object
      */
-    public <T> T extension(Object anObject, Class<T> anExtensionClass, List<String> aPackageNames) {
+    @SuppressWarnings("unchecked")
+    public <T> T extension(Object anObject, Class<T> anExtensionInterface, List<String> aPackageNames) {
         Objects.requireNonNull(anObject);
-        Objects.requireNonNull(anExtensionClass);
+        Objects.requireNonNull(anExtensionInterface);
 
-        return extension(anObject, extensionName(anExtensionClass), getPackageNames(anExtensionClass, aPackageNames));
+        return (T) extensionCache.getOrCreate(anObject, () -> extensionNoCache(anObject, anExtensionInterface, aPackageNames));
     }
 
     /**
@@ -181,7 +183,7 @@ public class StaticClassExtension implements ClassExtension{
         Objects.requireNonNull(anObject);
         Objects.requireNonNull(anExtensionClass);
 
-        return extensionNoCache(anObject, anExtensionClass, null);
+        return extensionNoCache(anObject, anExtensionClass, getPackageNames(anExtensionClass, null));
     }
 
     /**
@@ -196,60 +198,87 @@ public class StaticClassExtension implements ClassExtension{
     }
 
     /**
-     * Finds and returns an extension object according to a supplied class.
-     *
-     * @param anObject         object to return an extension object for
-     * @param anExtensionClass class of extension object to be returned
-     * @param aPackageNames    additional packages to lookup for extensions
-     * @return an extension object
-     */
-    public <T> T extensionNoCache(Object anObject, Class<T> anExtensionClass, List<String> aPackageNames) {
-        Objects.requireNonNull(anObject);
-        Objects.requireNonNull(anExtensionClass);
-
-        return extensionNoCache(anObject, extensionName(anExtensionClass), getPackageNames(anExtensionClass, aPackageNames));
-    }
-
-    /**
      * Finds and returns a shared extension object according to a supplied class.
      *
      * @param anObject         object to return an extension object for
-     * @param anExtensionClass class of extension object to be returned
+     * @param anExtensionInterface class of extension object to be returned
      * @param aPackageNames    additional packages to lookup for extensions
      * @return an extension object
      */
     @SuppressWarnings("unused")
-    public static <T> T sharedExtensionNoCache(Object anObject, Class<T> anExtensionClass, List<String> aPackageNames) {
-        return sharedInstance().extensionNoCache(anObject, anExtensionClass, aPackageNames);
+    public static <T> T sharedExtensionNoCache(Object anObject, Class<T> anExtensionInterface, List<String> aPackageNames) {
+        return sharedInstance().extensionNoCache(anObject, anExtensionInterface, aPackageNames);
     }
 
     /**
      * Finds and returns an extension object according to a supplied extension name and an extension package.
      *
      * @param anObject        object to return an extension object for
-     * @param anExtensionName name of extension
+     * @param anExtensionInterface extension interface
      * @param aPackageNames   packages to lookup extension in
      * @return an extension object
      */
     @SuppressWarnings({"rawtypes", "unchecked"})
-    public <T> T extensionNoCache(Object anObject, String anExtensionName, List<String> aPackageNames) {
+    public <T> T extensionNoCache(Object anObject, Class<T> anExtensionInterface, List<String> aPackageNames) {
         Objects.requireNonNull(anObject);
-        Objects.requireNonNull(anExtensionName);
+        Objects.requireNonNull(anExtensionInterface);
 
-        Class<T> extensionClass = extensionClassForObject(anObject, anExtensionName, aPackageNames);
+        Class<T> extensionClass = extensionClassForObject(anObject, anExtensionInterface, aPackageNames);
         if (extensionClass == null)
             throw new IllegalArgumentException(MessageFormat.format("No extension {0} for a {1} class",
-                    extensionNames(aPackageNames, anObject.getClass().getSimpleName(), anExtensionName),
+                    extensionNames(aPackageNames, anObject.getClass().getSimpleName(), anExtensionInterface.getSimpleName()),
                     anObject.getClass().getName()));
         try {
+            if (! anExtensionInterface.isAssignableFrom(extensionClass))
+                throw new IllegalStateException(MessageFormat.format("Extension \"{0}\"class does not implement the \"{1}\" interface",
+                        extensionClass.getName(), anExtensionInterface.getName()));
+
             Constructor<T> constructor = getDeclaredConstructor(extensionClass, anObject.getClass());
-            T result = constructor.getParameterCount() == 0 ? constructor.newInstance() : constructor.newInstance(anObject);
-            if (result instanceof DelegateHolder)
-                ((DelegateHolder) result).setDelegate(anObject);
-            return result;
+            T extension = constructor.getParameterCount() == 0 ? constructor.newInstance() : constructor.newInstance(anObject);
+            if (extension instanceof DelegateHolder)
+                ((DelegateHolder) extension).setDelegate(anObject);
+
+            return (T) Proxy.newProxyInstance(anExtensionInterface.getClassLoader(),
+                    new Class<?>[]{anExtensionInterface},
+                    (proxy, method, args) -> performOperation(extension, anObject, anExtensionInterface, method, args));
         } catch (Exception aE) {
             throw new RuntimeException(aE);
         }
+    }
+
+    private <T> Object performOperation(T anExtension, Object anObject, Class<T> anExtensionInterface, Method aMethod, Object[] aArgs)
+            throws InvocationTargetException, IllegalAccessException, NoSuchMethodException {
+        Object result;
+
+        String methodName = aMethod.getName();
+        if ("toString".equals(methodName) && aMethod.getParameterCount() == 0) {
+            result = anObject.toString();
+        } else if ("hashCode".equals(methodName) && aMethod.getParameterCount() == 0) {
+            result = anObject.hashCode();
+        } else if ("equals".equals(methodName) && aMethod.getParameterCount() == 1 && aMethod.getParameterTypes()[0] == Object.class) {
+            result = anObject.equals(aArgs[0]);
+        } else {
+            Method method = DynamicClassExtension.findMethod(anExtension.getClass(), methodName, DynamicClassExtension.parameterTypes(aArgs));
+            if (method != null) {
+                // invoke extension method
+                result = method.invoke(anExtension, aArgs);
+            } else {
+                // invoke delegate object method
+                result = anObject.getClass().getMethod(methodName, DynamicClassExtension.parameterTypes(aArgs)).
+                        invoke(anObject, aArgs);
+            }
+        }
+
+        return result;
+    }
+
+    static String methodToString(Class<?> aClass, String name, Class<?>[] argTypes) {
+        return aClass.getName() + '.' + name +
+                ((argTypes == null || argTypes.length == 0) ?
+                        "()" :
+                        Arrays.stream(argTypes)
+                                .map(c -> c == null ? "null" : c.getName())
+                                .collect(Collectors.joining(",", "(", ")")));
     }
 
     @SuppressWarnings({"unchecked"})
@@ -268,50 +297,7 @@ public class StaticClassExtension implements ClassExtension{
                 result;
     }
 
-    /**
-     * Finds and returns a shared extension object according to a supplied extension name and an extension package.
-     *
-     * @param anObject        object to return an extension object for
-     * @param anExtensionName name of extension
-     * @param aPackageNames   packages to lookup extension in
-     * @return an extension object
-     */
-    @SuppressWarnings("unused")
-    public static <T> T sharedExtensionNoCache(Object anObject, String anExtensionName, List<String> aPackageNames) {
-        return sharedInstance().extensionNoCache(anObject, anExtensionName, aPackageNames);
-    }
-
-    /**
-     * Finds and returns an extension object according to a supplied extension name and an extension package.
-     * It uses cache to avoid redundant objects creation.
-     *
-     * @param anObject        object to return an extension object for
-     * @param anExtensionName name of extension
-     * @param aPackageNames   packages to lookup extension in
-     * @return an extension object
-     */
-    @SuppressWarnings({"unchecked"})
-    public <T> T extension(Object anObject, String anExtensionName, List<String> aPackageNames) {
-        Objects.requireNonNull(anObject);
-        Objects.requireNonNull(anExtensionName);
-
-        return (T) extensionCache.getOrCreate(anObject, () -> extensionNoCache(anObject, anExtensionName, aPackageNames));
-    }
-
-    /**
-     * Finds and returns a shared extension object according to a supplied extension name and an extension package.
-     * It uses cache to avoid redundant objects creation.
-     *
-     * @param anObject        object to return an extension object for
-     * @param anExtensionName name of extension
-     * @param aPackageNames   packages to lookup extension in
-     * @return an extension object
-     */
-    public static <T> T sharedExtension(Object anObject, String anExtensionName, List<String> aPackageNames) {
-        return sharedInstance().extension(anObject, anExtensionName, aPackageNames);
-    }
-
-    <T> Class<T> extensionClassForObject(Object anObject, String anExtensionName, List<String> aPackageNames) {
+    <T> Class<T> extensionClassForObject(Object anObject, Class<T> anExtensionInterface, List<String> aPackageNames) {
         if (aPackageNames == null)
             return null;
 
@@ -319,8 +305,9 @@ public class StaticClassExtension implements ClassExtension{
         List<String> packageNames = new ArrayList<>(aPackageNames);
         Collections.reverse(packageNames);
 
+        String extensionName = anExtensionInterface.getSimpleName();
         for (String packageName : packageNames) {
-            result = extensionClassForObject(anObject, anExtensionName, packageName);
+            result = extensionClassForObject(anObject, extensionName, packageName);
             if (result != null)
                 break;
         }
@@ -347,7 +334,7 @@ public class StaticClassExtension implements ClassExtension{
     }
 
     String extensionName(String aPackageName, String aSimpleClassName, String extensionName) {
-        return MessageFormat.format("{0}.{1}_{2}", aPackageName, aSimpleClassName, extensionName);
+        return MessageFormat.format("{0}.{1}{2}", aPackageName, aSimpleClassName, extensionName);
     }
 
     String extensionNames(List<String> aPackageNames, String aSimpleClassName, String extensionName) {
@@ -356,7 +343,7 @@ public class StaticClassExtension implements ClassExtension{
 
         StringBuilder result = new StringBuilder();
         for (String packageName : aPackageNames) {
-            if (result.isEmpty())
+            if (! result.isEmpty())
                 result.append(", ");
             result.append(extensionName(packageName, aSimpleClassName, extensionName));
         }

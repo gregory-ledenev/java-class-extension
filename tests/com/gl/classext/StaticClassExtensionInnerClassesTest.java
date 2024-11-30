@@ -49,9 +49,9 @@ public class StaticClassExtensionInnerClassesTest {
     public record ShippingInfo(String result) {
     }
 
-    public static class Item_Shippable implements StaticClassExtension.DelegateHolder<Item> {
-        public static Item_Shippable extensionFor(Item anItem) {
-            return StaticClassExtension.sharedExtension(anItem, Item_Shippable.class);
+    public static class Shippable implements StaticClassExtension.DelegateHolder<Item> {
+        public static Shippable extensionFor(Item anItem) {
+            return StaticClassExtension.sharedExtension(anItem, Shippable.class);
         }
 
         public ShippingInfo ship() {
@@ -72,21 +72,25 @@ public class StaticClassExtensionInnerClassesTest {
     }
 
     @SuppressWarnings("unused")
-    static class Book_Shippable extends Item_Shippable {
+    static class ItemShippable extends Shippable {
+    }
+
+    @SuppressWarnings("unused")
+    static class BookShippable extends Shippable {
         public ShippingInfo ship() {
             return new ShippingInfo(getDelegate() + " shipped");
         }
     }
 
     @SuppressWarnings("unused")
-    static class Furniture_Shippable extends Item_Shippable {
+    static class FurnitureShippable extends Shippable {
         public ShippingInfo ship() {
             return new ShippingInfo(getDelegate() + " shipped");
         }
     }
 
     @SuppressWarnings("unused")
-    static class ElectronicItem_Shippable extends Item_Shippable {
+    static class ElectronicItemShippable extends Shippable {
         public ShippingInfo ship() {
             return new ShippingInfo(getDelegate() + " shipped");
         }
@@ -161,7 +165,7 @@ public class StaticClassExtensionInnerClassesTest {
     }
 
     public ShippingInfo ship(Item anItem) {
-        return Item_Shippable.extensionFor(anItem).ship();
+        return Shippable.extensionFor(anItem).ship();
     }
 
     /**
@@ -170,8 +174,8 @@ public class StaticClassExtensionInnerClassesTest {
     @Test
     void cacheTest() {
         StaticClassExtensionRecordsTest.Book book = new StaticClassExtensionRecordsTest.Book("");
-        String extension = StaticClassExtensionRecordsTest.Item_Shippable.extensionFor(book).toString();
+        String extension = StaticClassExtensionRecordsTest.Shippable.extensionFor(book).toString();
         System.gc();
-        assertNotEquals(extension, StaticClassExtensionRecordsTest.Item_Shippable.extensionFor(book).toString());
+        assertNotEquals(extension, StaticClassExtensionRecordsTest.Shippable.extensionFor(book).toString());
     }
 }

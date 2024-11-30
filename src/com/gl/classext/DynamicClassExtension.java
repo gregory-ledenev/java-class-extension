@@ -342,7 +342,7 @@ public class DynamicClassExtension implements ClassExtension {
         return sharedInstance().extension(anObject, anExtensionInterface);
     }
 
-    Method findMethod(Class<?> aClass, String aMethodName, Class<?>[] aParameterTypes) {
+    public static Method findMethod(Class<?> aClass, String aMethodName, Class<?>[] aParameterTypes) {
         Method result = null;
         all: for (Method method : aClass.getMethods()) {
             Class<?>[] parameterTypes = method.getParameterTypes();
@@ -456,7 +456,7 @@ public class DynamicClassExtension implements ClassExtension {
         return result;
     }
 
-    private Class<?>[] parameterTypes(Object[] anArgs) {
+    public static Class<?>[] parameterTypes(Object[] anArgs) {
         if (anArgs == null)
             return new Class<?>[0];
 

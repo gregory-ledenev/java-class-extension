@@ -29,6 +29,6 @@ public class StaticClassExtensionDifferentPackagesTest {
     }
 
     public ShippingInfo ship(Item anItem) {
-        return ((Item_Shippable) StaticClassExtension.sharedExtension(anItem, "Shippable", List.of("com.gl.classext.com.gl.classext.shipment.impl"))).ship();
+        return ((Shippable) StaticClassExtension.sharedExtension(anItem, Shippable.class, List.of("com.gl.classext.com.gl.classext.shipment.impl"))).ship();
     }
 }

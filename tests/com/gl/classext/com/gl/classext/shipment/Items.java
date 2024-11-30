@@ -39,12 +39,12 @@ public class Items {
 
     public record ShippingInfo(String result) {}
 
-    public static class Item_Shippable {
+    public static class Shippable {
         public ShippingInfo ship() {
             return new ShippingInfo(delegate + " NOT shipped");
         }
 
-        public Item_Shippable(Item aDelegate) {
+        public Shippable(Item aDelegate) {
             delegate = aDelegate;
         }
 
