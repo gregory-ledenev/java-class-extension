@@ -103,8 +103,8 @@ With that helper method, shipping become even more simpler and shorter:
 Shippable.extensionFor(anItem).ship();
 ```
 Supporting a new `Item` class using the Java Class Extension library requires:
-1. Adding a new `Shippable` extension with a proper `ship()` implementation.
-2. Registeing a package a new extension like `StaticClassExtension.sharedInstance().addExtensionPackage(Shippable.class, "test.grocery.shipment")`. 
+1. Adding a new `Shippable` extension with a proper `ship()` implementation like `class GroceryUtemShippable extends ItemShippable {...}.
+2. Registeing a package for a new extension like `StaticClassExtension.sharedInstance().addExtensionPackage(Shippable.class, "test.grocery.shipment")`. 
 
 No need to change any other code. That is it.
 
@@ -119,7 +119,7 @@ All the static extension classes must:
 `StaticClassExtension` takes care of inheritance so it is possible to design and implement class extensions hierarchy that fully or partially resembles original classes' hierarchy. If there's no explicit extension specified for particular class - its parent extension will be utilized. For example, if there's no explicit `Shippable` extension for the `Toy` class - base `ItemShippable` will be used instead.
 
 ##### Cashing #####
-Cashing of extension objects are supported out of the box. Cache utilizes weak references to release extension objects that are not in use. Though, to perform full cleanup either the `cacheCleanup()` should be used or automatic cleanup can be initiated via the `scheduleCacheCleanup()`. If automatic cache cleanup is used - it can be stopped by calling the `shutdownCacheCleanup()`.
+Cashing of extension objects are supported out of the box and it can be controlled via the `Classextension.cacheEnabled` property. utilizes weak references to release extension objects that are not in use. Though, to perform full cleanup either the `cacheCleanup()` should be used or automatic cleanup can be initiated via the `scheduleCacheCleanup()`. If automatic cache cleanup is used - it can be stopped by calling the `shutdownCacheCleanup()`.
 
 ### Dynamic Extensions with Java Class Extension Library
  Class `DynamicClassExtension` provides a way to mimic class extensions (categories) by composing extensions as a set of lambda operations. To specify an extension:
