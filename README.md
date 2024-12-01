@@ -9,8 +9,8 @@ Both approaches offer comparable performance, so the choice between them ultimat
 After getting extensions they can be used to perform any extended functionality as easy as:
 ```java
 Book book = new Book("The Mythical Man-Month");
-Item_Shippable itemShippable = ClassExtension.extension(book, Item_Shippable.class);
-itemShippable.ship();
+Shippable shippable = StaticClassExtension.sharedExtension(book, Shippable.class);
+shippable.ship();
 ```
 Java Class Extension library provides a valuable alternative for class extensions (not supported in Java) with just a little more verbose code and little more complex implementation.
    
@@ -46,26 +46,33 @@ While this method is simple and direct, it comes with several disadvantages:
    
 ### Static Extensions with Java Class Extension Library
 
-The core of the library is the `ClassExtension` class, which offers methods for dynamically finding and creating extension objects as needed. We can create an `Item_Shippable` class that acts as a `Shippable` extension (category) and provides a `ship()` method. This class must implement the `DelegateHolder` interface to allow it to work with items. Then we should subclass `Item_Shippable` and provide class extensions for each particular `Item` classes.
+The core of the library is the `StaticClassExtension` class, which offers methods for dynamically finding and creating extension objects as needed. We can create an `Shippable` interface that defines new methods for a `Shippable` extension (category) and provides a `ship()` method. Then we should implement all needed extension classes which implement the `Shippable`interface and provide particular implementation for all `Shippable` methods. All those extension classes class must either implement the `DelegateHolder` interface to allow it to work with items or provide a constructor that takes an `Item` as a parameter.
 ```java
-class Item_Shippable implements ClassExtension.DelegateHolder<Item> {
+public interface Shippable {
+    ShippingInfo ship();
+}
+class ItemShippable {
+    public ItemShippable(Item item) {
+	this.item = item;			
+    }
+
     public ShippingInfo ship() {
         return …;
     }
     …
 }
 
-class Book_Shippable extends Item_Shippable{
+class BookShippable extends ItemShippable{
     public ShippingInfo ship() {
         return …;
     }
 }
 ```
-Using `ClassExtension`, shipping an item becomes as simple as calling:
+Using `StaticClassExtension`, shipping an item becomes as simple as calling:
 
 ```java
 Book book = new Book("The Mythical Man-Month");
-ClassExtension.extension(book, Item_Shippable.class).ship()
+StaticClassExtension.sharedExtension(book, Shippable.class).ship()
 ``` 
 
 Shipping a collection of items is equally straightforward:
@@ -77,14 +84,14 @@ Item[] items = {
 };
 
 for (Item item : items) {
-    ClassExtension.extension(item, Item_Shippable.class).ship();
+    StaticClassExtension.sharedExtension(item, Shippable.class).ship();
 }
 ```
 It is possible to further simplify things by adding an `extensionFor(Item)` helper method to the `Item_Shippable`:
 ```java
-public static class Item_Shippable implements ClassExtension.DelegateHolder<Item> {
-	public static Item_Shippable extensionFor(Item anItem) {
-    	return ClassExtension.extension(anItem, Item_Shippable.class);
+public interface Shippable {
+	public static Shippable extensionFor(Item item) {
+    	    return StaticClassExtension.sharedExtension(item, Shippable.class).ship();
 	}
   ...
 }
@@ -92,9 +99,13 @@ public static class Item_Shippable implements ClassExtension.DelegateHolder<Item
 
 With that helper method, shipping become even more simpler and shorter:
 ```java
-Item_Shippable.extensionFor(anItem).ship()
+Shippable.extensionFor(anItem).ship()
 ```
-Supporting a new Item class using the Java Class Extension library requires just adding a new Shippable extension with a proper `ship()` implementation. No need to change any other code. That is it.
+Supporting a new `Item` class using the Java Class Extension library requires:
+1. Adding a new `Shippable` extension with a proper `ship()` implementation.
+2. Registeing a package a new extension via StaticClassExtension.sharedInstance().addExtensionPackage(Shippable.class, "test.grocery.shipment"); 
+
+No need to change any other code. That is it.
 
 #### Details ####
 All the static extension classes must:
