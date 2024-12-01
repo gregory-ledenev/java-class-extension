@@ -599,6 +599,7 @@ public class DynamicClassExtensionTest {
             for (Item item : items) {
                 Item_Shippable extension = dynamicClassExtension.extension(item, Item_Shippable.class);
                 extension.log();
+                extension.getName();
             }
         }
         System.out.println("DYNAMIC - Elapsed time: " + ((System.currentTimeMillis()-startTime) / 1000f));

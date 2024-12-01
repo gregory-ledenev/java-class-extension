@@ -24,6 +24,7 @@ SOFTWARE.
 
 package com.gl.classext;
 
+import java.lang.annotation.Annotation;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -223,31 +224,38 @@ public class StaticClassExtension implements ClassExtension{
         Objects.requireNonNull(anObject);
         Objects.requireNonNull(anExtensionInterface);
 
-        Class<T> extensionClass = extensionClassForObject(anObject, anExtensionInterface, aPackageNames);
+
+        Class<?> extensionInterface = findAnnotatedSuperInterface(anExtensionInterface, ExtensionInterface.class);
+        if (extensionInterface == null)
+            extensionInterface = anExtensionInterface;
+
+
+        Class<?> extensionClass = extensionClassForObject(anObject, extensionInterface, aPackageNames);
         if (extensionClass == null)
             throw new IllegalArgumentException(MessageFormat.format("No extension {0} for a {1} class",
-                    extensionNames(aPackageNames, anObject.getClass().getSimpleName(), anExtensionInterface.getSimpleName()),
+                    extensionNames(aPackageNames, anObject.getClass().getSimpleName(), extensionInterface.getSimpleName()),
                     anObject.getClass().getName()));
         try {
-            if (! anExtensionInterface.isAssignableFrom(extensionClass))
+            if (! extensionInterface.isAssignableFrom(extensionClass))
                 throw new IllegalStateException(MessageFormat.format("Extension \"{0}\"class does not implement the \"{1}\" interface",
-                        extensionClass.getName(), anExtensionInterface.getName()));
+                        extensionClass.getName(), extensionInterface.getName()));
 
-            Constructor<T> constructor = getDeclaredConstructor(extensionClass, anObject.getClass());
-            T extension = constructor.getParameterCount() == 0 ? constructor.newInstance() : constructor.newInstance(anObject);
+            Constructor<?> constructor = getDeclaredConstructor(extensionClass, anObject.getClass());
+            Object extension = constructor.getParameterCount() == 0 ? constructor.newInstance() : constructor.newInstance(anObject);
             if (extension instanceof DelegateHolder)
                 ((DelegateHolder) extension).setDelegate(anObject);
 
-            return (T) Proxy.newProxyInstance(anExtensionInterface.getClassLoader(),
+            final Class<?> finalExtensionInterface=  extensionInterface;
+            return (T) Proxy.newProxyInstance(extensionInterface.getClassLoader(),
                     new Class<?>[]{anExtensionInterface},
-                    (proxy, method, args) -> performOperation(extension, anObject, anExtensionInterface, method, args));
+                    (proxy, method, args) -> performOperation(extension, anObject, finalExtensionInterface, method, args));
         } catch (Exception aE) {
             throw new RuntimeException(aE);
         }
     }
 
-    private <T> Object performOperation(T anExtension, Object anObject, Class<T> anExtensionInterface, Method aMethod, Object[] aArgs)
-            throws InvocationTargetException, IllegalAccessException, NoSuchMethodException {
+    private static <T> Object performOperation(T anExtension, Object anObject, Class<?> anExtensionInterface, Method aMethod, Object[] aArgs)
+            throws InvocationTargetException, IllegalAccessException {
         Object result;
 
         String methodName = aMethod.getName();
@@ -258,27 +266,31 @@ public class StaticClassExtension implements ClassExtension{
         } else if ("equals".equals(methodName) && aMethod.getParameterCount() == 1 && aMethod.getParameterTypes()[0] == Object.class) {
             result = anObject.equals(aArgs[0]);
         } else {
-            Method method = DynamicClassExtension.findMethod(anExtension.getClass(), methodName, DynamicClassExtension.parameterTypes(aArgs));
-            if (method != null) {
+            if (aMethod.getDeclaringClass().isAssignableFrom(anExtension.getClass())) {
                 // invoke extension method
-                result = method.invoke(anExtension, aArgs);
+                result = aMethod.invoke(anExtension, aArgs);
+            } else if (aMethod.getDeclaringClass().isAssignableFrom(anObject.getClass())) {
+                // invoke object method
+                result = aMethod.invoke(anObject, aArgs);
             } else {
-                // invoke delegate object method
-                result = anObject.getClass().getMethod(methodName, DynamicClassExtension.parameterTypes(aArgs)).
-                        invoke(anObject, aArgs);
+                throw new IllegalArgumentException("Unexpected method: " + methodName);
             }
         }
 
         return result;
     }
 
-    static String methodToString(Class<?> aClass, String name, Class<?>[] argTypes) {
-        return aClass.getName() + '.' + name +
-                ((argTypes == null || argTypes.length == 0) ?
-                        "()" :
-                        Arrays.stream(argTypes)
-                                .map(c -> c == null ? "null" : c.getName())
-                                .collect(Collectors.joining(",", "(", ")")));
+    static Class<?> findAnnotatedSuperInterface(Class<?> anInterfaceClass, Class<? extends Annotation> anAnnotationClass) {
+        for (Class<?> superInterface : anInterfaceClass.getInterfaces()) {
+            if (superInterface.isAnnotationPresent(anAnnotationClass)) {
+                return superInterface;
+            }
+            Class<?> result = findAnnotatedSuperInterface(superInterface, anAnnotationClass);
+            if (result != null) {
+                return result;
+            }
+        }
+        return null;
     }
 
     @SuppressWarnings({"unchecked"})
@@ -348,12 +360,6 @@ public class StaticClassExtension implements ClassExtension{
             result.append(extensionName(packageName, aSimpleClassName, extensionName));
         }
         return result.toString();
-    }
-
-    <T> String extensionName(Class<T> clazz) {
-        int index = clazz.getName().indexOf("_");
-        if (index == -1) throw new IllegalArgumentException("Class " + clazz.getName() + " is not an extension");
-        return clazz.getName().substring(index + 1);
     }
 
     //region Cache methods

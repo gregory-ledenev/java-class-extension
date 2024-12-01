@@ -52,11 +52,12 @@ class AutoPart extends Item {
 record ShippingInfo(String result) {
 }
 
+@ExtensionInterface
 interface Shippable {
-    public ShippingInfo ship();
-    public void log();
+    ShippingInfo ship();
+    void log();
 
-    public static Shippable extensionFor(Item anItem) {
+    static Shippable extensionFor(Item anItem) {
         return StaticClassExtension.sharedExtension(anItem, Shippable.class);
     }
 }
@@ -125,7 +126,13 @@ public class StaticClassExtensionTest {
 
         StringBuilder shippingInfos = new StringBuilder();
         for (Item item : items) {
-            ShippingInfo shippingInfo = ship(item);
+            ShippableItemInterface shippable = StaticClassExtension.sharedExtension(item, ShippableItemInterface.class);
+            ShippingInfo shippingInfo = shippable.ship();
+            assertEquals(item.getName(), shippable.getName());
+            assertEquals(item.hashCode(), shippable.hashCode());
+            assertEquals(item.toString(), shippable.toString());
+            assertEquals((Object) shippable, item);
+
             if (!shippingInfos.isEmpty())
                 shippingInfos.append("\n");
             shippingInfos.append(shippingInfo);
@@ -192,8 +199,8 @@ public class StaticClassExtensionTest {
     @Test
     void cacheTest() {
         Book book = new Book("");
-        String extension = Shippable.extensionFor(book).toString();
-        assertEquals(extension, Shippable.extensionFor(book).toString());
+        Shippable extension = Shippable.extensionFor(book);
+        assertSame(extension, Shippable.extensionFor(book));
     }
 
     /**
@@ -203,10 +210,10 @@ public class StaticClassExtensionTest {
     @Test
     void cacheEntryRemovalTest() {
         Book book = new Book("");
-        String extension = Shippable.extensionFor(book).toString();
-        assertEquals(extension, Shippable.extensionFor(book).toString());
+        Shippable extension = Shippable.extensionFor(book);
+        assertSame(extension, Shippable.extensionFor(book));
         StaticClassExtension.sharedInstance().extensionCache.remove(book);
-        assertNotEquals(extension, Shippable.extensionFor(book).toString());
+        assertNotSame(extension, Shippable.extensionFor(book));
     }
 
     /**
@@ -217,7 +224,7 @@ public class StaticClassExtensionTest {
         Book book = new Book("Shining");
         Shippable extension = StaticClassExtension.sharedExtensionNoCache(book, Shippable.class);
         Shippable actual = StaticClassExtension.sharedExtensionNoCache(book, Shippable.class);
-        assertNotEquals(extension, actual);
+        assertNotSame(extension, actual);
     }
 
     /**
@@ -226,14 +233,12 @@ public class StaticClassExtensionTest {
     @Test
     void cacheCleanupTest() {
         Book book = new Book("");
-        String extension = Shippable.extensionFor(book).toString();
-        assertEquals(extension, Shippable.extensionFor(book).toString());
-        System.gc();
-        assertNotEquals(extension, Shippable.extensionFor(book).toString());
-        System.gc();
+        Shippable extension = Shippable.extensionFor(book);
+        assertSame(extension, Shippable.extensionFor(book));
+
         assertFalse(StaticClassExtension.sharedInstance().cacheIsEmpty());
         StaticClassExtension.sharedInstance().cacheCleanup();
-        assertTrue(StaticClassExtension.sharedInstance().cacheIsEmpty());
+        assertFalse(StaticClassExtension.sharedInstance().cacheIsEmpty());
     }
 
     /**
@@ -242,11 +247,11 @@ public class StaticClassExtensionTest {
     @Test
     void cacheClearTest() {
         Book book = new Book("");
-        String extension = Shippable.extensionFor(book).toString();
-        assertEquals(extension, Shippable.extensionFor(book).toString());
+        Shippable extension = Shippable.extensionFor(book);
+        assertSame(extension, Shippable.extensionFor(book));
         StaticClassExtension.sharedInstance().cacheClear();
         assertTrue(StaticClassExtension.sharedInstance().cacheIsEmpty());
-        assertNotEquals(extension, Shippable.extensionFor(book).toString());
+        assertNotSame(extension, Shippable.extensionFor(book));
     }
 
     /**
@@ -288,8 +293,9 @@ public class StaticClassExtensionTest {
         long startTime = System.currentTimeMillis();
         for (int i = 0; i < 1000000; i++) {
             for (Item item : items) {
-                Shippable extension = StaticClassExtension.sharedInstance().extension(item, Shippable.class);
+                ShippableItemInterface extension = StaticClassExtension.sharedInstance().extension(item, ShippableItemInterface.class);
                 extension.log();
+                extension.getName();
             }
         }
         System.out.println("STATIC - Elapsed time: " + ((System.currentTimeMillis()-startTime) / 1000f));

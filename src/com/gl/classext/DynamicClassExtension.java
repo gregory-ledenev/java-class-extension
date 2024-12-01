@@ -378,10 +378,9 @@ public class DynamicClassExtension implements ClassExtension {
                 arguments.addAll(Arrays.asList(args));
             result = operation.perform(arguments.toArray());
         } else {
-            Method delegateMethod = findMethod(anObject.getClass(), method.getName(), parameterTypes(args));
-            if (delegateMethod != null) {
+            if (method.getDeclaringClass().isAssignableFrom(anObject.getClass())) {
                 try {
-                    result = delegateMethod.invoke(anObject, args);
+                    result = method.invoke(anObject, args);
                 } catch (Exception ex) {
                     throw new RuntimeException(ex);
                 }
