@@ -7,6 +7,7 @@ The Java Class Extension library provides an ability to emulate class extensions
 Both approaches offer comparable performance, so the choice between them ultimately depends on several factors like implementation details, personal preferences, coding style, established habits and specific project requirements. Dynamic Class Extensions are generally simpler, as they only require:
 1. Adding new interfaces
 2. Defining operations via lambdas
+   
 However, if the extension logic is sufficiently complex and necessitates coding new classes for extensions anyway, it may be worthwhile to consider using Static Class Extensions. Each approach has its strengths, and the best choice will depend on the particular context and needs of your project.
 
 After getting extensions they can be used to perform any extended functionality as easy as:
