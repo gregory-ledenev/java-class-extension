@@ -4,7 +4,10 @@ The Java Class Extension library provides an ability to emulate class extensions
 1. **Static:** define and implement extensions as usual Java classes and then utilize the Java Class Extension library to find matching extension classes and create extension objects.
 2. **Dynamic:** utilize the Java Class Extension library to define extensions by composing them as sets of lambda operations and let the library to create extensions dynamically on the fly.
 
-Both approaches offer comparable performance, so the choice between them ultimately depends on personal preferences, style, habits, and specific requirements. 
+Both approaches offer comparable performance, so the choice between them ultimately depends on several factors like implementation details, personal preferences, coding style, established habits and specific project requirements. Dynamic Class Extensions are generally simpler, as they only require:
+1. Adding new interfaces
+2. Defining operations via lambdas
+However, if the extension logic is sufficiently complex and necessitates coding new classes for extensions anyway, it may be worthwhile to consider using Static Class Extensions. Each approach has its strengths, and the best choice will depend on the particular context and needs of your project.
 
 After getting extensions they can be used to perform any extended functionality as easy as:
 ```java
@@ -129,7 +132,7 @@ Cashing of extension objects are supported out of the box and it can be controll
 3. List all the method implementations per particular classes with lambdas using `Builder.op(...)` or `Builder.voidOp(...)`
 5. Repeat 2, 3 for all operations
   
- For example, the following code creates `Item_Shippable` extensions for `Item classes`. There are explicit `ship()` method implementations for all the `Item` classes. Though, the `log()` method is implemented for the `Item` class only so extensions for all the `Item` descendants will utilize the same `log()` method.
+ For example, the following code creates `Shippable` extensions for `Item classes`. There are explicit `ship()` method implementations for all the `Item` classes. Though, the `log()` method is implemented for the `Item` class only so extensions for all the `Item` descendants will utilize the same `log()` method.
 ```java
   class Item {...}
   class Book extends Item {...}
@@ -137,12 +140,12 @@ Cashing of extension objects are supported out of the box and it can be controll
   class ElectronicItem extends Item {...}
   class AutoPart extends Item {...}
 
-  interface Item_Shippable {
+  interface Shippable {
       ShippingInfo ship();
       void log(boolean isVerbose);
   }
   ...
- DynamicClassExtension.sharedBuilder(Item_Shippable.class).
+ DynamicClassExtension.sharedBuilder(Shippable.class).
       nameOp("ship").
           op(Item.class, item -> ...).
           op(Book.class, book -> ...).
@@ -156,10 +159,9 @@ Cashing of extension objects are supported out of the box and it can be controll
 Finding an extension and calling its methods is simple and straightforward:
 ```java
 Book book = new Book("The Mythical Man-Month");
-Item_Shippable itemShippable = DynamicClassExtension.sharedExtension(book,
-	Item_Shippable.class);
-itemShippable.log(true);
-itemShippable.ship();
+Shippable shippable = DynamicClassExtension.sharedExtension(book, Shippable.class);
+shippable.log(true);
+shippable.ship();
 ```
 
 Shipping a collection of items is equally straightforward:
@@ -171,7 +173,7 @@ Item[] items = {
 };
 
 for (Item item : items) {
-    DynamicClassExtension.sharedExtension(item, Item_Shippable.class).ship();
+    DynamicClassExtension.sharedExtension(item, Shippable.class).ship();
 }
 ```
 Supporting a new `Item` class using the Java Class Extension library requires just adding the operations for that new `Item` class. No need to change any other code. That is it.
