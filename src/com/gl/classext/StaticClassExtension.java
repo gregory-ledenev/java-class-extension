@@ -31,7 +31,6 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.text.MessageFormat;
 import java.util.*;
-import java.util.stream.Collectors;
 
 /**
  * <p>Class {@code ClassExtension} provides a way to mimic class extensions (categories) by finding matching extension objects and
@@ -119,7 +118,7 @@ public class StaticClassExtension implements ClassExtension{
         Objects.requireNonNull(anObject);
         Objects.requireNonNull(anExtensionInterface);
 
-        return extension(anObject, anExtensionInterface, getPackageNames(anExtensionInterface, null));
+        return extension(anObject, anExtensionInterface, null);
     }
 
     /**
@@ -184,7 +183,7 @@ public class StaticClassExtension implements ClassExtension{
         Objects.requireNonNull(anObject);
         Objects.requireNonNull(anExtensionClass);
 
-        return extensionNoCache(anObject, anExtensionClass, getPackageNames(anExtensionClass, null));
+        return extensionNoCache(anObject, anExtensionClass, null);
     }
 
     /**
@@ -224,16 +223,19 @@ public class StaticClassExtension implements ClassExtension{
         Objects.requireNonNull(anObject);
         Objects.requireNonNull(anExtensionInterface);
 
+        List<String> packageNames = getPackageNames(anExtensionInterface, aPackageNames);
 
-        Class<?> extensionInterface = findAnnotatedSuperInterface(anExtensionInterface, ExtensionInterface.class);
-        if (extensionInterface == null)
+        Class<?> extensionInterface = findAnnotatedInterface(anExtensionInterface, ExtensionInterface.class);
+        if (extensionInterface == null) {
             extensionInterface = anExtensionInterface;
+        } else {
+            packageNames = getAnnotatedPackageNames(extensionInterface, packageNames);
+        }
 
-
-        Class<?> extensionClass = extensionClassForObject(anObject, extensionInterface, aPackageNames);
+        Class<?> extensionClass = extensionClassForObject(anObject, extensionInterface, packageNames);
         if (extensionClass == null)
             throw new IllegalArgumentException(MessageFormat.format("No extension {0} for a {1} class",
-                    extensionNames(aPackageNames, anObject.getClass().getSimpleName(), extensionInterface.getSimpleName()),
+                    extensionNames(packageNames, anObject.getClass().getSimpleName(), extensionInterface.getSimpleName()),
                     anObject.getClass().getName()));
         try {
             if (! extensionInterface.isAssignableFrom(extensionClass))
@@ -252,6 +254,18 @@ public class StaticClassExtension implements ClassExtension{
         } catch (Exception aE) {
             throw new RuntimeException(aE);
         }
+    }
+
+    private static List<String> getAnnotatedPackageNames(Class<?> extensionInterface, List<String> packageNames) {
+        ExtensionInterface annotation = extensionInterface.getAnnotation(ExtensionInterface.class);
+        if (annotation != null) {
+            String[] annotatedPackageNames = annotation.packages();
+            if (annotatedPackageNames != null && annotatedPackageNames.length > 0) {
+                packageNames = new ArrayList<>(packageNames);
+                packageNames.addAll(Arrays.asList(annotatedPackageNames));
+            }
+        }
+        return packageNames;
     }
 
     private static <T> Object performOperation(T anExtension, Object anObject, Class<?> anExtensionInterface, Method aMethod, Object[] aArgs)
@@ -280,12 +294,15 @@ public class StaticClassExtension implements ClassExtension{
         return result;
     }
 
-    static Class<?> findAnnotatedSuperInterface(Class<?> anInterfaceClass, Class<? extends Annotation> anAnnotationClass) {
+    static Class<?> findAnnotatedInterface(Class<?> anInterfaceClass, Class<? extends Annotation> anAnnotationClass) {
+        if (anInterfaceClass.isAnnotationPresent(anAnnotationClass))
+            return anInterfaceClass;
+
         for (Class<?> superInterface : anInterfaceClass.getInterfaces()) {
             if (superInterface.isAnnotationPresent(anAnnotationClass)) {
                 return superInterface;
             }
-            Class<?> result = findAnnotatedSuperInterface(superInterface, anAnnotationClass);
+            Class<?> result = findAnnotatedInterface(superInterface, anAnnotationClass);
             if (result != null) {
                 return result;
             }
@@ -319,6 +336,9 @@ public class StaticClassExtension implements ClassExtension{
 
         String extensionName = anExtensionInterface.getSimpleName();
         for (String packageName : packageNames) {
+            if (packageName == null)
+                continue;
+
             result = extensionClassForObject(anObject, extensionName, packageName);
             if (result != null)
                 break;
