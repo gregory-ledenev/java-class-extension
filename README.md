@@ -51,7 +51,8 @@ The core of the library is the `StaticClassExtension` class, which offers method
 public interface Shippable {
     ShippingInfo ship();
 }
-class ItemShippable {
+
+class ItemShippable implements Shippable {
     public ItemShippable(Item item) {
 	this.item = item;			
     }
@@ -72,7 +73,7 @@ Using `StaticClassExtension`, shipping an item becomes as simple as calling:
 
 ```java
 Book book = new Book("The Mythical Man-Month");
-StaticClassExtension.sharedExtension(book, Shippable.class).ship()
+StaticClassExtension.sharedExtension(book, Shippable.class).ship();
 ``` 
 
 Shipping a collection of items is equally straightforward:
@@ -87,7 +88,7 @@ for (Item item : items) {
     StaticClassExtension.sharedExtension(item, Shippable.class).ship();
 }
 ```
-It is possible to further simplify things by adding an `extensionFor(Item)` helper method to the `Item_Shippable`:
+It is possible to further simplify things by adding an `extensionFor(Item)` helper method to the `ItemShippable`:
 ```java
 public interface Shippable {
 	public static Shippable extensionFor(Item item) {
@@ -99,21 +100,23 @@ public interface Shippable {
 
 With that helper method, shipping become even more simpler and shorter:
 ```java
-Shippable.extensionFor(anItem).ship()
+Shippable.extensionFor(anItem).ship();
 ```
 Supporting a new `Item` class using the Java Class Extension library requires:
 1. Adding a new `Shippable` extension with a proper `ship()` implementation.
-2. Registeing a package a new extension via StaticClassExtension.sharedInstance().addExtensionPackage(Shippable.class, "test.grocery.shipment"); 
+2. Registeing a package a new extension like `StaticClassExtension.sharedInstance().addExtensionPackage(Shippable.class, "test.grocery.shipment")`. 
 
 No need to change any other code. That is it.
 
 #### Details ####
 All the static extension classes must:
-1. Implement the `DelegateHolder` interface. The `DelegateHolder.setDelegate(...)` method is used to supply extensions with objects to work with. Usually, it is fine to implement the `DelegateHolder` interface in a common root of some classes hierarchy.
-2. Be named as a class name followed by an extension name delimited by underscore e.g. `Book_Shippable` where `Book` is the name of the class and `Shippable` is the name of extension.
+1. Either:
+* Implement the `DelegateHolder` interface. The `DelegateHolder.setDelegate(...)` method is used to supply extensions with objects to work with. Usually, it is fine to implement the `DelegateHolder` interface in a common root of some classes hierarchy.
+* Provide a single parameter constructor that takes an object to work with as an argument.
+3. Be named as a class name followed by an extension name e.g. `BookShippable` where `Book` is the name of the class and `Shippable` is the name of extension.
 
 ##### Inheritance Support #####
-`ClassExtension` takes care of inheritance so it is possible to design and implement class extensions hierarchy that fully or partially resembles original classes' hierarchy. If there's no explicit extension specified for particular class - its parent extension will be utilized. For example, if there's no explicit `Shippable` extension for the `Toy` class - base `Item_Shippable` will be used instead.
+`StaticClassExtension` takes care of inheritance so it is possible to design and implement class extensions hierarchy that fully or partially resembles original classes' hierarchy. If there's no explicit extension specified for particular class - its parent extension will be utilized. For example, if there's no explicit `Shippable` extension for the `Toy` class - base `ItemShippable` will be used instead.
 
 ##### Cashing #####
 Cashing of extension objects are supported out of the box. Cache utilizes weak references to release extension objects that are not in use. Though, to perform full cleanup either the `cacheCleanup()` should be used or automatic cleanup can be initiated via the `scheduleCacheCleanup()`. If automatic cache cleanup is used - it can be stopped by calling the `shutdownCacheCleanup()`.
