@@ -38,13 +38,12 @@ public class StaticClassExtensionDifferentPackagesTest {
                 shippingInfos.toString());
     }
 
+    static {
+        StaticClassExtension.sharedInstance().addExtensionPackage(Shippable.class, "com.gl.classext.com.gl.classext.shipment.impl.grocery");
+    }
+
     public Shippable.ShippingInfo ship(Item anItem) {
-        Shippable shippable = StaticClassExtension.sharedExtension(anItem,
-                Shippable.class,
-                Arrays.asList(
-                        "com.gl.classext.com.gl.classext.shipment",
-                        "com.gl.classext.com.gl.classext.shipment.impl.grocery"
-                ));
+        Shippable shippable = StaticClassExtension.sharedExtension(anItem, Shippable.class);
         return shippable.ship();
     }
 }

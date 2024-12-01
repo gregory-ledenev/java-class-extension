@@ -97,6 +97,8 @@ import java.util.stream.Collectors;
  */
 public class DynamicClassExtension implements ClassExtension {
 
+    private boolean cacheEnabled;
+
     @FunctionalInterface
     interface Performer<R> {
         R perform(Object[] anArgs);
@@ -552,43 +554,61 @@ public class DynamicClassExtension implements ClassExtension {
 
     //region Cache methods
 
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public boolean isCacheEnabled() {
+        return cacheEnabled;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public void setCacheEnabled(boolean isCacheEnabled) {
+        if (cacheEnabled != isCacheEnabled) {
+            cacheEnabled = isCacheEnabled;
+            if (! isCacheEnabled)
+                cacheClear();
+        }
+    }
+
     @SuppressWarnings("rawtypes")
     final ThreadSafeWeakCache extensionCache = new ThreadSafeWeakCache();
 
     /**
-     * Cleanups cache by removing keys for all already garbage collected values
+     * {@inheritDoc}
      */
     public void cacheCleanup() {
         extensionCache.cleanup();
     }
 
     /**
-     * Clears cache
+     * {@inheritDoc}
      */
     public void cacheClear() {
         extensionCache.clear();
     }
 
     /**
-     * Schedules automatic cache cleanup that should be performed once a minute
+     * {@inheritDoc}
      */
     public void scheduleCacheCleanup() {
         extensionCache.scheduleCleanup();
     }
 
     /**
-     * Shutdowns automatic cache cleanup
+     * {@inheritDoc}
      */
     public void shutdownCacheCleanup() {
         extensionCache.shutdownCleanup();
     }
 
     /**
-     * Check if cache is empty
-     *
-     * @return true if cache is empty; false otherwise
+     * {@inheritDoc}
      */
-    boolean cacheIsEmpty() {
+    public boolean cacheIsEmpty() {
         return extensionCache.isEmpty();
     }
     //endregion

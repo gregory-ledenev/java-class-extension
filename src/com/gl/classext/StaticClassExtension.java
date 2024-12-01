@@ -33,14 +33,16 @@ import java.text.MessageFormat;
 import java.util.*;
 
 /**
- * <p>Class {@code ClassExtension} provides a way to mimic class extensions (categories) by finding matching extension objects and
+ * <p>Class {@code ClassExtension} provides a way to mimic class extensions (categories) by finding matching extension
+ * objects and
  * using them to perform any extended functionality.</p>
- * <p>For example: lets imagine a {@code Shape} class that provides only coordinates and dimensions of shapes. If we need to
- * introduce a drawable shape we can create a {@code Shape(Drawable)} class extension with the {@code draw()} method, and we can call
- * the {@code draw()} method as simple as {@code new Shape().draw()}. Though such kind of extension is not available in Java the
- * {@code ClassExtension} provides a way to simulate that. To do it we should introduce an extension class
- * {@code Shape_Drawable} with the {@code draw()} method. Now we can call the {@code draw()} method as simple as
- * {@code ClassExtension.extension(new Shape(), Shape_Drawable.class).draw()}.</p>
+ * <p>For example: lets imagine a {@code Shape} class that provides only coordinates and dimensions of shapes. If we
+ * need to
+ * introduce a drawable shape we can create a {@code Shape(Drawable)} class extension with the {@code draw()} method,
+ * and we can call the {@code draw()} method as simple as {@code new Shape().draw()}. Though such kind of extension is
+ * not available in Java the {@code ClassExtension} provides a way to simulate that. To do it we should introduce an
+ * extension class {@code Shape_Drawable} with the {@code draw()} method. Now we can call the {@code draw()} method as
+ * simple as {@code ClassExtension.extension(new Shape(), Shape_Drawable.class).draw()}.</p>
  * <pre><code>
  *     class Shape {
  *         // some properties and methods here
@@ -70,23 +72,26 @@ import java.util.*;
  *     }
  *     </code></pre>
  *
- * <p>All the extension classes must implement the DelegateHolder interface and must end with the name of an extension delimited by underscore
+ * <p>All the extension classes must implement the DelegateHolder interface and must end with the name of an extension
+ * delimited by underscore
  * e.g. Shape_Drawable where shape is the name of the class and Drawable is the name of extension</p>
  *
- * <p>{@code ClassExtension} takes care of inheritance so it is possible to design and implement class extensions hierarchy
- * that fully or partially resembles original classes' hierarchy. If there's no explicit extension specified for particular
- * class - its parent extension will be utilised. For example, if there's no explicit {@code Drawable} extension for
- * {@code Oval} objects - base {@code Shape_Drawable} will be used instead.</p>
+ * <p>{@code ClassExtension} takes care of inheritance so it is possible to design and implement class extensions
+ * hierarchy
+ * that fully or partially resembles original classes' hierarchy. If there's no explicit extension specified for
+ * particular class - its parent extension will be utilised. For example, if there's no explicit {@code Drawable}
+ * extension for {@code Oval} objects - base {@code Shape_Drawable} will be used instead.</p>
  *
- * <p>Cashing of extension objects are supported out of the box. Cache utilises weak references to release extension objects
- * that are not in use. Though, to perform full cleanup either the cacheCleanup() should be used or automatic cleanup can
- * be initiated via the scheduleCacheCleanup(). If automatic cache cleanup is used - it can be stopped by calling the
- * shutdownCacheCleanup().</p>
+ * <p>Cashing of extension objects are supported out of the box. Cache utilises weak references to release extension
+ * objects
+ * that are not in use. Though, to perform full cleanup either the cacheCleanup() should be used or automatic cleanup
+ * can be initiated via the scheduleCacheCleanup(). If automatic cache cleanup is used - it can be stopped by calling
+ * the shutdownCacheCleanup().</p>
  *
  * @author Gregory Ledenev
  * @version 0.9.6
  */
-public class StaticClassExtension implements ClassExtension{
+public class StaticClassExtension implements ClassExtension {
 
     private static final StaticClassExtension classExtension = new StaticClassExtension();
 
@@ -107,12 +112,7 @@ public class StaticClassExtension implements ClassExtension{
     }
 
     /**
-     * Finds and returns an extension object according to a supplied class. It uses cache to avoid redundant objects
-     * creation.
-     *
-     * @param anObject         object to return an extension object for
-     * @param anExtensionInterface class of extension object to be returned
-     * @return an extension object
+     * {@inheritDoc}
      */
     public <T> T extension(Object anObject, Class<T> anExtensionInterface) {
         Objects.requireNonNull(anObject);
@@ -122,24 +122,25 @@ public class StaticClassExtension implements ClassExtension{
     }
 
     /**
-     * Finds and returns a shared extension object according to a supplied class. It uses cache to avoid redundant objects
-     * creation.
+     * Convenience static method that finds and returns an extension object according to a supplied interface. It is the
+     * same as calling {@code sharedInstance().extension(anObject, anExtensionInterface)} It uses cache to avoid
+     * redundant objects creation. If no cache should be used - turn it OFF via the {@code setCacheEnabled(false)} call
      *
-     * @param anObject         object to return an extension object for
-     * @param anExtensionClass class of extension object to be returned
+     * @param anObject             object to return an extension object for
+     * @param anExtensionInterface interface of extension object to be returned
      * @return an extension object
      */
-    public static <T> T sharedExtension(Object anObject, Class<T> anExtensionClass) {
-        return sharedInstance().extension(anObject, anExtensionClass);
+    public static <T> T sharedExtension(Object anObject, Class<T> anExtensionInterface) {
+        return sharedInstance().extension(anObject, anExtensionInterface);
     }
 
     /**
      * Finds and returns an extension object according to a supplied class. It uses cache to avoid redundant objects
      * creation.
      *
-     * @param anObject         object to return an extension object for
+     * @param anObject             object to return an extension object for
      * @param anExtensionInterface class of extension object to be returned
-     * @param aPackageNames    additional packages to lookup for extensions
+     * @param aPackageNames        additional packages to lookup for extensions
      * @return an extension object
      */
     @SuppressWarnings("unchecked")
@@ -147,12 +148,14 @@ public class StaticClassExtension implements ClassExtension{
         Objects.requireNonNull(anObject);
         Objects.requireNonNull(anExtensionInterface);
 
-        return (T) extensionCache.getOrCreate(anObject, () -> extensionNoCache(anObject, anExtensionInterface, aPackageNames));
+        return isCacheEnabled() ?
+                (T) extensionCache.getOrCreate(anObject, () -> extensionNoCache(anObject, anExtensionInterface, aPackageNames)) :
+                extensionNoCache(anObject, anExtensionInterface, aPackageNames);
     }
 
     /**
-     * Finds and returns a shared extension object according to a supplied class. It uses cache to avoid redundant objects
-     * creation.
+     * Finds and returns a shared extension object according to a supplied class. It uses cache to avoid redundant
+     * objects creation.
      *
      * @param anObject         object to return an extension object for
      * @param anExtensionClass class of extension object to be returned
@@ -200,9 +203,9 @@ public class StaticClassExtension implements ClassExtension{
     /**
      * Finds and returns a shared extension object according to a supplied class.
      *
-     * @param anObject         object to return an extension object for
+     * @param anObject             object to return an extension object for
      * @param anExtensionInterface class of extension object to be returned
-     * @param aPackageNames    additional packages to lookup for extensions
+     * @param aPackageNames        additional packages to lookup for extensions
      * @return an extension object
      */
     @SuppressWarnings("unused")
@@ -213,9 +216,9 @@ public class StaticClassExtension implements ClassExtension{
     /**
      * Finds and returns an extension object according to a supplied extension name and an extension package.
      *
-     * @param anObject        object to return an extension object for
+     * @param anObject             object to return an extension object for
      * @param anExtensionInterface extension interface
-     * @param aPackageNames   packages to lookup extension in
+     * @param aPackageNames        packages to lookup extension in
      * @return an extension object
      */
     @SuppressWarnings({"rawtypes", "unchecked"})
@@ -231,6 +234,7 @@ public class StaticClassExtension implements ClassExtension{
         } else {
             packageNames = getAnnotatedPackageNames(extensionInterface, packageNames);
         }
+        packageNames.addAll(extensionPackages(extensionInterface));
 
         Class<?> extensionClass = extensionClassForObject(anObject, extensionInterface, packageNames);
         if (extensionClass == null)
@@ -238,7 +242,7 @@ public class StaticClassExtension implements ClassExtension{
                     extensionNames(packageNames, anObject.getClass().getSimpleName(), extensionInterface.getSimpleName()),
                     anObject.getClass().getName()));
         try {
-            if (! extensionInterface.isAssignableFrom(extensionClass))
+            if (!extensionInterface.isAssignableFrom(extensionClass))
                 throw new IllegalStateException(MessageFormat.format("Extension \"{0}\"class does not implement the \"{1}\" interface",
                         extensionClass.getName(), extensionInterface.getName()));
 
@@ -247,7 +251,7 @@ public class StaticClassExtension implements ClassExtension{
             if (extension instanceof DelegateHolder)
                 ((DelegateHolder) extension).setDelegate(anObject);
 
-            final Class<?> finalExtensionInterface=  extensionInterface;
+            final Class<?> finalExtensionInterface = extensionInterface;
             return (T) Proxy.newProxyInstance(extensionInterface.getClassLoader(),
                     new Class<?>[]{anExtensionInterface},
                     (proxy, method, args) -> performOperation(extension, anObject, finalExtensionInterface, method, args));
@@ -375,51 +379,119 @@ public class StaticClassExtension implements ClassExtension{
 
         StringBuilder result = new StringBuilder();
         for (String packageName : aPackageNames) {
-            if (! result.isEmpty())
+            if (!result.isEmpty())
                 result.append(", ");
             result.append(extensionName(packageName, aSimpleClassName, extensionName));
         }
         return result.toString();
     }
 
+    //region Extension Packages methods
+
+    private final Map<Class<?>, List<String>> extensionPackages = new HashMap<>();
+
+    List<String> extensionPackages(Class<?> anExtensionInterface) {
+        Objects.requireNonNull(anExtensionInterface);
+
+        List<String> result = extensionPackages.get(anExtensionInterface);
+        return result != null ? new ArrayList<>(result) : Collections.emptyList();
+    }
+
+    /**
+     * Adds an extension package to the list of packages used to lookup for extensions
+     *
+     * @param anExtensionInterface an extension interface to add a package for
+     * @param anExtensionPackage   the name of the package
+     */
+    public void addExtensionPackage(Class<?> anExtensionInterface, String anExtensionPackage) {
+        Objects.requireNonNull(anExtensionInterface);
+        Objects.requireNonNull(anExtensionPackage);
+
+        synchronized (extensionPackages) {
+            List<String> result = extensionPackages.computeIfAbsent(anExtensionInterface, k -> new ArrayList<>());
+            result.add(anExtensionPackage);
+        }
+    }
+
+    /**
+     * Removes an extension package from the list of packages used to lookup for extensions
+     *
+     * @param anExtensionInterface an extension interface to remove a package for
+     * @param anExtensionPackage   the name of the package
+     */
+    public void removeExtensionPackage(Class<?> anExtensionInterface, String anExtensionPackage) {
+        Objects.requireNonNull(anExtensionInterface);
+        Objects.requireNonNull(anExtensionPackage);
+
+        synchronized (extensionPackages) {
+            List<String> result = extensionPackages.get(anExtensionInterface);
+            if (result != null) {
+                result.remove(anExtensionPackage);
+                if (result.isEmpty())
+                    extensionPackages.remove(anExtensionInterface);
+            }
+        }
+    }
+    //endregion
+
     //region Cache methods
+    private boolean cacheEnabled = true;
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public boolean isCacheEnabled() {
+        return cacheEnabled;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public void setCacheEnabled(boolean isCacheEnabled) {
+        if (cacheEnabled != isCacheEnabled) {
+            cacheEnabled = isCacheEnabled;
+            if (! isCacheEnabled)
+                cacheClear();
+        }
+    }
 
     @SuppressWarnings("rawtypes")
     final ThreadSafeWeakCache extensionCache = new ThreadSafeWeakCache();
 
     /**
-     * Cleanups cache by removing keys for all already garbage collected values
+     * {@inheritDoc}
      */
     public void cacheCleanup() {
         extensionCache.cleanup();
     }
 
     /**
-     * Clears cache
+     * {@inheritDoc}
      */
     public void cacheClear() {
         extensionCache.clear();
     }
 
     /**
-     * Schedules automatic cache cleanup that should be performed once a minute
+     * {@inheritDoc}
      */
     public void scheduleCacheCleanup() {
         extensionCache.scheduleCleanup();
     }
 
     /**
-     * Shutdowns automatic cache cleanup
+     * {@inheritDoc}
      */
     public void shutdownCacheCleanup() {
         extensionCache.shutdownCleanup();
     }
 
     /**
-     * Check if cache is empty
-     * @return true if cache is empty; false otherwise
+     * {@inheritDoc}
      */
-    boolean cacheIsEmpty() {
+    public boolean cacheIsEmpty() {
         return extensionCache.isEmpty();
     }
     //endregion

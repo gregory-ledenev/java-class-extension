@@ -201,6 +201,18 @@ public class StaticClassExtensionTest {
         Book book = new Book("");
         Shippable extension = Shippable.extensionFor(book);
         assertSame(extension, Shippable.extensionFor(book));
+
+        StaticClassExtension.sharedInstance().setCacheEnabled(false);
+        try {
+            extension = Shippable.extensionFor(book);
+            assertNotSame(extension, Shippable.extensionFor(book));
+
+            StaticClassExtension.sharedInstance().setCacheEnabled(true);
+            extension = Shippable.extensionFor(book);
+            assertSame(extension, Shippable.extensionFor(book));
+        } finally {
+            StaticClassExtension.sharedInstance().setCacheEnabled(true);
+        }
     }
 
     /**
