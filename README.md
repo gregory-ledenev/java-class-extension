@@ -107,7 +107,7 @@ With that helper method, shipping become even more simpler and shorter:
 Shippable.extensionFor(anItem).ship();
 ```
 Supporting a new `Item` class using the Java Class Extension library requires:
-1. Adding a new `Shippable` extension with a proper `ship()` implementation like `class GroceryUtemShippable extends ItemShippable {...}.
+1. Adding a new `Shippable` extension with a proper `ship()` implementation like `class GroceryItemShippable extends ItemShippable {...}.
 2. Registeing a package for a new extension like `StaticClassExtension.sharedInstance().addExtensionPackage(Shippable.class, "test.grocery.shipment")`. 
 
 No need to change any other code. That is it.
