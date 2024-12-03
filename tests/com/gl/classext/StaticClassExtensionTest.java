@@ -234,9 +234,14 @@ public class StaticClassExtensionTest {
     @Test
     void nonCacheTest() {
         Book book = new Book("Shining");
-        Shippable extension = StaticClassExtension.sharedExtensionNoCache(book, Shippable.class);
-        Shippable actual = StaticClassExtension.sharedExtensionNoCache(book, Shippable.class);
-        assertNotSame(extension, actual);
+        StaticClassExtension.sharedInstance().setCacheEnabled(false);
+        try {
+            Shippable extension = StaticClassExtension.sharedExtension(book, Shippable.class);
+            Shippable actual = StaticClassExtension.sharedExtension(book, Shippable.class);
+            assertNotSame(extension, actual);
+        } finally {
+            StaticClassExtension.sharedInstance().setCacheEnabled(true);
+        }
     }
 
     /**

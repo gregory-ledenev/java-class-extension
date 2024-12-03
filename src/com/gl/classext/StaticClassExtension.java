@@ -144,27 +144,13 @@ public class StaticClassExtension implements ClassExtension {
      * @return an extension object
      */
     @SuppressWarnings("unchecked")
-    public <T> T extension(Object anObject, Class<T> anExtensionInterface, List<String> aPackageNames) {
+    protected <T> T extension(Object anObject, Class<T> anExtensionInterface, List<String> aPackageNames) {
         Objects.requireNonNull(anObject);
         Objects.requireNonNull(anExtensionInterface);
 
         return isCacheEnabled() ?
                 (T) extensionCache.getOrCreate(anObject, () -> extensionNoCache(anObject, anExtensionInterface, aPackageNames)) :
                 extensionNoCache(anObject, anExtensionInterface, aPackageNames);
-    }
-
-    /**
-     * Finds and returns a shared extension object according to a supplied class. It uses cache to avoid redundant
-     * objects creation.
-     *
-     * @param anObject         object to return an extension object for
-     * @param anExtensionClass class of extension object to be returned
-     * @param aPackageNames    additional packages to lookup for extensions
-     * @return an extension object
-     */
-    @SuppressWarnings("unused")
-    public static <T> T sharedExtension(Object anObject, Class<T> anExtensionClass, List<String> aPackageNames) {
-        return sharedInstance().extension(anObject, anExtensionClass, aPackageNames);
     }
 
     private <T> List<String> getPackageNames(Class<T> anExtensionClass, List<String> aPackageNames) {
@@ -182,35 +168,11 @@ public class StaticClassExtension implements ClassExtension {
      * @param anExtensionClass class of extension object to be returned
      * @return an extension object
      */
-    public <T> T extensionNoCache(Object anObject, Class<T> anExtensionClass) {
+    protected <T> T extensionNoCache(Object anObject, Class<T> anExtensionClass) {
         Objects.requireNonNull(anObject);
         Objects.requireNonNull(anExtensionClass);
 
         return extensionNoCache(anObject, anExtensionClass, null);
-    }
-
-    /**
-     * Finds and returns an extension object according to a supplied class.
-     *
-     * @param anObject         object to return an extension object for
-     * @param anExtensionClass class of extension object to be returned
-     * @return an extension object
-     */
-    public static <T> T sharedExtensionNoCache(Object anObject, Class<T> anExtensionClass) {
-        return sharedInstance().extensionNoCache(anObject, anExtensionClass);
-    }
-
-    /**
-     * Finds and returns a shared extension object according to a supplied class.
-     *
-     * @param anObject             object to return an extension object for
-     * @param anExtensionInterface class of extension object to be returned
-     * @param aPackageNames        additional packages to lookup for extensions
-     * @return an extension object
-     */
-    @SuppressWarnings("unused")
-    public static <T> T sharedExtensionNoCache(Object anObject, Class<T> anExtensionInterface, List<String> aPackageNames) {
-        return sharedInstance().extensionNoCache(anObject, anExtensionInterface, aPackageNames);
     }
 
     /**
@@ -222,7 +184,7 @@ public class StaticClassExtension implements ClassExtension {
      * @return an extension object
      */
     @SuppressWarnings({"rawtypes", "unchecked"})
-    public <T> T extensionNoCache(Object anObject, Class<T> anExtensionInterface, List<String> aPackageNames) {
+    protected <T> T extensionNoCache(Object anObject, Class<T> anExtensionInterface, List<String> aPackageNames) {
         Objects.requireNonNull(anObject);
         Objects.requireNonNull(anExtensionInterface);
 
@@ -393,8 +355,10 @@ public class StaticClassExtension implements ClassExtension {
     List<String> extensionPackages(Class<?> anExtensionInterface) {
         Objects.requireNonNull(anExtensionInterface);
 
-        List<String> result = extensionPackages.get(anExtensionInterface);
-        return result != null ? new ArrayList<>(result) : Collections.emptyList();
+        synchronized (extensionPackages) {
+            List<String> result = extensionPackages.get(anExtensionInterface);
+            return result != null ? new ArrayList<>(result) : Collections.emptyList();
+        }
     }
 
     /**
