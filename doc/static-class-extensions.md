@@ -53,17 +53,10 @@ public interface Shippable {
   ...
 }
 ```
-
-With that helper method, shipping become even more simpler and shorter:
+With that helper method, shipping become even simpler and shorter:
 ```java
 Shippable.extensionFor(anItem).ship();
 ```
-Supporting a new `Item` class using the Java Class Extension library requires:
-1. Adding a new `Shippable` extension with a proper `ship()` implementation like `class GroceryItemShippable extends ItemShippable {...}`.
-2. Registering a package for a new extension (if the extension resides in a different package than the extension interface) like `StaticClassExtension.sharedInstance().addExtensionPackage(Shippable.class, "test.grocery.shipment")`.
-
-No need to change any other code. That is it.
-
 ### Details
 The following are requirements for all the static extension classes:
 1. **Naming Convention:** they must be named as _\[ClassName]\[ExtensionName]_ - a class name followed by an extension name. For example, `BookShippable` where `Book` is the name of the class and `Shippable` is the name of extension.
@@ -75,6 +68,28 @@ By default, `StaticClassExtension` searches for extension classes in the same pa
 ```java
 StaticClassExtension.sharedInstance().addExtensionPackage(Shippable.class, "test.toys.shipment");
 ```
+
+**Note:** Extensions returned by `StaticClassExtension` do not directly correspond to the extension classes themselves. Therefore, it is crucial not to cast these extensions. Instead, always utilize only the methods provided by the extension interface.
+
+### Adding New Extension Classes
+To support new extension classes:
+1. Code all the required classes that implement desired extension interface.
+2. Register packages for new extensions if new classes reside in the packages not known to `StaticClassExtension`
+
+For example:
+```java
+class GroceryItemShippable extends ItemShippable {
+    public ShippingInfo ship() {
+        return new ShippingInfo("done");
+    }
+}
+
+static {
+    StaticClassExtension.sharedInstance().addExtensionPackage(Shippable.class, "test.grocery.shipment");
+}
+
+```
+No need to touch or change any existing code. That is it.
 
 ### Flexible Extension Interface Handling
 The `StaticClassExtension` enables powerful interface combining (merging), allowing extensions to be treated as their original objects. As result, extensions become transparent, behaving like original objects while providing additional functionality. 
