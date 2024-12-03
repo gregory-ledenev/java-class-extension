@@ -4,13 +4,11 @@ The Java Class Extension library provides an ability to emulate class extensions
 1. **Static:** define and implement extensions as usual Java classes and then utilize the Java Class Extension library to find matching extension classes and create extension objects.
 2. **Dynamic:** utilize the Java Class Extension library to define extensions by composing them as sets of lambda operations and let the library to create extensions dynamically on the fly.
 
-Both approaches offer comparable performance, so the choice between them ultimately depends on several factors like implementation details, personal preferences, coding style, established habits and specific project requirements. Dynamic Class Extensions are generally simpler, as they only require:
-1. Adding new interfaces
-2. Defining operations via lambdas
+Both approaches offer comparable performance, so the choice between them ultimately depends on several factors like implementation details, personal preferences, coding style, established habits and specific project requirements. Dynamic Class Extensions are generally simpler, as they only require adding new interfaces and defining operations via lambdas.
    
 However, if the extension logic is sufficiently complex and necessitates coding new classes for extensions anyway, it may be worthwhile to consider using Static Class Extensions. Each approach has its strengths, and the best choice will depend on the particular context and needs of your project.
 
-After getting extensions they can be used to perform any extended functionality as easy as:
+Both approaches leverage the `ClassExtension` interface, which facilitates querying for an extension based on an object's extension interface. Once obtained, these extensions unlock additional functionality with remarkable ease"
 ```java
 Book book = new Book("The Mythical Man-Month");
 Shippable shippable = StaticClassExtension.sharedExtension(book, Shippable.class);
@@ -92,7 +90,7 @@ for (Item item : items) {
     StaticClassExtension.sharedExtension(item, Shippable.class).ship();
 }
 ```
-It is possible to further simplify things by adding an `extensionFor(Item)` helper method to the `ItemShippable`:
+It is possible to further simplify things by adding an `extensionFor(Item)` helper method to the `Shippable`:
 ```java
 public interface Shippable {
 	public static Shippable extensionFor(Item item) {
