@@ -1,4 +1,5 @@
 ## Java Class Extensions Library - Introduction
+***
 Consider a scenario where we are building a warehouse application designed to handle the shipping of various items. We have established a hierarchy of classes to represent the goods we have:
 ```java
 class Item {

@@ -1,4 +1,5 @@
 # Java Class Extension Library
+***
 The Java Class Extension library provides an ability to emulate class extensions (categories) in Java. The library supports the following approaches:
 
 1. [Static Class Extensions](doc/static-class-extensions.md): define and implement extensions as usual Java classes and then utilize the Java Class Extension library to find matching extensions.
