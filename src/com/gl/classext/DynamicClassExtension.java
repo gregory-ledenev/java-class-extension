@@ -36,7 +36,7 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 /**
- * <p>Class {@code DynamicClassExtension} provides a way to mimic class extensions (categories) by composing extensions
+ * <p>Class {@code DynamicClassExtension} provides a way to simulate class extensions (categories) by composing extensions
  * as a set of lambda operations. To specify an extension:</p>
  *  <ol>
  *      <li>Create a {@code Builder} for an interface you want to compose an extension for by using the DynamicClassExtension.sharedBuilder(...) method</li>
@@ -92,8 +92,9 @@ import java.util.stream.Collectors;
  * be initiated via the {@code scheduleCacheCleanup()}. If automatic cache cleanup is used - it can be stopped by calling the
  * {@code shutdownCacheCleanup()}.</p>
  *
+ * @see <a href="https://github.com/gregory-ledenev/java-class-extension/blob/main/doc/dynamic-class-extensions.md">More details</a>
  * @author Gregory Ledenev
- * @version 0.9.6
+ * @version 0.9.9
  */
 public class DynamicClassExtension implements ClassExtension {
 

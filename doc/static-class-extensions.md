@@ -1,8 +1,8 @@
 ## Java Class Extensions Library - Static Class Extensions
 
-There is the `StaticClassExtension` class, which offers methods for dynamically finding and creating extension objects as needed. With this approach you should define and implement extensions as usual Java classes and then utilize the Java Class Extension library to find matching extension classes and create extension objects.
+There is the `StaticClassExtension` class, which offers methods for dynamically finding and creating extension objects as needed. With this approach you should define and implement extensions as usual Java classes and then utilize the Java Class Extension library to find matching extension classes and create extension objects using the `extension(Object Class)` method.
 
-For example, we can create an `Shippable` interface that defines new methods for a `Shippable` extension (category) and provides a `ship()` method. Then we should implement all needed extension classes which implement the `Shippable`interface and provide particular implementation for all `Shippable` methods. _Note: All those extension classes must either implement the `DelegateHolder` interface to used to supply extensions with items to work with or provide a constructor that takes an `Item` as a parameter._
+For example, we can create a `Shippable` interface that defines new methods for a `Shippable` extension (category) and provides a `ship()` method. Then we should implement all needed extension classes which implement the `Shippable`interface and provide particular implementation for all `Shippable` methods. _Note: All those extension classes must either implement the `DelegateHolder` interface to used to supply extensions with items to work with or provide a constructor that takes an `Item` as a parameter._
 ```java
 public interface Shippable {
     ShippingInfo ship();

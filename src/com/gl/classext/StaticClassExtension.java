@@ -33,63 +33,82 @@ import java.text.MessageFormat;
 import java.util.*;
 
 /**
- * <p>Class {@code ClassExtension} provides a way to mimic class extensions (categories) by finding matching extension
- * objects and
- * using them to perform any extended functionality.</p>
- * <p>For example: lets imagine a {@code Shape} class that provides only coordinates and dimensions of shapes. If we
- * need to
- * introduce a drawable shape we can create a {@code Shape(Drawable)} class extension with the {@code draw()} method,
- * and we can call the {@code draw()} method as simple as {@code new Shape().draw()}. Though such kind of extension is
- * not available in Java the {@code ClassExtension} provides a way to simulate that. To do it we should introduce an
- * extension class {@code Shape_Drawable} with the {@code draw()} method. Now we can call the {@code draw()} method as
- * simple as {@code ClassExtension.extension(new Shape(), Shape_Drawable.class).draw()}.</p>
- * <pre><code>
- *     class Shape {
- *         // some properties and methods here
+ * <p>The {@code StaticClassExtension} class offers methods for dynamically finding and creating extension objects as needed. With
+ * this approach you should define and implement extensions as usual Java classes and then utilize the Java Class Extension
+ * library to find matching extension classes and create extension objects using the {@code extension(Object Class)} method.</p>
+ *
+ * <p>For example, we can create a {@code Shippable} interface that defines new methods for a {@code Shippable} extension (category) and
+ * provides a {@code ship()} method. Then we should implement all needed extension classes which implement the {@code Shippableinterface}
+ * and provide particular implementation for all {@code Shippable} methods. Note: All those extension classes must either implement
+ * the {@code DelegateHolder} interface to used to supply extensions with items to work with or provide a constructor that takes
+ * an {@code Item} as a parameter.</p>
+ *  <pre><code>
+ * public interface Shippable {
+ *     ShippingInfo ship();
+ * }
+ *
+ * class ItemShippable implements Shippable {
+ *     public ItemShippable(Item item) {
+ *         this.item = item;
  *     }
- *     ...more shape classes here...
  *
- *     class Shape_Drawable implements DelegateHolder {
- *         private Shape delegate;
- *         public void draw() {
- *             // use delegate properties to draw a shape
- *         }
- *         public Shape getDelegate() {
- *             return delegate;
- *         }
- *         public void setDelegate(Shape aDelegate) {
- *             delegate = aDelegate;
- *         }
+ *     public ShippingInfo ship() {
+ *         return new ShippingInfo("done");
  *     }
- *     ...more shape drawable class extensions here
+ *     …
+ * }
  *
- *     class ShapesView {
- *         void drawShapes() {
- *             List&lt;Shape&gt; shapes = ...
- *             for (Shape shape : shapes)
- *              ClassExtension.extension(shape, Shape_Drawable.class).draw();
- *         }
+ * class BookShippable extends ItemShippable{
+ *     public ShippingInfo ship() {
+ *         return new ShippingInfo("done");
  *     }
- *     </code></pre>
+ * }
+ * </code></pre>
+ * Using {@code StaticClassExtension}, shipping an item becomes as simple as calling:
+ *  <pre><code>
+ * Book book = new Book("The Mythical Man-Month");
+ * StaticClassExtension.sharedExtension(book, Shippable.class).ship();
+ * </code></pre>
+ * Shipping a collection of items is equally straightforward:
+ *  <pre><code>
+ * Item[] items = {
+ *     new Book("The Mythical Man-Month"),
+ *     new Furniture("Sofa"),
+ *     new ElectronicItem(“Soundbar")
+ * };
  *
- * <p>All the extension classes must implement the DelegateHolder interface and must end with the name of an extension
- * delimited by underscore
- * e.g. Shape_Drawable where shape is the name of the class and Drawable is the name of extension</p>
+ * for (Item item : items) {
+ *     StaticClassExtension.sharedExtension(item, Shippable.class).ship();
+ * }
+ * </code></pre>
+ * The following are requirements for all the static extension classes:
  *
- * <p>{@code ClassExtension} takes care of inheritance so it is possible to design and implement class extensions
- * hierarchy
- * that fully or partially resembles original classes' hierarchy. If there's no explicit extension specified for
- * particular class - its parent extension will be utilised. For example, if there's no explicit {@code Drawable}
- * extension for {@code Oval} objects - base {@code Shape_Drawable} will be used instead.</p>
+ * <p>Extension classes must be named as <i>[ClassName][ExtensionName]</i> - a class name followed by an extension name.
+ * For example, {@code BookShippable} where {@code Book} is the name of the class and {@code Shippable} is the name of
+ * extension.</p>
+ * <p>Extension classes must provide a way for {@code StaticClassExtension} to supply delegate objects to work with. It
+ * can be done either:
+ * <ul>
+ *  <li>By providing a single parameter constructor that takes a delegate object to work with as an argument.</li>
+ *  <li>By implementing the {@code DelegateHolder} interface. The {@code DelegateHolder.setDelegate(Object)} method is
+ *  used to supply extensions ith delegate objects to work with. Usually, it is fine to implement the {@code DelegateHolder}
+ *  interface in a common root of some classes' hierarchy.</li>
+ * </ul>
+ * </p>
+ * <p>By default, {@code StaticClassExtension} searches for extension classes in the same package as the extension interface.
+ * To register extension classes located in different packages, use the {@code addExtensionPackage(Class, String)} method of
+ * {@code StaticClassExtension}. For example:
+ *  <pre><code>
+ * StaticClassExtension.sharedInstance().addExtensionPackage(Shippable.class, "test.toys.shipment");
+ * </code></pre>
+ * </p>
+ * <p>Note: Extensions returned by {@code StaticClassExtension} do not directly correspond to the extension classes
+ * themselves. Therefore, it is crucial not to cast these extensions. Instead, always utilize only the methods provided
+ * by the extension interface.</p>
  *
- * <p>Cashing of extension objects are supported out of the box. Cache utilises weak references to release extension
- * objects
- * that are not in use. Though, to perform full cleanup either the cacheCleanup() should be used or automatic cleanup
- * can be initiated via the scheduleCacheCleanup(). If automatic cache cleanup is used - it can be stopped by calling
- * the shutdownCacheCleanup().</p>
- *
+ * @see <a href="https://github.com/gregory-ledenev/java-class-extension/blob/main/doc/static-class-extensions.md">More details</a>
  * @author Gregory Ledenev
- * @version 0.9.6
+ * @version 0.9.9
  */
 public class StaticClassExtension implements ClassExtension {
 
