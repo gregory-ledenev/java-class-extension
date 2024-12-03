@@ -115,7 +115,7 @@ All the static extension classes must:
 1. Either:
 * Implement the `DelegateHolder` interface. The `DelegateHolder.setDelegate(...)` method is used to supply extensions with objects to work with. Usually, it is fine to implement the `DelegateHolder` interface in a common root of some classes hierarchy.
 * Provide a single parameter constructor that takes an object to work with as an argument.
-3. Be named as a class name followed by an extension name e.g. `BookShippable` where `Book` is the name of the class and `Shippable` is the name of extension.
+2. Be named as a class name followed by an extension name e.g. `BookShippable` where `Book` is the name of the class and `Shippable` is the name of extension.
 
 ##### Inheritance Support #####
 `StaticClassExtension` takes care of inheritance so it is possible to design and implement class extensions hierarchy that fully or partially resembles original classes' hierarchy. If there's no explicit extension specified for particular class - its parent extension will be utilized. For example, if there's no explicit `Shippable` extension for the `Toy` class - base `ItemShippable` will be used instead.
