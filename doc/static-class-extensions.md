@@ -101,7 +101,6 @@ interface Shippable {
 interface ItemShippableInterface extends ItemInterface, Shippable {
 }
 
-```java
 Book book = new Book("The Mythical Man-Month");
 ItemShippableInterface itemShippable = StaticClassExtension.sharedExtension(book,
         ItemShippableInterface.class);
