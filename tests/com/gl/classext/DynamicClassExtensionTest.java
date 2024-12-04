@@ -207,11 +207,6 @@ public class DynamicClassExtensionTest {
         DynamicClassExtension dynamicClassExtension = setupDynamicClassExtension(shippingLog);
         System.out.println(dynamicClassExtension.toString());
         assertEquals("""
-                     interface com.gl.classext.ClassExtension$DelegateHolder {
-                         getDelegate {
-                             java.lang.String -> T getDelegate()
-                         }
-                     }
                      interface com.gl.classext.DynamicClassExtensionTest$Item_Shippable {
                          getName {
                              com.gl.classext.DynamicClassExtensionTest$AutoPart -> T getName()
@@ -229,6 +224,11 @@ public class DynamicClassExtensionTest {
                          track {
                              com.gl.classext.DynamicClassExtensionTest$Item -> T track()
                              com.gl.classext.DynamicClassExtensionTest$Item -> T track(T)
+                         }
+                     }
+                     interface com.gl.classext.StaticClassExtension$DelegateHolder {
+                         getDelegate {
+                             java.lang.String -> T getDelegate()
                          }
                      }""", dynamicClassExtension.toString());
     }
@@ -511,7 +511,7 @@ public class DynamicClassExtensionTest {
         Book book = new Book("The Mythical Man-Month");
         Item_Shippable extension = dynamicClassExtension.extension(book, Item_Shippable.class);
         assertSame(extension, dynamicClassExtension.extension(book, Item_Shippable.class));
-        dynamicClassExtension.extensionCache.remove(book);
+        dynamicClassExtension.extensionCache.remove(new ClassExtensionKey(book, Item_Shippable.class));
         assertNotSame(extension, dynamicClassExtension.extension(book, Item_Shippable.class));
     }
 
@@ -627,5 +627,56 @@ public class DynamicClassExtensionTest {
         assertTrue(dynamicClassExtension.isPresent(ElectronicItem.class, Item_Shippable.class, "log", new Class<?>[]{boolean.class}));
         assertTrue(dynamicClassExtension.isPresent(ElectronicItem.class, Item_Shippable.class, "log", null));
     }
+
+    @Test
+    void equalsTest() {
+        StringBuilder shippingLog = new StringBuilder();
+        DynamicClassExtension dynamicClassExtension = setupDynamicClassExtension(shippingLog);
+
+        Book book = new Book("The Mythical Man-Month");
+        Item_Shippable extension = dynamicClassExtension.extension(book, Item_Shippable.class);
+
+        assertTrue(ClassExtension.equals(book, extension));
+        assertTrue(ClassExtension.equals(extension, book));
+
+        assertNotEquals(book, extension);
+        assertEquals(extension, book);
+
+        assertFalse(ClassExtension.equals(book, null));
+        assertFalse(ClassExtension.equals(extension, null));
+        assertFalse(ClassExtension.equals(null, book));
+        assertFalse(ClassExtension.equals(null, extension));
+    }
+
+    @Test
+    void delegateTest() {
+        StringBuilder shippingLog = new StringBuilder();
+        DynamicClassExtension dynamicClassExtension = setupDynamicClassExtension(shippingLog);
+
+        Book book = new Book("The Mythical Man-Month");
+        Item_Shippable extension = dynamicClassExtension.extension(book, Item_Shippable.class);
+        assertSame(book, ClassExtension.getDelegate(extension));
+    }
+
+    @Test
+    void checkToString() {
+        StringBuilder shippingLog = new StringBuilder();
+        DynamicClassExtension dynamicClassExtension = setupDynamicClassExtension(shippingLog);
+
+        Book book = new Book("The Mythical Man-Month");
+        Item_Shippable extension = dynamicClassExtension.extension(book, Item_Shippable.class);
+        assertEquals(book.toString(), extension.toString());
+    }
+
+    @Test
+    void checkHashCodeString() {
+        StringBuilder shippingLog = new StringBuilder();
+        DynamicClassExtension dynamicClassExtension = setupDynamicClassExtension(shippingLog);
+
+        Book book = new Book("The Mythical Man-Month");
+        Item_Shippable extension = dynamicClassExtension.extension(book, Item_Shippable.class);
+        assertEquals(book.hashCode(), extension.hashCode());
+    }
 }
+
 

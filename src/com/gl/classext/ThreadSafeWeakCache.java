@@ -96,3 +96,5 @@ public class ThreadSafeWeakCache<K, V> {
         return cache.isEmpty();
     }
 }
+
+record ClassExtensionKey(Object object, Class<?> extensionInterface) {}

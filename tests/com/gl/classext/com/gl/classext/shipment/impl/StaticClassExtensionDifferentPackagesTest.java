@@ -38,6 +38,23 @@ public class StaticClassExtensionDifferentPackagesTest {
                 shippingInfos.toString());
     }
 
+    @Test
+    void removeExtensionPackageTest() {
+        GroceryItem groceryItem = new GroceryItem("bread");
+        Shippable shippable = StaticClassExtension.sharedExtension(groceryItem, Shippable.class);
+        assertEquals("ShippingInfo[result=bread shipped]", shippable.ship().toString());
+
+        StaticClassExtension.sharedInstance().cacheClear();
+
+        try {
+            StaticClassExtension.sharedInstance().removeExtensionPackage(Shippable.class, "com.gl.classext.com.gl.classext.shipment.impl.grocery");
+            shippable = StaticClassExtension.sharedExtension(groceryItem, Shippable.class);
+            assertEquals("ShippingInfo[result=bread NOT shipped]", shippable.ship().toString());
+        } finally {
+            StaticClassExtension.sharedInstance().addExtensionPackage(Shippable.class, "com.gl.classext.com.gl.classext.shipment.impl.grocery");
+        }
+    }
+
     static {
         StaticClassExtension.sharedInstance().addExtensionPackage(Shippable.class, "com.gl.classext.com.gl.classext.shipment.impl.grocery");
     }

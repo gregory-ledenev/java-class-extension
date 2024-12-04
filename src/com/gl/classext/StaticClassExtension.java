@@ -38,7 +38,7 @@ import java.util.*;
  * library to find matching extension classes and create extension objects using the {@code extension(Object Class)} method.</p>
  *
  * <p>For example, we can create a {@code Shippable} interface that defines new methods for a {@code Shippable} extension (category) and
- * provides a {@code ship()} method. Then we should implement all needed extension classes which implement the {@code Shippableinterface}
+ * provides a {@code ship()} method. Then we should implement all needed extension classes which implement the {@code ShippableInterface}
  * and provide particular implementation for all {@code Shippable} methods. Note: All those extension classes must either implement
  * the {@code DelegateHolder} interface to used to supply extensions with items to work with or provide a constructor that takes
  * an {@code Item} as a parameter.</p>
@@ -168,7 +168,7 @@ public class StaticClassExtension implements ClassExtension {
         Objects.requireNonNull(anExtensionInterface);
 
         return isCacheEnabled() ?
-                (T) extensionCache.getOrCreate(anObject, () -> extensionNoCache(anObject, anExtensionInterface, aPackageNames)) :
+                (T) extensionCache.getOrCreate(new ClassExtensionKey(anObject, anExtensionInterface), () -> extensionNoCache(anObject, anExtensionInterface, aPackageNames)) :
                 extensionNoCache(anObject, anExtensionInterface, aPackageNames);
     }
 
@@ -178,20 +178,6 @@ public class StaticClassExtension implements ClassExtension {
         if (aPackageNames != null)
             packageNames.addAll(aPackageNames);
         return packageNames;
-    }
-
-    /**
-     * Finds and returns an extension object according to a supplied class.
-     *
-     * @param anObject         object to return an extension object for
-     * @param anExtensionClass class of extension object to be returned
-     * @return an extension object
-     */
-    protected <T> T extensionNoCache(Object anObject, Class<T> anExtensionClass) {
-        Objects.requireNonNull(anObject);
-        Objects.requireNonNull(anExtensionClass);
-
-        return extensionNoCache(anObject, anExtensionClass, null);
     }
 
     /**
@@ -232,10 +218,9 @@ public class StaticClassExtension implements ClassExtension {
             if (extension instanceof DelegateHolder)
                 ((DelegateHolder) extension).setDelegate(anObject);
 
-            final Class<?> finalExtensionInterface = extensionInterface;
             return (T) Proxy.newProxyInstance(extensionInterface.getClassLoader(),
-                    new Class<?>[]{anExtensionInterface},
-                    (proxy, method, args) -> performOperation(extension, anObject, finalExtensionInterface, method, args));
+                    new Class<?>[]{anExtensionInterface, PrivateDelegate.class},
+                    (proxy, method, args) -> performOperation(extension, anObject, method, args));
         } catch (Exception aE) {
             throw new RuntimeException(aE);
         }
@@ -253,7 +238,7 @@ public class StaticClassExtension implements ClassExtension {
         return packageNames;
     }
 
-    private static <T> Object performOperation(T anExtension, Object anObject, Class<?> anExtensionInterface, Method aMethod, Object[] aArgs)
+    private static <T> Object performOperation(T anExtension, Object anObject, Method aMethod, Object[] aArgs)
             throws InvocationTargetException, IllegalAccessException {
         Object result;
 
@@ -271,6 +256,9 @@ public class StaticClassExtension implements ClassExtension {
             } else if (aMethod.getDeclaringClass().isAssignableFrom(anObject.getClass())) {
                 // invoke object method
                 result = aMethod.invoke(anObject, aArgs);
+            } else if (aMethod.getDeclaringClass().isAssignableFrom(PrivateDelegate.class)) {
+                // invoke object method
+                result = aMethod.invoke((PrivateDelegate)() -> anObject, aArgs);
             } else {
                 throw new IllegalArgumentException("Unexpected method: " + methodName);
             }
@@ -441,7 +429,7 @@ public class StaticClassExtension implements ClassExtension {
     }
 
     @SuppressWarnings("rawtypes")
-    final ThreadSafeWeakCache extensionCache = new ThreadSafeWeakCache();
+    final ThreadSafeWeakCache extensionCache = new ThreadSafeWeakCache<ClassExtensionKey, ClassExtension>();
 
     /**
      * {@inheritDoc}

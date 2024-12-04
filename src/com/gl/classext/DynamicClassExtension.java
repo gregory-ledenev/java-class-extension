@@ -24,6 +24,7 @@ SOFTWARE.
 
 package com.gl.classext;
 
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.text.MessageFormat;
@@ -109,7 +110,7 @@ public class DynamicClassExtension implements ClassExtension {
     /**
      * Represents an operation that accepts a single input argument and returns no
      * result. Unlike most other functional interfaces, {@code Consumer} is expected
-     * to operate via side-effects.
+     * to operate via side effects.
      *
      * <p>This is a <a href="package-summary.html">functional interface</a>
      * whose functional method is {@link #accept(Object)}.
@@ -130,7 +131,7 @@ public class DynamicClassExtension implements ClassExtension {
      * Represents an operation that accepts two input arguments and returns no
      * result.  This is the two-arity specialization of {@link Consumer}.
      * Unlike most other functional interfaces, {@code BiConsumer} is expected
-     * to operate via side-effects.
+     * to operate via side effects.
      *
      * <p>This is a <a href="package-summary.html">functional interface</a>
      * whose functional method is {@link #accept(Object, Object)}.
@@ -293,9 +294,13 @@ public class DynamicClassExtension implements ClassExtension {
         Objects.requireNonNull(anObject);
         Objects.requireNonNull(anExtensionInterface);
 
-        return (T) Proxy.newProxyInstance(anExtensionInterface.getClassLoader(),
-                new Class<?>[]{anExtensionInterface},
-                (proxy, method, args) -> performOperation(anObject, anExtensionInterface, method, args));
+        try {
+            return (T) Proxy.newProxyInstance(anExtensionInterface.getClassLoader(),
+                    new Class<?>[]{anExtensionInterface, PrivateDelegate.class},
+                    (proxy, method, args) -> performOperation(anObject, anExtensionInterface, method, args));
+        } catch (Exception ex) {
+            throw new RuntimeException(ex);
+        }
     }
 
     /**
@@ -327,7 +332,7 @@ public class DynamicClassExtension implements ClassExtension {
         Objects.requireNonNull(anObject);
         Objects.requireNonNull(anExtensionInterface);
 
-        return (T) extensionCache.getOrCreate(anObject, () -> extensionNoCache(anObject, anExtensionInterface));
+        return (T) extensionCache.getOrCreate(new ClassExtensionKey(anObject, anExtensionInterface), () -> extensionNoCache(anObject, anExtensionInterface));
     }
 
     /**
@@ -345,6 +350,8 @@ public class DynamicClassExtension implements ClassExtension {
         return sharedInstance().extension(anObject, anExtensionInterface);
     }
 
+    @SuppressWarnings("unused")
+    // keep it for a while; maybe it will be useful
     public static Method findMethod(Class<?> aClass, String aMethodName, Class<?>[] aParameterTypes) {
         Method result = null;
         all: for (Method method : aClass.getMethods()) {
@@ -370,7 +377,7 @@ public class DynamicClassExtension implements ClassExtension {
     }
 
     @SuppressWarnings({"rawtypes"})
-    <T> Object performOperation(Object anObject, Class<T> anExtensionClass, Method method, Object[] args) {
+    <T> Object performOperation(Object anObject, Class<T> anExtensionClass, Method method, Object[] args) throws InvocationTargetException, IllegalAccessException {
         Object result;
 
         Performer operation = (Performer) findExtensionOperation(anObject, anExtensionClass, method, args);
@@ -382,11 +389,9 @@ public class DynamicClassExtension implements ClassExtension {
             result = operation.perform(arguments.toArray());
         } else {
             if (method.getDeclaringClass().isAssignableFrom(anObject.getClass())) {
-                try {
-                    result = method.invoke(anObject, args);
-                } catch (Exception ex) {
-                    throw new RuntimeException(ex);
-                }
+                result = method.invoke(anObject, args);
+            } else if (method.getDeclaringClass().isAssignableFrom(PrivateDelegate.class)) {
+                result = method.invoke((PrivateDelegate)() -> anObject, args);
             } else {
                 throw new IllegalArgumentException(MessageFormat.format("No \"{0}\" operation for \"{1}\"",
                         displayOperationName(method.getName(), void.class.equals(method.getReturnType()), args), anObject));

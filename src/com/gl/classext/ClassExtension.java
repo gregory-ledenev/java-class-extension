@@ -2,6 +2,10 @@ package com.gl.classext;
 
 public interface ClassExtension {
 
+    interface PrivateDelegate {
+        Object __getDelegate();
+    }
+
     /**
      * Finds and returns an extension object according to a supplied interface. It uses cache to avoid redundant objects
      * creation. If no cache should be used - turn it OFF via the {@code setCacheEnabled(false)} call
@@ -12,10 +16,25 @@ public interface ClassExtension {
      */
     <T> T extension(Object anObject, Class<T> anExtensionInterface);
 
+    static boolean equals(Object anObject, Object anExtension) {
+        if (anObject == anExtension)
+            return true;
+        else if (anObject != null && anExtension != null)
+            return (anObject.equals(anExtension) || ((anExtension instanceof PrivateDelegate delegate) && anObject.equals(delegate.__getDelegate()))) ||
+                    (anExtension.equals(anObject) || ((anObject instanceof PrivateDelegate delegate) && delegate.__getDelegate().equals(anObject)));
+
+        return false;
+    }
+
+    static Object getDelegate(Object anExtension) {
+        return anExtension instanceof PrivateDelegate privateDelegate ? privateDelegate.__getDelegate() : null;
+    }
+
     /**
      * Checks if cache is enabled
      * @return {@code true} if cache is enabled; {@code false} otherwise
      */
+    @SuppressWarnings("unused")
     boolean isCacheEnabled();
 
     /**

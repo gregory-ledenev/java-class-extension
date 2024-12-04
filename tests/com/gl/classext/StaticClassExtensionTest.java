@@ -63,6 +63,9 @@ interface Shippable {
 }
 
 interface ShippableItemInterface extends Shippable, ItemInterface {
+    static ShippableItemInterface extensionFor(Item anItem) {
+        return StaticClassExtension.sharedExtension(anItem, ShippableItemInterface.class);
+    }
 }
 
 class ItemShippable implements Shippable, StaticClassExtension.DelegateHolder<Item> {
@@ -224,7 +227,7 @@ public class StaticClassExtensionTest {
         Book book = new Book("");
         Shippable extension = Shippable.extensionFor(book);
         assertSame(extension, Shippable.extensionFor(book));
-        StaticClassExtension.sharedInstance().extensionCache.remove(book);
+        StaticClassExtension.sharedInstance().extensionCache.remove(new ClassExtensionKey(book, Shippable.class));
         assertNotSame(extension, Shippable.extensionFor(book));
     }
 
@@ -316,5 +319,56 @@ public class StaticClassExtensionTest {
             }
         }
         System.out.println("STATIC - Elapsed time: " + ((System.currentTimeMillis()-startTime) / 1000f));
+    }
+
+    @Test
+    void equalsTest() {
+        Book book = new Book("The Mythical Man-Month");
+        Shippable extension = Shippable.extensionFor(book);
+        assertTrue(ClassExtension.equals(book, extension));
+        assertTrue(ClassExtension.equals(extension, book));
+
+        assertNotEquals(book, extension);
+        assertEquals(extension, book);
+
+        assertFalse(ClassExtension.equals(book, null));
+        assertFalse(ClassExtension.equals(extension, null));
+        assertFalse(ClassExtension.equals(null, book));
+        assertFalse(ClassExtension.equals(null, extension));
+    }
+
+    @Test
+    void delegateTest() {
+        Book book = new Book("The Mythical Man-Month");
+        ShippableItemInterface extension = ShippableItemInterface.extensionFor(book);
+        assertSame(book, ClassExtension.getDelegate(extension));
+
+        assertEquals(book.getName(), extension.getName());
+    }
+
+    @Test
+    void checkToString() {
+        Book book = new Book("The Mythical Man-Month");
+        Shippable shippable = Shippable.extensionFor(book);
+        assertEquals(book.toString(), shippable.toString());
+    }
+
+    @Test
+    void checkHashCodeString() {
+        Book book = new Book("The Mythical Man-Month");
+        Shippable extension = Shippable.extensionFor(book);
+        assertEquals(book.hashCode(), extension.hashCode());
+    }
+
+    @Test
+    void checkMultipleExtensionsForSameObject() {
+        Book book = new Book("The Mythical Man-Month");
+        Shippable shippable = Shippable.extensionFor(book);
+        assertEquals(book.toString(), shippable.toString());
+
+        ShippableItemInterface shippableItem = ShippableItemInterface.extensionFor(book);
+        assertEquals(book.toString(), shippableItem.toString());
+
+        assertSame(shippable, Shippable.extensionFor(book));
     }
 }

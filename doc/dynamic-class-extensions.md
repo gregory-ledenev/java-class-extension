@@ -5,7 +5,7 @@ Class `DynamicClassExtension` provides a way to emulate class extensions (catego
 1. Create a `Builder` for an interface you want to compose an extension for by using the `DynamicClassExtension.sharedBuilder(...)` method
 2. Specify the name of an operation using `Builder.opName(String)`
 3. List all the method implementations per particular classes with lambdas using `Builder.op(...)` or `Builder.voidOp(...)`
-5. Repeat 2, 3 for all operations
+4. Repeat 2, 3 for all operations
 
 For example, the following code creates `Shippable` extensions for `Item classes`. There are explicit `ship()` method implementations for all the `Item` classes. Though, the `log()` method is implemented for the `Item` class only so extensions for all the `Item` descendants will utilize the same `log()` method.
 ```java
@@ -58,6 +58,22 @@ Supporting a new `Item` class using the Java Class Extension library requires ju
 ### Details
 For the most of the cases a shared instance of `DynamicClassExtension` should be used. But if there is a need to have different implementations of extensions in different places or domains it is possible to create and utilize new instances of `DynamicClassExtension`.
 
+**Note:** Extensions returned by `DynamicClassExtension` do not directly correspond to the extension classes themselves. Therefore, it is crucial not to cast these extensions. Instead, always utilize only the methods provided by the extension interface.
+
+If you need to check that an extension represents a particular object you may use the `ClassExtension.equals(Object, Object)` method:
+```java
+Book book = new Book("The Mythical Man-Month");
+Shippable extension = Shippable.extensionFor(book);
+assertTrue(ClassExtension.equals(book, extension));
+```
+
+If you need to get a delegate object for an extension you may use the `ClassExtension.getDelegate()` method:
+```java
+Book book = new Book("The Mythical Man-Month");
+Shippable shippable = Shippable.extensionFor(book);
+assertSame(book, ClassExtension.getDelegate(shippable));
+```
+
 #### Inheritance and Polymorphism Support
 `DynamicClassExtension` takes care of inheritance so it is possible to design and implement class extensions hierarchy that fully or partially resembles original classes' hierarchy. If there's no explicit extension operations specified for particular class - its parent extension will be utilized. For example, if there's no explicit extension operations defined for `AutoPart` objects - base `ship()` and `log(boolean)` operations specified for `Item` will be used instead.
 
@@ -86,7 +102,7 @@ System.out.println(DynamicClassExtension.sharedExtension(book, ItemShippable.cla
 ```
 
 #### Cashing
-Cashing of extension objects are supported out of the box and it can be controlled via the `Classextension.cacheEnabled` property. Cache utilizes weak references to release extension objects that are not in use. Though, to perform full cleanup either the `cacheCleanup()` should be used or automatic cleanup can be initiated via the `scheduleCacheCleanup()`. If automatic cache cleanup is used - it can be stopped by calling the `shutdownCacheCleanup()`.
+Cashing of extension objects are supported out of the box, and it can be controlled via the `Classextension.cacheEnabled` property. Cache utilizes weak references to release extension objects that are not in use. Though, to perform full cleanup either the `cacheCleanup()` should be used or automatic cleanup can be initiated via the `scheduleCacheCleanup()`. If automatic cache cleanup is used - it can be stopped by calling the `shutdownCacheCleanup()`.
 
 #### Validation
 `DynamicClassExtension` offers a capability to validate extensions for a given class through its `checkValid(...)` method. An extension is deemed valid when corresponding operations are registered for all its methods. However, in certain scenarios, it's desirable to maintain extension validity while supporting only a subset of operations. This flexibility can be achieved by annotating specific methods in the extension interface with `@OptionalMethods` annotation.
