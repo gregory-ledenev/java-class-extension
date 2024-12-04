@@ -46,7 +46,20 @@ for (Item item : items) {
     item.ship();
 }
 ```
-   
+It is possible to further simplify things by adding an `extensionFor(Item)` helper method to the `Shippable` interface:
+```java
+public interface Shippable {
+	public static Shippable extensionFor(Item item) {
+    	    return StaticClassExtension.sharedExtension(item, Shippable.class).ship();
+	}
+  ...
+}
+```
+With that helper method, shipping become even simpler and shorter:
+```java
+Shippable.extensionFor(item).ship();
+```
+
 ## Details ##
 1. [Introduction](doc/introduction.md)
 2. [Static Class Extensions](doc/static-class-extensions.md)

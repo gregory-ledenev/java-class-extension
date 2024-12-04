@@ -55,20 +55,6 @@ for (Item item : items) {
 ```
 Supporting a new `Item` class using the Java Class Extension library requires just adding the operations for that new `Item` class. No need to change any other code that does shipping with help of `Shippable` interface. That is it.
 
-It is possible to further simplify things by adding an `extensionFor(Item)` helper method to the `Shippable` interface:
-```java
-public interface Shippable {
-    public static Shippable extensionFor(Item item) {
-        return StaticClassExtension.sharedExtension(item, Shippable.class).ship();
-    }
-...
-}
-```
-With that helper method, shipping become even simpler and shorter:
-```java
-Shippable.extensionFor(item).ship();
-```
-
 ### Details
 For the most of the cases a shared instance of `DynamicClassExtension` should be used. But if there is a need to have different implementations of extensions in different places or domains it is possible to create and utilize new instances of `DynamicClassExtension`.
 

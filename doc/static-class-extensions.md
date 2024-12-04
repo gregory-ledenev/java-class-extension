@@ -44,19 +44,6 @@ for (Item item : items) {
     StaticClassExtension.sharedExtension(item, Shippable.class).ship();
 }
 ```
-It is possible to further simplify things by adding an `extensionFor(Item)` helper method to the `Shippable`:
-```java
-public interface Shippable {
-	public static Shippable extensionFor(Item item) {
-    	    return StaticClassExtension.sharedExtension(item, Shippable.class).ship();
-	}
-  ...
-}
-```
-With that helper method, shipping become even simpler and shorter:
-```java
-Shippable.extensionFor(anItem).ship();
-```
 ### Details
 The following are requirements for all the static extension classes:
 1. **Naming Convention:** they must be named as _\[ClassName]\[ExtensionName]_ - a class name followed by an extension name. For example, `BookShippable` where `Book` is the name of the class and `Shippable` is the name of extension.
