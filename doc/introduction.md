@@ -66,12 +66,13 @@ The Java Class Extension library provides an ability to emulate class extensions
 
 Class extensions (categories) are beneficial because they:
 
-Improve code organization by separating core data structures from specialized functionality.
-Enhance modularity, allowing domain-specific logic to be added without modifying original classes.
-Promote the Single Responsibility Principle by keeping data classes focused on data representation.
-Enable adding new features to existing types, including third-party or framework types.
-Facilitate better separation of concerns in complex applications.
-Improve code readability and maintainability.
+1. Improve code organization by separating core data structures from specialized functionality.
+2. Enhance modularity, allowing domain-specific logic to be added without modifying original classes.
+3. Promote the Single Responsibility Principle by keeping data classes focused on data representation.
+4. Enable adding new features to existing types, including third-party or framework types.
+5. Facilitate better separation of concerns in complex applications.
+6. Improve code readability and maintainability.
+
 These benefits lead to more flexible, maintainable, and efficient code structures. Unfortunately, Java does not natively support class extensions (categories) and there is a little chance such support is going to be introduced in the near future.
 
 Java Class Extension library provides a valuable alternative for native class extensions with just a little more verbose code and little more complex implementation.
