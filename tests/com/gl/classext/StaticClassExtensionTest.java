@@ -121,36 +121,40 @@ public class StaticClassExtensionTest {
      */
     @Test
     void shipmentTest() {
-        Item[] items = {
-                new Book("book"),
-                new Furniture("furniture"),
-                new ElectronicItem("electronic item")
-        };
+        StaticClassExtension.sharedInstance().setVerbose(true);
+        try {
+            Item[] items = {
+                    new Book("book"),
+                    new Furniture("furniture"),
+                    new ElectronicItem("electronic item")
+            };
 
-        StringBuilder shippingInfos = new StringBuilder();
-        for (Item item : items) {
-            ShippableItemInterface shippable = StaticClassExtension.sharedExtension(item, ShippableItemInterface.class);
-            ShippingInfo shippingInfo = shippable.ship();
-            assertEquals(item.getName(), shippable.getName());
-            assertEquals(item.hashCode(), shippable.hashCode());
-            assertEquals(item.toString(), shippable.toString());
-            assertEquals((Object) shippable, item);
+            StringBuilder shippingInfos = new StringBuilder();
+            for (Item item : items) {
+                ShippableItemInterface shippable = StaticClassExtension.sharedExtension(item, ShippableItemInterface.class);
+                ShippingInfo shippingInfo = shippable.ship();
+                assertEquals(item.getName(), shippable.getName());
+                assertEquals(item.hashCode(), shippable.hashCode());
+                assertEquals(item.toString(), shippable.toString());
+                assertEquals((Object) shippable, item);
 
-            if (!shippingInfos.isEmpty())
-                shippingInfos.append("\n");
-            shippingInfos.append(shippingInfo);
-            System.out.println(shippingInfo);
+                if (!shippingInfos.isEmpty())
+                    shippingInfos.append("\n");
+                shippingInfos.append(shippingInfo);
+                System.out.println(shippingInfo);
+            }
+            assertEquals("""
+                         ShippingInfo[result=book shipped]
+                         ShippingInfo[result=furniture shipped]
+                         ShippingInfo[result=electronic item shipped]""",
+                    shippingInfos.toString());
+        } finally {
+            StaticClassExtension.sharedInstance().setVerbose(false);
         }
-        assertEquals("""
-                     ShippingInfo[result=book shipped]
-                     ShippingInfo[result=furniture shipped]
-                     ShippingInfo[result=electronic item shipped]""",
-                shippingInfos.toString());
     }
 
     ShippingInfo ship(Item anItem) {
         Shippable shippable = Shippable.extensionFor(anItem);
-//        System.out.println(shippable.getName());
         return shippable.ship();
     }
 
@@ -300,6 +304,7 @@ public class StaticClassExtensionTest {
     @Test
     void performanceTest() {
         performanceTestStatic();
+        performanceTestFunctional();
     }
 
     public static void performanceTestStatic() {
@@ -315,10 +320,64 @@ public class StaticClassExtensionTest {
             for (Item item : items) {
                 ShippableItemInterface extension = StaticClassExtension.sharedInstance().extension(item, ShippableItemInterface.class);
                 extension.log();
-                extension.getName();
+//                extension.getName();
             }
         }
         System.out.println("STATIC - Elapsed time: " + ((System.currentTimeMillis()-startTime) / 1000f));
+    }
+
+    public static void performanceTestFunctional() {
+        Item[] items = {
+                new Book("The Mythical Man-Month"),
+                new Furniture("Sofa"),
+                new ElectronicItem("Soundbar"),
+                new AutoPart("Tire"),
+        };
+
+        long startTime = System.currentTimeMillis();
+        for (int i = 0; i < 1000000; i++) {
+            for (Item item : items) {
+                log(item);
+            }
+        }
+        System.out.println("FUNCTIONAL - Elapsed time: " + ((System.currentTimeMillis() - startTime) / 1000f));
+    }
+
+    private static void log(Item item) {
+        switch (item) {
+            case Book book -> logBook(book);
+            case Furniture furniture -> logFurniture(furniture);
+            case ElectronicItem electronicItem -> logElectronicItem(electronicItem);
+            case AutoPart autoPart -> logAutoPart(autoPart);
+            default -> throw new IllegalStateException("Unexpected value: " + item);
+        }
+    }
+
+
+    static StringBuilder LOG = new StringBuilder();
+
+    private static void logElectronicItem(ElectronicItem anElectronicItem) {
+        if (!LOG.isEmpty())
+            LOG.append("\n");
+        LOG.append(anElectronicItem.getName()).append(" is about to be shipped");
+    }
+
+    private static void logFurniture(Furniture aFurniture) {
+        if (!LOG.isEmpty())
+            LOG.append("\n");
+        LOG.append(aFurniture.getName()).append(" is about to be shipped");
+    }
+
+    private static void logBook(Book aBook) {
+        if (!LOG.isEmpty())
+            LOG.append("\n");
+        LOG.append(aBook.getName()).append(" is about to be shipped");
+    }
+
+    private static void logAutoPart(AutoPart anAutoPart) {
+        if (!LOG.isEmpty())
+            LOG.append("\n");
+        LOG.append(anAutoPart.getName()).append(" is about to be shipped");
     }
 
     @Test

@@ -16,6 +16,13 @@ public interface ClassExtension {
      */
     <T> T extension(Object anObject, Class<T> anExtensionInterface);
 
+    /**
+     * Checks that an extension represents particular object. So for example, {@code equals(book, StaticClassExtension.sharedExtension(book, Shippable.class))} is {@code true}
+     *
+     * @param anObject    object
+     * @param anExtension extension
+     * @return {@code true} if the extension represents particular object; {@code false} otherwise.
+     */
     static boolean equals(Object anObject, Object anExtension) {
         if (anObject == anExtension)
             return true;
@@ -26,9 +33,27 @@ public interface ClassExtension {
         return false;
     }
 
+    /**
+     * Returns a delegate object an extension was obtained for, So for example, {@code getDelegate(StaticClassExtension.sharedExtension(book, Shippable.class)) == book} is {@code true}
+     *
+     * @param anExtension extension
+     * @return delegate object
+     */
     static Object getDelegate(Object anExtension) {
         return anExtension instanceof PrivateDelegate privateDelegate ? privateDelegate.__getDelegate() : null;
     }
+
+    /**
+     * Checks if verbose mode it turned ON
+     * @return {@code true} if verbose mode it turned ON; {@code false} otherwise.
+     */
+    boolean isVerbose();
+
+    /**
+     * Turns verbose mode ON/OFF
+     * @param isVerbose {@code true} if verbose mode should be turned ON; {@code false} otherwise.
+     */
+    void setVerbose(boolean isVerbose);
 
     /**
      * Checks if cache is enabled

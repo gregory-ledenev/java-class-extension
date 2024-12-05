@@ -34,6 +34,8 @@ import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Function;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
 /**
@@ -297,7 +299,7 @@ public class DynamicClassExtension implements ClassExtension {
         try {
             return (T) Proxy.newProxyInstance(anExtensionInterface.getClassLoader(),
                     new Class<?>[]{anExtensionInterface, PrivateDelegate.class},
-                    (proxy, method, args) -> performOperation(anObject, anExtensionInterface, method, args));
+                    (proxy, method, args) -> performOperation(this, anObject, anExtensionInterface, method, args));
         } catch (Exception ex) {
             throw new RuntimeException(ex);
         }
@@ -377,11 +379,17 @@ public class DynamicClassExtension implements ClassExtension {
     }
 
     @SuppressWarnings({"rawtypes"})
-    <T> Object performOperation(Object anObject, Class<T> anExtensionClass, Method method, Object[] args) throws InvocationTargetException, IllegalAccessException {
+    <T> Object performOperation(DynamicClassExtension aClassExtension, Object anObject, Class<T> anExtensionClass, Method method, Object[] args) throws InvocationTargetException, IllegalAccessException {
         Object result;
 
-        Performer operation = (Performer) findExtensionOperation(anObject, anExtensionClass, method, args);
+        ExtensionOperationResult extensionOperation = findExtensionOperation(anObject, anExtensionClass, method, args);
+        Performer operation = (Performer) extensionOperation.operation();
         if (operation != null) {
+            if (aClassExtension.isVerbose())
+                aClassExtension.logger.info(MessageFormat.format("Performing dynamic operation for delegate \"{0}\": ({1}) -> {2}",
+                        anObject,
+                        extensionOperation.inClass().getName(),
+                        operationKeyToString(new OperationKey(anObject.getClass(), anExtensionClass, method.getName()), operation)));
             List<Object> arguments = new ArrayList<>();
             arguments.add(anObject);
             if (args != null)
@@ -389,6 +397,8 @@ public class DynamicClassExtension implements ClassExtension {
             result = operation.perform(arguments.toArray());
         } else {
             if (method.getDeclaringClass().isAssignableFrom(anObject.getClass())) {
+                if (aClassExtension.isVerbose())
+                    aClassExtension.logger.info(MessageFormat.format("Performing operation for delegate \"{0}\" -> {1}", anObject, method));
                 result = method.invoke(anObject, args);
             } else if (method.getDeclaringClass().isAssignableFrom(PrivateDelegate.class)) {
                 result = method.invoke((PrivateDelegate)() -> anObject, args);
@@ -417,7 +427,8 @@ public class DynamicClassExtension implements ClassExtension {
         for (Method method : anExtensionClass.getMethods()) {
             if (method.isAnnotationPresent(OptionalMethod.class))
                 continue;
-            Performer operation = (Performer) findExtensionOperation(aClass, anExtensionClass, method, method.getParameterTypes());
+            ExtensionOperationResult extensionOperation = findExtensionOperation(aClass, anExtensionClass, method, method.getParameterTypes());
+            Performer operation = (Performer) extensionOperation.operation;
             if (operation == null)
                 throw new IllegalArgumentException(MessageFormat.format("No \"{0}\" operation for {1} in \"{2}\" extension",
                         displayOperationName(method.getName(), void.class.equals(method.getReturnType()), method.getParameterTypes()),
@@ -442,25 +453,29 @@ public class DynamicClassExtension implements ClassExtension {
 
         try {
             Method method = anExtensionClass.getMethod(anOperation, aParameterTypes);
-            return findExtensionOperation(anObjectClass, anExtensionClass, method, method.getParameterTypes()) != null;
+            return findExtensionOperation(anObjectClass, anExtensionClass, method, method.getParameterTypes()).operation != null;
         } catch (NoSuchMethodException aE) {
             return false;
         }
     }
 
-    <T> Object findExtensionOperation(Object anObject, Class<T> anExtensionInterface, Method method, Object[] anArgs) {
+    record ExtensionOperationResult(Object operation, Class<?> inClass) {}
+
+    <T> ExtensionOperationResult findExtensionOperation(Object anObject, Class<T> anExtensionInterface, Method method, Object[] anArgs) {
         return findExtensionOperation(anObject.getClass(), anExtensionInterface, method, anArgs);
     }
 
     @SuppressWarnings({"rawtypes", "unchecked"})
-    <T> Object findExtensionOperation(Class<?> anObjectClass, Class<T> anExtensionInterface, Method method, Object[] anArgs) {
+    <T> ExtensionOperationResult findExtensionOperation(Class<?> anObjectClass, Class<T> anExtensionInterface, Method method, Object[] anArgs) {
         Object result;
         Class current = anObjectClass;
         do {
             result = getExtensionOperation(current, anExtensionInterface, operationName(method.getName(), parameterTypes(anArgs)));
+            if (result != null)
+                break;
             current = current.getSuperclass();
-        } while (current != null && result == null);
-        return result;
+        } while (current != null);
+        return new ExtensionOperationResult(result, current);
     }
 
     public static Class<?>[] parameterTypes(Object[] anArgs) {
@@ -539,10 +554,12 @@ public class DynamicClassExtension implements ClassExtension {
     }
 
     String operationKeyToString(OperationKey anOperationKey) {
-        String result = null;
+        return operationKeyToString(anOperationKey, operationsMap.get(anOperationKey));
+    }
 
-        Object lambda = operationsMap.get(anOperationKey);
+    String operationKeyToString(OperationKey anOperationKey, Object lambda) {
         String operationName = anOperationKey.simpleOperationName();
+        String result = null;
         if (lambda instanceof Function)
             result = MessageFormat.format("T {0}()\n", operationName);
         else if (lambda instanceof BiFunction)
@@ -551,7 +568,6 @@ public class DynamicClassExtension implements ClassExtension {
             result = MessageFormat.format("void {0}()\n", operationName);
         else if (lambda instanceof BiConsumer)
             result = MessageFormat.format("void {0}(T)\n", operationName);
-
         return result;
     }
 
@@ -733,5 +749,31 @@ public class DynamicClassExtension implements ClassExtension {
             return dynamicClassExtension;
         }
     }
+
+    //region Verbose Mode support methods
+    boolean verbose;
+
+    @Override
+    public boolean isVerbose() {
+        return verbose;
+    }
+
+    @Override
+    public void setVerbose(boolean isVerbose) {
+        if (verbose != isVerbose) {
+            verbose = isVerbose;
+            if (isVerbose())
+                setupLogger();
+        }
+    }
+
+    Logger logger;
+    protected void setupLogger() {
+        if (logger == null) {
+            logger = Logger.getLogger(getClass().getName());
+            logger.setLevel(Level.ALL);
+        }
+    }
+    //endregion
 }
 

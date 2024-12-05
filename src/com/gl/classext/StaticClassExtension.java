@@ -31,6 +31,10 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.text.MessageFormat;
 import java.util.*;
+import java.util.logging.ConsoleHandler;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+import java.util.logging.SimpleFormatter;
 
 /**
  * <p>The {@code StaticClassExtension} class offers methods for dynamically finding and creating extension objects as needed. With
@@ -220,7 +224,7 @@ public class StaticClassExtension implements ClassExtension {
 
             return (T) Proxy.newProxyInstance(extensionInterface.getClassLoader(),
                     new Class<?>[]{anExtensionInterface, PrivateDelegate.class},
-                    (proxy, method, args) -> performOperation(extension, anObject, method, args));
+                    (proxy, method, args) -> performOperation(this, extension, anObject, method, args));
         } catch (Exception aE) {
             throw new RuntimeException(aE);
         }
@@ -238,23 +242,33 @@ public class StaticClassExtension implements ClassExtension {
         return packageNames;
     }
 
-    private static <T> Object performOperation(T anExtension, Object anObject, Method aMethod, Object[] aArgs)
+    private static <T> Object performOperation(StaticClassExtension aClassExtension, T anExtension, Object anObject, Method aMethod, Object[] aArgs)
             throws InvocationTargetException, IllegalAccessException {
         Object result;
 
         String methodName = aMethod.getName();
         if ("toString".equals(methodName) && aMethod.getParameterCount() == 0) {
+            if (aClassExtension.isVerbose())
+                aClassExtension.logger.info(MessageFormat.format("Performing operation for delegate \"{0}\" -> void toString()", anObject));
             result = anObject.toString();
         } else if ("hashCode".equals(methodName) && aMethod.getParameterCount() == 0) {
+            if (aClassExtension.isVerbose())
+                aClassExtension.logger.info(MessageFormat.format("Performing operation for delegate \"{0}\" -> int hashCode()", anObject));
             result = anObject.hashCode();
         } else if ("equals".equals(methodName) && aMethod.getParameterCount() == 1 && aMethod.getParameterTypes()[0] == Object.class) {
+            if (aClassExtension.isVerbose())
+                aClassExtension.logger.info(MessageFormat.format("Performing operation for delegate \"{0}\" -> boolean equals({1}))", anObject, aArgs[0]));
             result = anObject.equals(aArgs[0]);
         } else {
             if (aMethod.getDeclaringClass().isAssignableFrom(anExtension.getClass())) {
                 // invoke extension method
+                if (aClassExtension.isVerbose())
+                    aClassExtension.logger.info(MessageFormat.format("Performing operation for extension \"{0}\" -> {1}", anExtension, aMethod));
                 result = aMethod.invoke(anExtension, aArgs);
             } else if (aMethod.getDeclaringClass().isAssignableFrom(anObject.getClass())) {
                 // invoke object method
+                if (aClassExtension.isVerbose())
+                    aClassExtension.logger.info(MessageFormat.format("Performing operation for delegate \"{0}\" -> {1}", anObject, aMethod));
                 result = aMethod.invoke(anObject, aArgs);
             } else if (aMethod.getDeclaringClass().isAssignableFrom(PrivateDelegate.class)) {
                 // invoke object method
@@ -324,13 +338,20 @@ public class StaticClassExtension implements ClassExtension {
         Class<T> result = null;
         Class current = anObject.getClass();
         do {
+            String extensionClassName = null;
             try {
                 String fullClassName = current.getName();
                 int index = fullClassName.lastIndexOf(".");
                 String className = index != -1 ? fullClassName.substring(index + 1) : fullClassName;
-                result = (Class<T>) Class.forName(extensionName(aPackageName, className, anExtensionName));
+                extensionClassName = extensionName(aPackageName, className, anExtensionName);
+                result = (Class<T>) Class.forName(extensionClassName);
+                if (isVerbose())
+                    logger.info(MessageFormat.format("Got extension class \"{0}\" for an object of \"{1}\"",
+                            extensionClassName, anObject.getClass().getName()));
             } catch (Exception aE) {
-                // nothing to do; just walk up
+                if (isVerbose())
+                    logger.info(MessageFormat.format("No extension class \"{0}\" for an object of \"{1}\"",
+                            extensionClassName, anObject.getClass().getName()));
             }
             current = current.getSuperclass();
         } while (current != null && result == null);
@@ -464,6 +485,32 @@ public class StaticClassExtension implements ClassExtension {
      */
     public boolean cacheIsEmpty() {
         return extensionCache.isEmpty();
+    }
+    //endregion
+
+    //region Verbose Mode support methods
+    boolean verbose;
+
+    @Override
+    public boolean isVerbose() {
+        return verbose;
+    }
+
+    @Override
+    public void setVerbose(boolean isVerbose) {
+        if (verbose != isVerbose) {
+            verbose = isVerbose;
+            if (isVerbose())
+                setupLogger();
+        }
+    }
+
+    Logger logger;
+    protected void setupLogger() {
+        if (logger == null) {
+            logger = Logger.getLogger(getClass().getName());
+            logger.setLevel(Level.ALL);
+        }
     }
     //endregion
 }

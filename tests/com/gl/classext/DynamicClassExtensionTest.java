@@ -115,6 +115,7 @@ public class DynamicClassExtensionTest {
         StringBuilder shippingLog = new StringBuilder();
 
         DynamicClassExtension dynamicClassExtension = setupDynamicClassExtension(shippingLog);
+        dynamicClassExtension.setVerbose(true);
         Item[] items = {
                 new Book("The Mythical Man-Month"),
                 new Furniture("Sofa"),
