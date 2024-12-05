@@ -26,6 +26,7 @@ package com.gl.classext;
 
 import java.lang.ref.ReferenceQueue;
 import java.lang.ref.WeakReference;
+import java.text.MessageFormat;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -37,11 +38,23 @@ public class ThreadSafeWeakCache<K, V> {
     private final ConcurrentHashMap<K, WeakReference<V>> cache;
     private final ReferenceQueue<V> queue;
     private final ScheduledExecutorService cleanupExecutor;
+    private int maxSize = 1000;
 
     public ThreadSafeWeakCache() {
         this.cache = new ConcurrentHashMap<>();
         this.queue = new ReferenceQueue<>();
         this.cleanupExecutor = Executors.newSingleThreadScheduledExecutor();
+    }
+
+    public void setMaxSize(int aMaxSize) {
+        if (aMaxSize < 100)
+            throw new IllegalArgumentException(MessageFormat.format("Invalid max cache size value: {0}. It must be >= 100", aMaxSize));
+
+        maxSize = aMaxSize;
+    }
+
+    public int getMaxSize() {
+        return maxSize;
     }
 
     public void scheduleCleanup() {
@@ -58,6 +71,10 @@ public class ThreadSafeWeakCache<K, V> {
     }
 
     public void put(K key, V value) {
+        // not ideal but sufficient so far
+        while (cache.size() >= maxSize)
+            cache.remove(cache.keySet().iterator().next());
+
         cache.put(key, new WeakReference<>(value, queue));
     }
 

@@ -97,7 +97,7 @@ import java.util.stream.Collectors;
  *
  * @see <a href="https://github.com/gregory-ledenev/java-class-extension/blob/main/doc/dynamic-class-extensions.md">More details</a>
  * @author Gregory Ledenev
- * @version 0.9.9
+ * @version 0.9.12
  */
 public class DynamicClassExtension implements ClassExtension {
 
@@ -298,7 +298,7 @@ public class DynamicClassExtension implements ClassExtension {
 
         try {
             return (T) Proxy.newProxyInstance(anExtensionInterface.getClassLoader(),
-                    new Class<?>[]{anExtensionInterface, PrivateDelegate.class},
+                    new Class<?>[]{anExtensionInterface, PrivateDelegateHolder.class},
                     (proxy, method, args) -> performOperation(this, anObject, anExtensionInterface, method, args));
         } catch (Exception ex) {
             throw new RuntimeException(ex);
@@ -400,8 +400,8 @@ public class DynamicClassExtension implements ClassExtension {
                 if (aClassExtension.isVerbose())
                     aClassExtension.logger.info(MessageFormat.format("Performing operation for delegate \"{0}\" -> {1}", anObject, method));
                 result = method.invoke(anObject, args);
-            } else if (method.getDeclaringClass().isAssignableFrom(PrivateDelegate.class)) {
-                result = method.invoke((PrivateDelegate)() -> anObject, args);
+            } else if (method.getDeclaringClass().isAssignableFrom(PrivateDelegateHolder.class)) {
+                result = method.invoke((PrivateDelegateHolder)() -> anObject, args);
             } else {
                 throw new IllegalArgumentException(MessageFormat.format("No \"{0}\" operation for \"{1}\"",
                         displayOperationName(method.getName(), void.class.equals(method.getReturnType()), args), anObject));

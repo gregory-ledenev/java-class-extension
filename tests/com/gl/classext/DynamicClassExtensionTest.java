@@ -208,6 +208,11 @@ public class DynamicClassExtensionTest {
         DynamicClassExtension dynamicClassExtension = setupDynamicClassExtension(shippingLog);
         System.out.println(dynamicClassExtension.toString());
         assertEquals("""
+                     interface com.gl.classext.ClassExtension$DelegateHolder {
+                         getDelegate {
+                             java.lang.String -> T getDelegate()
+                         }
+                     }
                      interface com.gl.classext.DynamicClassExtensionTest$Item_Shippable {
                          getName {
                              com.gl.classext.DynamicClassExtensionTest$AutoPart -> T getName()
@@ -225,11 +230,6 @@ public class DynamicClassExtensionTest {
                          track {
                              com.gl.classext.DynamicClassExtensionTest$Item -> T track()
                              com.gl.classext.DynamicClassExtensionTest$Item -> T track(T)
-                         }
-                     }
-                     interface com.gl.classext.StaticClassExtension$DelegateHolder {
-                         getDelegate {
-                             java.lang.String -> T getDelegate()
                          }
                      }""", dynamicClassExtension.toString());
     }
@@ -583,8 +583,7 @@ public class DynamicClassExtensionTest {
     }
 
     @Test
-    void performanceTest() {
-
+    void performanceTestDynamic() {
         StringBuilder shippingLog = new StringBuilder();
 
         DynamicClassExtension dynamicClassExtension = setupDynamicClassExtension(shippingLog);
@@ -603,10 +602,19 @@ public class DynamicClassExtensionTest {
             }
         }
         System.out.println("DYNAMIC - Elapsed time: " + ((System.currentTimeMillis()-startTime) / 1000f));
-        StaticClassExtensionTest.performanceTestStatic();
     }
 
     @Test
+    void performanceTest() {
+        for (int i = 0; i < 20; i++) {
+            performanceTestDynamic();
+            StaticClassExtensionTest.performanceTestStatic();
+            System.out.println("-----------");
+            System.gc();
+        }
+    }
+
+        @Test
     void validationTest() {
         StringBuilder shippingLog = new StringBuilder();
         DynamicClassExtension dynamicClassExtension = setupDynamicClassExtension(shippingLog);

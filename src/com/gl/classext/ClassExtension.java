@@ -1,8 +1,53 @@
+/*
+Copyright 2024 Gregory Ledenev (gregory.ledenev37@gmail.com)
+
+MIT License
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of
+this software and associated documentation files (the “Software”), to deal in
+the Software without restriction, including without limitation the rights to
+use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
+of the Software, and to permit persons to whom the Software is furnished to do
+so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+*/
+
 package com.gl.classext;
 
+/**
+ * This interface provides core methods to allow getting class extensions, manage cache and logging. The main method is
+ * {@code extension(Object, Class)} that allows to find and return an extension objects according to a supplied
+ * interfaces.
+ */
 public interface ClassExtension {
 
-    interface PrivateDelegate {
+    enum InstantiationStrategy {
+        PROXY, DIRECT
+    }
+
+    /**
+     * The interface all the class extensions must implement. It defines the 'delegate' property which is used to supply
+     * extension objects with values to work with
+     *
+     * @param <T> defines a class of delegate objects to work with
+     */
+    interface DelegateHolder<T> {
+        T getDelegate();
+
+        void setDelegate(T aDelegate);
+    }
+
+    interface PrivateDelegateHolder {
         Object __getDelegate();
     }
 
@@ -17,7 +62,8 @@ public interface ClassExtension {
     <T> T extension(Object anObject, Class<T> anExtensionInterface);
 
     /**
-     * Checks that an extension represents particular object. So for example, {@code equals(book, StaticClassExtension.sharedExtension(book, Shippable.class))} is {@code true}
+     * Checks that an extension represents particular object. So for example,
+     * {@code equals(book, StaticClassExtension.sharedExtension(book, Shippable.class))} is {@code true}
      *
      * @param anObject    object
      * @param anExtension extension
@@ -26,9 +72,17 @@ public interface ClassExtension {
     static boolean equals(Object anObject, Object anExtension) {
         if (anObject == anExtension)
             return true;
-        else if (anObject != null && anExtension != null)
-            return (anObject.equals(anExtension) || ((anExtension instanceof PrivateDelegate delegate) && anObject.equals(delegate.__getDelegate()))) ||
-                    (anExtension.equals(anObject) || ((anObject instanceof PrivateDelegate delegate) && delegate.__getDelegate().equals(anObject)));
+        else if (anObject != null && anExtension != null) {
+            if (anObject.equals(anExtension) || anExtension.equals(anObject))
+                return true;
+            if ((anExtension instanceof PrivateDelegateHolder delegate) && anObject.equals(delegate.__getDelegate()))
+                return true;
+            if ((anExtension instanceof DelegateHolder<?> delegate) && anObject.equals(delegate.getDelegate()))
+                return true;
+            if ((anObject instanceof PrivateDelegateHolder delegate) && delegate.__getDelegate().equals(anObject))
+                return true;
+            return (anObject instanceof DelegateHolder<?> delegate) && delegate.getDelegate().equals(anObject);
+        }
 
         return false;
     }
@@ -40,7 +94,7 @@ public interface ClassExtension {
      * @return delegate object
      */
     static Object getDelegate(Object anExtension) {
-        return anExtension instanceof PrivateDelegate privateDelegate ? privateDelegate.__getDelegate() : null;
+        return anExtension instanceof PrivateDelegateHolder privateDelegate ? privateDelegate.__getDelegate() : null;
     }
 
     /**

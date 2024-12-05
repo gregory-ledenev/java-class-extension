@@ -30,10 +30,17 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * Simple annotation that allows to mark some interfaces as extension interfaces
+ * Optional annotation that allows to mark some interfaces as extension interfaces. Particularly, the
+ * {@code StaticClassExtension} utilizes that annotation to find extension interfaces and use them to:
+ * <ol>
+ * <li>Compose proper extension class names</li>
+ * <li>Determine packages to lookup for extension classes via the {@code packages} parameter</li>
+ * <li>Determine instantiation strategy via the {@code instantiationStrategy} parameter</li>
+ * </ol>
  */
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.TYPE)
 public @interface ExtensionInterface {
+    ClassExtension.InstantiationStrategy instantiationStrategy() default ClassExtension.InstantiationStrategy.PROXY;
     String[] packages() default {};
 }

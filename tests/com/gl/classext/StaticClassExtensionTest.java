@@ -68,8 +68,12 @@ interface ShippableItemInterface extends Shippable, ItemInterface {
     }
 }
 
-class ItemShippable implements Shippable, StaticClassExtension.DelegateHolder<Item> {
+class ItemShippable implements Shippable {
     static final StringBuilder LOG = new StringBuilder();
+
+    public ItemShippable(Item aDelegate) {
+        delegate = aDelegate;
+    }
 
     public ShippingInfo ship() {
         return new ShippingInfo(getDelegate() + " NOT shipped");
@@ -83,12 +87,10 @@ class ItemShippable implements Shippable, StaticClassExtension.DelegateHolder<It
 
     private Item delegate;
 
-    @Override
     public Item getDelegate() {
         return delegate;
     }
 
-    @Override
     public void setDelegate(Item aDelegate) {
         delegate = aDelegate;
     }
@@ -96,6 +98,10 @@ class ItemShippable implements Shippable, StaticClassExtension.DelegateHolder<It
 
 @SuppressWarnings("unused")
 class BookShippable extends ItemShippable {
+    public BookShippable(Item aDelegate) {
+        super(aDelegate);
+    }
+
     public ShippingInfo ship() {
         return new ShippingInfo(getDelegate() + " shipped");
     }
@@ -103,6 +109,10 @@ class BookShippable extends ItemShippable {
 
 @SuppressWarnings("unused")
 class FurnitureShippable extends ItemShippable {
+    public FurnitureShippable(Item aDelegate) {
+        super(aDelegate);
+    }
+
     public ShippingInfo ship() {
         return new ShippingInfo(getDelegate() + " shipped");
     }
@@ -110,6 +120,10 @@ class FurnitureShippable extends ItemShippable {
 
 @SuppressWarnings("unused")
 class ElectronicItemShippable extends ItemShippable {
+    public ElectronicItemShippable(Item aDelegate) {
+        super(aDelegate);
+    }
+
     public ShippingInfo ship() {
         return new ShippingInfo(getDelegate() + " shipped");
     }
@@ -324,6 +338,7 @@ public class StaticClassExtensionTest {
             }
         }
         System.out.println("STATIC - Elapsed time: " + ((System.currentTimeMillis()-startTime) / 1000f));
+        ItemShippable.LOG.setLength(0);
     }
 
     public static void performanceTestFunctional() {

@@ -31,10 +31,8 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.text.MessageFormat;
 import java.util.*;
-import java.util.logging.ConsoleHandler;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import java.util.logging.SimpleFormatter;
 
 /**
  * <p>The {@code StaticClassExtension} class offers methods for dynamically finding and creating extension objects as needed. With
@@ -112,7 +110,7 @@ import java.util.logging.SimpleFormatter;
  *
  * @see <a href="https://github.com/gregory-ledenev/java-class-extension/blob/main/doc/static-class-extensions.md">More details</a>
  * @author Gregory Ledenev
- * @version 0.9.9
+ * @version 0.9.12
  */
 public class StaticClassExtension implements ClassExtension {
 
@@ -120,18 +118,6 @@ public class StaticClassExtension implements ClassExtension {
 
     public static StaticClassExtension sharedInstance() {
         return classExtension;
-    }
-
-    /**
-     * The interface all the class extensions must implement. It defines the 'delegate' property which is used to supply
-     * extension objects with values to work with
-     *
-     * @param <T> defines a class of delegate objects to work with
-     */
-    public interface DelegateHolder<T> {
-        T getDelegate();
-
-        void setDelegate(T aDelegate);
     }
 
     /**
@@ -192,18 +178,21 @@ public class StaticClassExtension implements ClassExtension {
      * @param aPackageNames        packages to lookup extension in
      * @return an extension object
      */
-    @SuppressWarnings({"rawtypes", "unchecked"})
+    @SuppressWarnings({"unchecked"})
     protected <T> T extensionNoCache(Object anObject, Class<T> anExtensionInterface, List<String> aPackageNames) {
         Objects.requireNonNull(anObject);
         Objects.requireNonNull(anExtensionInterface);
 
         List<String> packageNames = getPackageNames(anExtensionInterface, aPackageNames);
 
+        ClassExtension.InstantiationStrategy instantiationStrategy = InstantiationStrategy.PROXY;
+
         Class<?> extensionInterface = findAnnotatedInterface(anExtensionInterface, ExtensionInterface.class);
         if (extensionInterface == null) {
             extensionInterface = anExtensionInterface;
         } else {
             packageNames = getAnnotatedPackageNames(extensionInterface, packageNames);
+            instantiationStrategy = instantiationStrategy(extensionInterface);
         }
         packageNames.addAll(extensionPackages(extensionInterface));
 
@@ -217,17 +206,48 @@ public class StaticClassExtension implements ClassExtension {
                 throw new IllegalStateException(MessageFormat.format("Extension \"{0}\"class does not implement the \"{1}\" interface",
                         extensionClass.getName(), extensionInterface.getName()));
 
-            Constructor<?> constructor = getDeclaredConstructor(extensionClass, anObject.getClass());
-            Object extension = constructor.getParameterCount() == 0 ? constructor.newInstance() : constructor.newInstance(anObject);
-            if (extension instanceof DelegateHolder)
-                ((DelegateHolder) extension).setDelegate(anObject);
+            Object extension = createExtension(anObject, extensionClass);
 
-            return (T) Proxy.newProxyInstance(extensionInterface.getClassLoader(),
-                    new Class<?>[]{anExtensionInterface, PrivateDelegate.class},
-                    (proxy, method, args) -> performOperation(this, extension, anObject, method, args));
-        } catch (Exception aE) {
-            throw new RuntimeException(aE);
+            if (instantiationStrategy != InstantiationStrategy.DIRECT) {
+                return (T) Proxy.newProxyInstance(extensionInterface.getClassLoader(),
+                        new Class<?>[]{anExtensionInterface, PrivateDelegateHolder.class},
+                        (proxy, method, args) -> performOperation(this, extension, anObject, method, args));
+            } else {
+                if (isVerbose() && ! anExtensionInterface.isAssignableFrom(extensionClass))
+                    logger.severe(MessageFormat.format("""
+                                                       Extension {0} does not implement {1}. You should \
+                                                       either obtain extension for {2} or \
+                                                       use Proxy instantiation strategy. Check {2} for @ExtensionInterface annotation""",
+                            extensionClass, anExtensionInterface, extensionInterface));
+                return (T) extension;
+            }
+        } catch (Exception ex) {
+            throw new RuntimeException(ex);
         }
+    }
+
+    @SuppressWarnings({"rawtypes", "unchecked"})
+    private static Object createExtension(Object anObject, Class<?> anExtensionClass) throws NoSuchMethodException, InstantiationException, IllegalAccessException, InvocationTargetException {
+        Constructor<?> constructor = getDeclaredConstructor(anExtensionClass, anObject.getClass());
+        Object result;
+        if (constructor.getParameterCount() == 1) {
+            result = constructor.newInstance(anObject);
+        } else {
+            if (DelegateHolder.class.isAssignableFrom(anExtensionClass)) {
+                result = constructor.newInstance();
+                ((DelegateHolder) result).setDelegate(anObject);
+            } else {
+                throw new IllegalArgumentException(MessageFormat.format("Found extension {0} must provide either a single parameter {1}(Object) constructor or implement {2}",
+                        anExtensionClass, anExtensionClass.getSimpleName(), DelegateHolder.class));
+            }
+        }
+
+        return result;
+    }
+
+    private static ClassExtension.InstantiationStrategy instantiationStrategy(Class<?> extensionInterface) {
+        ExtensionInterface annotation = extensionInterface.getAnnotation(ExtensionInterface.class);
+        return annotation != null ? annotation.instantiationStrategy() : InstantiationStrategy.PROXY;
     }
 
     private static List<String> getAnnotatedPackageNames(Class<?> extensionInterface, List<String> packageNames) {
@@ -270,9 +290,9 @@ public class StaticClassExtension implements ClassExtension {
                 if (aClassExtension.isVerbose())
                     aClassExtension.logger.info(MessageFormat.format("Performing operation for delegate \"{0}\" -> {1}", anObject, aMethod));
                 result = aMethod.invoke(anObject, aArgs);
-            } else if (aMethod.getDeclaringClass().isAssignableFrom(PrivateDelegate.class)) {
+            } else if (aMethod.getDeclaringClass().isAssignableFrom(PrivateDelegateHolder.class)) {
                 // invoke object method
-                result = aMethod.invoke((PrivateDelegate)() -> anObject, aArgs);
+                result = aMethod.invoke((PrivateDelegateHolder)() -> anObject, aArgs);
             } else {
                 throw new IllegalArgumentException("Unexpected method: " + methodName);
             }

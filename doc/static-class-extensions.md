@@ -55,7 +55,7 @@ By default, `StaticClassExtension` searches for extension classes in the same pa
 ```java
 StaticClassExtension.sharedInstance().addExtensionPackage(Shippable.class, "test.toys.shipment");
 ```
-**Note:** Extensions returned by `StaticClassExtension` do not directly correspond to the extension classes themselves. Therefore, it is crucial not to cast these extensions. Instead, always utilize only the methods provided by the extension interface.
+**Note:** Extensions returned by `StaticClassExtension` may not directly correspond to the extension classes themselves. Therefore, it is crucial not to cast these extensions. Instead, always utilize only the methods provided by the extension interface.
 
 If you need to check that an extension represents a particular object you may use the `ClassExtension.equals(Object, Object)` method:
 ```java
@@ -91,8 +91,24 @@ static {
 ```
 No need to touch or change any existing code. That is it.
 
+#### Instantiation Strategy
+The `StaticClassExtension` offers two extension instantiation strategies.
+1. **Proxy** (default): Creates dynamic proxies with extension instances inside. For example: a `Shippable` proxy containing a `BookShippable` instance under the hood. This strategy offers the following benefits:
+   * Enables interface combining (merging)
+   * Allows extensions to be treated as original objects (delegates)
+   * Facilitates method call tracking in verbose mode
+2. **Direct**: returns extension instances directly. For example: a `BookShippable` instance. This strategy offers much faster performance than the Proxy strategy. So use Direct instantiation when proxy-related features are not needed and performance is critical.
+
+The @ExtensionInterface annotation controls the instantiation strategy. 
+
+#### Extension Interface Annotation
+The optional `@ExtensionInterface` annotation allows developers to mark interfaces as extension interfaces. The `StaticClassExtension` utilizes this annotation to:
+1. Compose Class Names: dynamically generate appropriate extension class names.
+2. Package Discovery: specify packages for searching extension classes using the `packages` parameter.
+3. Instantiation Strategy: decide between using dynamic proxies or direct class extensions via the `instantiationStrategy` parameter.
+
 #### Flexible Extension Interface Handling
-The `StaticClassExtension` enables powerful interface combining (merging), allowing extensions to be treated as their original objects. As result, extensions become transparent, behaving like original objects while providing additional functionality. 
+When using dynamic proxies, the `StaticClassExtension` enables powerful interface combining (merging), allowing extensions to be treated as their original objects. As result, extensions become transparent, behaving like original objects while providing additional functionality. 
 
 For example, when working with the `ItemShippableInterface` extension, you can:
 * Interact with it as with an original item (e.g. use its `getName()` method)
