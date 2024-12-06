@@ -101,7 +101,7 @@ The `StaticClassExtension` returns dynamic proxies with extension instances insi
    * Facilitates method call tracking in verbose mode
 
 #### Direct
-The `StaticClassExtension`  returns extension instances directly. For example: a `BookShippable` instance. This strategy offers much faster performance than the Proxy strategy. So use Direct instantiation when proxy-related features are not needed and performance is critical.
+The `StaticClassExtension`  returns extension instances directly. For example: a `BookShippable` instance. This strategy offers much faster performance than the Proxy strategy. So use the Direct instantiation when proxy-related features are not needed and performance is critical.
 
 The @ExtensionInterface annotation controls the instantiation strategy. 
 
