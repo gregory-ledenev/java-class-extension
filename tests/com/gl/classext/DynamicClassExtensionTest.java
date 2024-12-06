@@ -240,7 +240,7 @@ public class DynamicClassExtensionTest {
         StringBuilder shippingLog = new StringBuilder();
 
         DynamicClassExtension dynamicClassExtension = setupDynamicClassExtension(shippingLog);
-        String string = dynamicClassExtension.toStringGroupedByObjectClass();
+        String string = dynamicClassExtension.toString(false);
         System.out.println(string);
         assertEquals("""
                      interface com.gl.classext.ClassExtension$DelegateHolder {

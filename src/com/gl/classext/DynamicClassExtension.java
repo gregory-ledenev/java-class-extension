@@ -465,8 +465,39 @@ public class DynamicClassExtension implements ClassExtension {
         return findExtensionOperation(anObject.getClass(), anExtensionInterface, method, anArgs);
     }
 
+     <T> ExtensionOperationResult findExtensionOperation(Class<?> anObjectClass, Class<T> anExtensionInterface, Method method, Object[] anArgs) {
+        ExtensionOperationResult result = findExtensionOperationByClass(anObjectClass, anExtensionInterface, method, anArgs);
+        if (result.operation == null)
+            result = findExtensionOperationByInterface(anObjectClass, anExtensionInterface, method, anArgs);
+        return result;
+    }
+
+    <T> ExtensionOperationResult findExtensionOperationByInterface(Class<?> anObjectClass, Class<T> anExtensionInterface, Method method, Object[] anArgs) {
+        ExtensionOperationResult result = null;
+
+        List<Class<?>> objectClasses = new ArrayList<>(Arrays.asList(anObjectClass.getInterfaces()));
+        objectClasses.addFirst(anObjectClass);
+
+        List<Class<?>> extensionInterfaces = new ArrayList<>(Arrays.asList(anExtensionInterface.getInterfaces()));
+        extensionInterfaces.addFirst(anExtensionInterface);
+
+        String operationName = operationName(method.getName(), parameterTypes(anArgs));
+
+        all: for (Class<?> objectClass : objectClasses) {
+            for (Class<?> extensionInterface : extensionInterfaces) {
+                Object operation = getExtensionOperation(objectClass, extensionInterface, operationName);
+                if (operation != null) {
+                    result = new ExtensionOperationResult(operation, objectClass);
+                    break all;
+                }
+            }
+        }
+
+        return result != null ? result : new ExtensionOperationResult(null, anObjectClass);
+    }
+
     @SuppressWarnings({"rawtypes", "unchecked"})
-    <T> ExtensionOperationResult findExtensionOperation(Class<?> anObjectClass, Class<T> anExtensionInterface, Method method, Object[] anArgs) {
+    <T> ExtensionOperationResult findExtensionOperationByClass(Class<?> anObjectClass, Class<T> anExtensionInterface, Method method, Object[] anArgs) {
         Object result;
         Class current = anObjectClass;
         do {
@@ -524,57 +555,22 @@ public class DynamicClassExtension implements ClassExtension {
      */
     @Override
     public String toString() {
-        return toStringGroupedByOperation();
+        return toString(true);
     }
 
     /**
-     * Returns string representation of registered operations grouped by extension interface, operation and object class
+     * Returns string representation of registered operations
+     * @param groupByOperation {@code true} if output should be grouped by extension interface, <i>operation</i> and object class;
+     *                                     otherwise output will be grouped by extension interface, <i>object class</i> and operation
      * @return string representation
      */
-    public String toStringGroupedByOperation() {
+    public String toString(boolean groupByOperation) {
         StringBuilder result = new StringBuilder();
 
         // circle through extension classes
         new HashMap<>(operationsMap).keySet().stream().
                 collect(Collectors.groupingBy(OperationKey::extensionClass,
-                        Collectors.groupingBy(OperationKey::simpleOperationName))).
-                entrySet().stream().sorted(Map.Entry.comparingByKey(Comparator.comparing(Class::getName))).
-                forEach(anEntryByClass -> {
-                    result.append(anEntryByClass.getKey()).append(" {\n");
-
-                    // circle through extension operation names
-                    anEntryByClass.getValue().entrySet().stream().sorted(Map.Entry.comparingByKey()).
-                            forEach(anEntryByOperationName -> {
-
-                                result.append("    ").append(anEntryByOperationName.getKey()).append(" {\n");
-
-                                // circle through operation keys
-                                anEntryByOperationName.getValue().stream().sorted(
-                                                 Comparator.comparing(OperationKey::objectClassName).
-                                                        thenComparing(OperationKey::operationName)).
-                                        forEach(anOperationKey -> result.append("        ").
-                                                append(anOperationKey.objectClass.getName()).append(" -> ").
-                                                append(operationKeyToString(anOperationKey)));
-                                result.append("    }\n");
-                            });
-                    result.append("}\n");
-                });
-
-        String resultStr = result.toString();
-        return resultStr.endsWith("\n") ? resultStr.substring(0, result.toString().length() - 1) : resultStr;
-    }
-
-    /**
-     * Returns string representation of registered operations grouped by extension interface, object class and operation
-     * @return string representation
-     */
-    public String toStringGroupedByObjectClass() {
-        StringBuilder result = new StringBuilder();
-
-        // circle through extension classes
-        new HashMap<>(operationsMap).keySet().stream().
-                collect(Collectors.groupingBy(OperationKey::extensionClass,
-                        Collectors.groupingBy(OperationKey::objectClassName))).
+                        Collectors.groupingBy(groupByOperation ? OperationKey::simpleOperationName : OperationKey::objectClassName))).
                 entrySet().stream().sorted(Map.Entry.comparingByKey(Comparator.comparing(Class::getName))).
                 forEach(anEntryByClass -> {
                     result.append(anEntryByClass.getKey()).append(" {\n");
@@ -589,15 +585,19 @@ public class DynamicClassExtension implements ClassExtension {
                                 anEntryByOperationName.getValue().stream().sorted(
                                                 Comparator.comparing(OperationKey::objectClassName).
                                                         thenComparing(OperationKey::operationName)).
-                                        forEach(anOperationKey -> result.append("        ").
-                                                append(operationKeyToString(anOperationKey)));
+                                        forEach(anOperationKey -> {
+                                            result.append("        ");
+                                            if (groupByOperation)
+                                                result.append(anOperationKey.objectClass.getName()).append(" -> ");
+                                            result.append(operationKeyToString(anOperationKey));
+                                        });
                                 result.append("    }\n");
                             });
                     result.append("}\n");
                 });
 
         String resultStr = result.toString();
-        return resultStr.endsWith("\n") ? resultStr.substring(0, result.toString().length()-1)  :resultStr;
+        return resultStr.endsWith("\n") ? resultStr.substring(0, result.toString().length() - 1) : resultStr;
     }
 
     String operationKeyToString(OperationKey anOperationKey) {
