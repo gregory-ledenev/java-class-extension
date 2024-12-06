@@ -48,7 +48,7 @@ class Book (Shippable) {
     public ShippingInfo ship() {}
 }
 class Furniture (Shippable) {
-    public abstract ShippingInfo ship();
+    public ShippingInfo ship();
 }
 class ElectronicItem (Shippable) {
     public ShippingInfo ship() {}
