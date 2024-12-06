@@ -77,7 +77,7 @@ These benefits lead to more flexible, maintainable, and efficient code structure
 
 Java Class Extension library provides a valuable alternative for native class extensions with just a little more verbose code and little more complex implementation.
 
-Both approaches leverage the `ClassExtension` interface, which facilitates querying for an extension based on an object's extension interface. Once obtained, these extensions unlock additional functionality with remarkable ease. For example, obtaining a `Shippable` extension and using its `ship()` method to perform shipping a book would look like:
+The library leverages the `ClassExtension` interface, which facilitates querying for an extension based on an object's extension interface. Once obtained, these extensions unlock additional functionality with remarkable ease. For example, obtaining a `Shippable` extension and using its `ship()` method to perform shipping a book would look like:
 ```java
 Book book = new Book("The Mythical Man-Month");
 Shippable shippable = StaticClassExtension.sharedExtension(book, Shippable.class);
