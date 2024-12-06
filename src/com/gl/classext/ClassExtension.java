@@ -31,8 +31,22 @@ package com.gl.classext;
  */
 public interface ClassExtension {
 
+    /**
+     * Defines instantiation strategy choices. Currently:
+     * <ul>
+     *    <li>{@link DynamicClassExtension} always uses PROXY.</li>
+     *    <li>{@link StaticClassExtension} supports both PROXY and DIRECT, configurable by use of {@link ExtensionInterface} annotation.</li>
+     * </ul>
+     */
     enum InstantiationStrategy {
-        PROXY, DIRECT
+        /**
+         * Specifies that dynamic proxies should be instantiated with extension instances inside
+         */
+        PROXY,
+        /**
+         * Specifies that extension instances should be instantiated directly
+         */
+        DIRECT
     }
 
     /**

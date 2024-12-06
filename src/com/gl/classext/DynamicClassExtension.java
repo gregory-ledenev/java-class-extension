@@ -519,8 +519,19 @@ public class DynamicClassExtension implements ClassExtension {
         }
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public String toString() {
+        return toStringGroupedByOperation();
+    }
+
+    /**
+     * Returns string representation of registered operations grouped by extension interface, operation and object class
+     * @return string representation
+     */
+    public String toStringGroupedByOperation() {
         StringBuilder result = new StringBuilder();
 
         // circle through extension classes
@@ -543,6 +554,42 @@ public class DynamicClassExtension implements ClassExtension {
                                                         thenComparing(OperationKey::operationName)).
                                         forEach(anOperationKey -> result.append("        ").
                                                 append(anOperationKey.objectClass.getName()).append(" -> ").
+                                                append(operationKeyToString(anOperationKey)));
+                                result.append("    }\n");
+                            });
+                    result.append("}\n");
+                });
+
+        String resultStr = result.toString();
+        return resultStr.endsWith("\n") ? resultStr.substring(0, result.toString().length() - 1) : resultStr;
+    }
+
+    /**
+     * Returns string representation of registered operations grouped by extension interface, object class and operation
+     * @return string representation
+     */
+    public String toStringGroupedByObjectClass() {
+        StringBuilder result = new StringBuilder();
+
+        // circle through extension classes
+        new HashMap<>(operationsMap).keySet().stream().
+                collect(Collectors.groupingBy(OperationKey::extensionClass,
+                        Collectors.groupingBy(OperationKey::objectClassName))).
+                entrySet().stream().sorted(Map.Entry.comparingByKey(Comparator.comparing(Class::getName))).
+                forEach(anEntryByClass -> {
+                    result.append(anEntryByClass.getKey()).append(" {\n");
+
+                    // circle through extension operation names
+                    anEntryByClass.getValue().entrySet().stream().sorted(Map.Entry.comparingByKey()).
+                            forEach(anEntryByOperationName -> {
+
+                                result.append("    ").append(anEntryByOperationName.getKey()).append(" {\n");
+
+                                // circle through operation keys
+                                anEntryByOperationName.getValue().stream().sorted(
+                                                Comparator.comparing(OperationKey::objectClassName).
+                                                        thenComparing(OperationKey::operationName)).
+                                        forEach(anOperationKey -> result.append("        ").
                                                 append(operationKeyToString(anOperationKey)));
                                 result.append("    }\n");
                             });

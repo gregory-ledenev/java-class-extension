@@ -52,7 +52,7 @@ class AutoPart extends Item {
 record ShippingInfo(String result) {
 }
 
-@ExtensionInterface
+@ExtensionInterface()
 interface Shippable {
     ShippingInfo ship();
     void log();

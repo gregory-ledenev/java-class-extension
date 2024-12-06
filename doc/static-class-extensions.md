@@ -93,7 +93,7 @@ No need to touch or change any existing code. That is it.
 
 #### Instantiation Strategy
 The `StaticClassExtension` offers two extension instantiation strategies.
-1. **Proxy** (default): Creates dynamic proxies with extension instances inside. For example: a `Shippable` proxy containing a `BookShippable` instance under the hood. This strategy offers the following benefits:
+1. **Proxy** (default): returns dynamic proxies with extension instances inside. For example: a `Shippable` proxy containing a `BookShippable` instance under the hood. This strategy offers the following benefits:
    * Enables interface combining (merging)
    * Allows extensions to be treated as original objects (delegates)
    * Facilitates method call tracking in verbose mode

@@ -89,21 +89,19 @@ import java.util.logging.Logger;
  * For example, {@code BookShippable} where {@code Book} is the name of the class and {@code Shippable} is the name of
  * extension.</p>
  * <p>Extension classes must provide a way for {@code StaticClassExtension} to supply delegate objects to work with. It
- * can be done either:
+ * can be done either:</p>
  * <ul>
  *  <li>By providing a single parameter constructor that takes a delegate object to work with as an argument.</li>
  *  <li>By implementing the {@code DelegateHolder} interface. The {@code DelegateHolder.setDelegate(Object)} method is
  *  used to supply extensions ith delegate objects to work with. Usually, it is fine to implement the {@code DelegateHolder}
  *  interface in a common root of some classes' hierarchy.</li>
  * </ul>
- * </p>
  * <p>By default, {@code StaticClassExtension} searches for extension classes in the same package as the extension interface.
  * To register extension classes located in different packages, use the {@code addExtensionPackage(Class, String)} method of
  * {@code StaticClassExtension}. For example:
  *  <pre><code>
  * StaticClassExtension.sharedInstance().addExtensionPackage(Shippable.class, "test.toys.shipment");
  * </code></pre>
- * </p>
  * <p>Note: Extensions returned by {@code StaticClassExtension} do not directly correspond to the extension classes
  * themselves. Therefore, it is crucial not to cast these extensions. Instead, always utilize only the methods provided
  * by the extension interface.</p>

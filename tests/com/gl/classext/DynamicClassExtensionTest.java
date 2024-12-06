@@ -206,7 +206,8 @@ public class DynamicClassExtensionTest {
         StringBuilder shippingLog = new StringBuilder();
 
         DynamicClassExtension dynamicClassExtension = setupDynamicClassExtension(shippingLog);
-        System.out.println(dynamicClassExtension.toString());
+        String string = dynamicClassExtension.toString();
+        System.out.println(string);
         assertEquals("""
                      interface com.gl.classext.ClassExtension$DelegateHolder {
                          getDelegate {
@@ -231,7 +232,43 @@ public class DynamicClassExtensionTest {
                              com.gl.classext.DynamicClassExtensionTest$Item -> T track()
                              com.gl.classext.DynamicClassExtensionTest$Item -> T track(T)
                          }
-                     }""", dynamicClassExtension.toString());
+                     }""", string);
+    }
+
+    @Test
+    void toStringGroupedByObjectClassTest() {
+        StringBuilder shippingLog = new StringBuilder();
+
+        DynamicClassExtension dynamicClassExtension = setupDynamicClassExtension(shippingLog);
+        String string = dynamicClassExtension.toStringGroupedByObjectClass();
+        System.out.println(string);
+        assertEquals("""
+                     interface com.gl.classext.ClassExtension$DelegateHolder {
+                         java.lang.String {
+                             T getDelegate()
+                         }
+                     }
+                     interface com.gl.classext.DynamicClassExtensionTest$Item_Shippable {
+                         com.gl.classext.DynamicClassExtensionTest$AutoPart {
+                             T getName()
+                         }
+                         com.gl.classext.DynamicClassExtensionTest$Book {
+                             T ship()
+                         }
+                         com.gl.classext.DynamicClassExtensionTest$ElectronicItem {
+                             T ship()
+                         }
+                         com.gl.classext.DynamicClassExtensionTest$Furniture {
+                             T ship()
+                         }
+                         com.gl.classext.DynamicClassExtensionTest$Item {
+                             void log()
+                             void log(T)
+                             T ship()
+                             T track()
+                             T track(T)
+                         }
+                     }""", string);
     }
 
     @Test
