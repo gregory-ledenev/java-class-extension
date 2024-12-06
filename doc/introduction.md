@@ -123,4 +123,12 @@ The library supports the following approaches:
 1. [Static Class Extensions](static-class-extensions.md): define and implement extensions as usual Java classes and then utilize the Java Class Extension library to find matching extension classes and create extension objects.
 2. [Dynamic Class Extensions](dynamic-class-extensions.md): utilize the Java Class Extension library to define extensions by composing them as sets of lambda operations and let the library create extensions dynamically on the fly.
 
+The choice between them ultimately depends on several factors like implementation details, performance, personal preferences, coding style, established habits and specific project requirements. Each approach has its strengths and weaknesses, and the best choice will depend on the particular context and needs of your project.
+
+Performance-wise, Dynamic Class Extensions are generally **slower** than Static Class Extensions. The difference can be ~30% for _Proxy_ and ~100% for _Direct_ Static Class Extensions. So if performance is a major factor - you should consider using Static Class Extensions.
+
+Dynamic Class Extensions are generally simpler, as they only require adding new interfaces and defining operations via lambdas. However, if the extension logic is sufficiently complex and necessitates coding new classes for extensions functionality anyway, it may be worthwhile to consider using Static Class Extensions. 
+
+
+
 Next >> [Static Class Extensions](static-class-extensions.md)

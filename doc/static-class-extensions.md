@@ -92,12 +92,16 @@ static {
 No need to touch or change any existing code. That is it.
 
 #### Instantiation Strategy
-The `StaticClassExtension` offers two extension instantiation strategies.
-1. **Proxy** (default): returns dynamic proxies with extension instances inside. For example: a `Shippable` proxy containing a `BookShippable` instance under the hood. This strategy offers the following benefits:
+The `StaticClassExtension` offers two extension instantiation strategies - Proxy and Direct.
+
+#### Proxy {#instantiation-strategy-proxy}
+The `StaticClassExtension` returns dynamic proxies with extension instances inside. For example: a `Shippable` proxy containing a `BookShippable` instance under the hood. This strategy offers the following benefits:
    * Enables interface combining (merging)
    * Allows extensions to be treated as original objects (delegates)
    * Facilitates method call tracking in verbose mode
-2. **Direct**: returns extension instances directly. For example: a `BookShippable` instance. This strategy offers much faster performance than the Proxy strategy. So use Direct instantiation when proxy-related features are not needed and performance is critical.
+
+#### Direct 
+The `StaticClassExtension`  returns extension instances directly. For example: a `BookShippable` instance. This strategy offers much faster performance than the Proxy strategy. So use Direct instantiation when proxy-related features are not needed and performance is critical.
 
 The @ExtensionInterface annotation controls the instantiation strategy. 
 
