@@ -97,7 +97,6 @@ import java.util.stream.Collectors;
  *
  * @see <a href="https://github.com/gregory-ledenev/java-class-extension/blob/main/doc/dynamic-class-extensions.md">More details</a>
  * @author Gregory Ledenev
- * @version 0.9.12
  */
 public class DynamicClassExtension implements ClassExtension {
 

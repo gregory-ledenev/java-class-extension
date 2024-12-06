@@ -108,7 +108,6 @@ import java.util.logging.Logger;
  *
  * @see <a href="https://github.com/gregory-ledenev/java-class-extension/blob/main/doc/static-class-extensions.md">More details</a>
  * @author Gregory Ledenev
- * @version 0.9.12
  */
 public class StaticClassExtension implements ClassExtension {
 

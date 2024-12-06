@@ -4,6 +4,7 @@
     <root id="archive" name="class-extension.jar">
       <element id="directory" name="META-INF">
         <element id="file-copy" path="$PROJECT_DIR$/META-INF/MANIFEST.MF" />
+        <element id="file-copy" path="$PROJECT_DIR$/META-INF/LICENSE" />
       </element>
       <element id="module-output" name="ClassExtension" />
     </root>
