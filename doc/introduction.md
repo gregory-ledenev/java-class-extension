@@ -125,7 +125,7 @@ The library supports the following approaches:
 
 The choice between them ultimately depends on several factors like implementation details, performance, personal preferences, coding style, established habits and specific project requirements. Each approach has its strengths and weaknesses, and the best choice will depend on the particular context and needs of your project.
 
-Performance-wise, Dynamic Class Extensions are generally **slower** than Static Class Extensions. The difference can be ~30% for _Proxy_ and ~100% for _Direct_ Static Class Extensions. So if performance is a major factor - you should consider using Static Class Extensions.
+Performance-wise, Dynamic Class Extensions are generally **slower** than Static Class Extensions. The difference can be ~30% for [Proxy](static-class-extensions.md#proxy) and ~100% for [Direct](static-class-extensions.md#direct) Static Class Extensions. So if performance is a major factor - you should consider using Static Class Extensions.
 
 Dynamic Class Extensions are generally simpler, as they only require adding new interfaces and defining operations via lambdas. However, if the extension logic is sufficiently complex and necessitates coding new classes for extensions functionality anyway, it may be worthwhile to consider using Static Class Extensions. 
 
