@@ -46,7 +46,7 @@ for (Item item : items) {
 ```
 ### Details
 The following are requirements for all the static extension classes:
-1. **Naming Convention:** they must be named as _\[ClassName]\[ExtensionName]_ - a class name followed by an extension name. For example, `BookShippable` where `Book` is the name of the class and `Shippable` is the name of extension.
+1. **Naming Convention:** they must be named as _\[ClassName]\[ExtensionName]_ - a class name followed by an extension name (extension interface name). For example, `BookShippable` where `Book` is the name of the class and `Shippable` is the name of extension.
 2. **Delegate Management:** they must provide a way for `StaticClassExtension`to supply delegate objects to work with. It can be done either:
 * By providing a single parameter constructor that takes a delegate object to work with as an argument.
 * By implementing the `DelegateHolder` interface. The `DelegateHolder.setDelegate(Object)` method is used to supply extensions with delegate objects to work with. Usually, it is fine to implement the `DelegateHolder` interface in a common root of some classes' hierarchy.
