@@ -501,7 +501,7 @@ public class DynamicClassExtensionTest {
                     op(Book.class, book -> new ShippingInfo(book.getName() + " book shipped")).
                     op(Furniture.class, furniture -> new ShippingInfo(furniture.getName() + " furniture shipped")).
                     op(ElectronicItem.class, electronicItem -> new ShippingInfo(electronicItem.getName() + " electronic item shipped")).
-                opName("log").
+                opName("log").async().
                     voidOp(Item.class, (Item item, Boolean isVerbose) -> {
                         if (!shippingLog.isEmpty())
                             shippingLog.append("\n");
@@ -722,6 +722,80 @@ public class DynamicClassExtensionTest {
         Book book = new Book("The Mythical Man-Month");
         Item_Shippable extension = dynamicClassExtension.extension(book, Item_Shippable.class);
         assertEquals(book.hashCode(), extension.hashCode());
+    }
+
+    final private StringBuilder ASPECT_LOG = new StringBuilder();
+    void aspectLog(String aValue) {
+        if (!ASPECT_LOG.isEmpty())
+            ASPECT_LOG.append("\n");
+        ASPECT_LOG.append(aValue);
+    }
+
+    @Test
+    void aspectTest() {
+        DynamicClassExtension dynamicClassExtension = new DynamicClassExtension().builder(Item_Shippable.class).
+                opName("hashCode").
+                    op(Object.class, o -> {
+                        aspectLog("Calling hashCode() for "+o.toString());
+                        int result = o.hashCode();
+                        aspectLog(MessageFormat.format("Result hashCode() = {0} for {1}", result, o.toString()));
+                        return result;
+                    }).
+                build();
+
+        Item[] items = {
+                new Book("The Mythical Man-Month"),
+                new Furniture("Sofa"),
+                new ElectronicItem("Soundbar"),
+                new AutoPart("Tire"),
+        };
+
+        for (Item item : items) {
+            Item_Shippable extension = dynamicClassExtension.extension(item, Item_Shippable.class);
+            extension.hashCode();
+        }
+        System.out.println(ASPECT_LOG.toString());
+    }
+
+    @Test
+    void testWrongAsyncPlacement1() {
+        try {
+            DynamicClassExtension dynamicClassExtension = new DynamicClassExtension().builder(Item_Shippable.class).async().
+                    opName("hashCode").
+                    op(Object.class, Object::hashCode).
+                    build();
+            fail("Wrong async() call right after the builder init");
+        } catch (Exception ex) {
+            // it is fine
+        }
+    }
+
+    @Test
+    void testWrongAsyncPlacement2() {
+        try {
+            DynamicClassExtension dynamicClassExtension = new DynamicClassExtension().builder(Item_Shippable.class).
+                    opName("hashCode").async().
+                    op(Object.class, Object::hashCode).
+                    build();
+            fail("Wrong async() call right after operation name");
+        } catch (Exception ex) {
+            // it is fine
+        }
+    }
+
+    @Test
+    void testAsync() {
+        DynamicClassExtension dynamicClassExtension = new DynamicClassExtension().builder(Item_Shippable.class).
+                opName("toString").
+                  op(Object.class, Object::toString).async().
+                opName("hashCode").
+                  op(Object.class, Object::hashCode).async((Integer aO, Throwable aThrowable) -> System.out.println(aO.toString())).
+                build();
+
+        Book book = new Book("The Mythical Man-Month");
+        Item_Shippable extension = dynamicClassExtension.extension(book, Item_Shippable.class);
+        extension.toString();
+        extension.hashCode();
     }
 }
 

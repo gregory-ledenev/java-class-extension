@@ -31,8 +31,6 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.text.MessageFormat;
 import java.util.*;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 /**
  * <p>The {@code StaticClassExtension} class offers methods for dynamically finding and creating extension objects as needed. With
@@ -109,7 +107,7 @@ import java.util.logging.Logger;
  * @see <a href="https://github.com/gregory-ledenev/java-class-extension/blob/main/doc/static-class-extensions.md">More details</a>
  * @author Gregory Ledenev
  */
-public class StaticClassExtension implements ClassExtension {
+public class StaticClassExtension extends AbstractClassExtension {
 
     private static final StaticClassExtension classExtension = new StaticClassExtension();
 
@@ -439,94 +437,6 @@ public class StaticClassExtension implements ClassExtension {
                 if (result.isEmpty())
                     extensionPackages.remove(anExtensionInterface);
             }
-        }
-    }
-    //endregion
-
-    //region Cache methods
-    private boolean cacheEnabled = true;
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public boolean isCacheEnabled() {
-        return cacheEnabled;
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public void setCacheEnabled(boolean isCacheEnabled) {
-        if (cacheEnabled != isCacheEnabled) {
-            cacheEnabled = isCacheEnabled;
-            if (! isCacheEnabled)
-                cacheClear();
-        }
-    }
-
-    @SuppressWarnings("rawtypes")
-    final ThreadSafeWeakCache extensionCache = new ThreadSafeWeakCache<ClassExtensionKey, ClassExtension>();
-
-    /**
-     * {@inheritDoc}
-     */
-    public void cacheCleanup() {
-        extensionCache.cleanup();
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    public void cacheClear() {
-        extensionCache.clear();
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    public void scheduleCacheCleanup() {
-        extensionCache.scheduleCleanup();
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    public void shutdownCacheCleanup() {
-        extensionCache.shutdownCleanup();
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    public boolean cacheIsEmpty() {
-        return extensionCache.isEmpty();
-    }
-    //endregion
-
-    //region Verbose Mode support methods
-    boolean verbose;
-
-    @Override
-    public boolean isVerbose() {
-        return verbose;
-    }
-
-    @Override
-    public void setVerbose(boolean isVerbose) {
-        if (verbose != isVerbose) {
-            verbose = isVerbose;
-            if (isVerbose())
-                setupLogger();
-        }
-    }
-
-    Logger logger;
-    protected void setupLogger() {
-        if (logger == null) {
-            logger = Logger.getLogger(getClass().getName());
-            logger.setLevel(Level.ALL);
         }
     }
     //endregion
