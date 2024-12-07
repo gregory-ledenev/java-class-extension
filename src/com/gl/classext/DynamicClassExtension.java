@@ -114,6 +114,8 @@ public class DynamicClassExtension extends AbstractClassExtension {
         private final Performer<R> performer;
         private boolean async;
         private BiConsumer<?, ? super Throwable> whenComplete;
+        private BiConsumer<Object, Object[]> before;
+        private Consumer<Object> after;
 
         PerformerHolder(Performer<R> aPerformer) {
             performer = aPerformer;
@@ -130,12 +132,28 @@ public class DynamicClassExtension extends AbstractClassExtension {
             async = aAsync;
         }
 
-        public BiConsumer<?,? super Throwable> getWhenComplete() {
+        public BiConsumer<?, ? super Throwable> getWhenComplete() {
             return whenComplete;
         }
 
         public void setWhenComplete(BiConsumer<?, ? super Throwable> aWhenComplete) {
             whenComplete = aWhenComplete;
+        }
+
+        public BiConsumer<? super Object, Object[]> getBefore() {
+            return before;
+        }
+
+        public void setBefore(BiConsumer<? super Object, Object[]> aBefore) {
+            before = aBefore;
+        }
+
+        public Consumer<? super Object> getAfter() {
+            return after;
+        }
+
+        public void setAfter(Consumer<? super Object> anAfter) {
+            after = anAfter;
         }
     }
 
@@ -413,23 +431,18 @@ public class DynamicClassExtension extends AbstractClassExtension {
         ExtensionOperationResult extensionOperation = findExtensionOperation(anObject, anExtensionClass, method, args);
         PerformerHolder<?> performerHolder = extensionOperation.operation();
         if (performerHolder != null) {
-            Performer<?> operation = performerHolder.getPerformer();
             if (aClassExtension.isVerbose())
                 aClassExtension.logger.info(MessageFormat.format("Performing dynamic operation for delegate \"{0}\": ({1}) -> {2}",
                         anObject,
                         extensionOperation.inClass().getName(),
-                        operationKeyToString(new OperationKey(anObject.getClass(), anExtensionClass, method.getName()), operation)));
-            List<Object> arguments = new ArrayList<>();
-            arguments.add(anObject);
-            if (args != null)
-                arguments.addAll(Arrays.asList(args));
+                        operationKeyToString(new OperationKey(anObject.getClass(), anExtensionClass, method.getName()), performerHolder)));
             if (performerHolder.isAsync()) {
-                CompletableFuture<?> future = CompletableFuture.supplyAsync(() -> operation.perform(arguments.toArray()));
+                CompletableFuture<?> future = CompletableFuture.supplyAsync(() -> performOperation(anObject, args, performerHolder));
                 if (performerHolder.getWhenComplete() != null)
                     future.whenComplete((BiConsumer) performerHolder.getWhenComplete());
                 result = dummyReturnValue(method);
             } else {
-                result = operation.perform(arguments.toArray());
+                result = performOperation(anObject, args, performerHolder);
             }
         } else {
             if (method.getDeclaringClass().isAssignableFrom(anObject.getClass())) {
@@ -444,6 +457,23 @@ public class DynamicClassExtension extends AbstractClassExtension {
             }
         }
 
+        return result;
+    }
+
+    private static Object performOperation(Object anObject, Object[] args, PerformerHolder<?> performerHolder) {
+        Object result;
+        List<Object> arguments = new ArrayList<>();
+        arguments.add(anObject);
+        if (args != null)
+            arguments.addAll(Arrays.asList(args));
+
+        if (performerHolder.getBefore() != null)
+            performerHolder.getBefore().accept(anObject, args);
+
+        result = performerHolder.getPerformer().perform(arguments.toArray());
+
+        if (performerHolder.getAfter() != null)
+            performerHolder.getAfter().accept(result);
         return result;
     }
 
@@ -648,16 +678,17 @@ public class DynamicClassExtension extends AbstractClassExtension {
         return operationKeyToString(anOperationKey, operationsMap.get(anOperationKey));
     }
 
-    String operationKeyToString(OperationKey anOperationKey, Object lambda) {
+    String operationKeyToString(OperationKey anOperationKey, PerformerHolder<?> aPerformerHolder) {
         String operationName = anOperationKey.simpleOperationName();
         String result = null;
-        if (lambda instanceof Function)
+        Performer<?> performer = aPerformerHolder.performer;
+        if (performer instanceof Function)
             result = MessageFormat.format("T {0}()\n", operationName);
-        else if (lambda instanceof BiFunction)
+        else if (performer instanceof BiFunction)
             result = MessageFormat.format("T {0}(T)\n", operationName);
-        else if (lambda instanceof Consumer)
+        else if (performer instanceof Consumer)
             result = MessageFormat.format("void {0}()\n", operationName);
-        else if (lambda instanceof BiConsumer)
+        else if (performer instanceof BiConsumer)
             result = MessageFormat.format("void {0}(T)\n", operationName);
         return result;
     }
@@ -776,8 +807,7 @@ public class DynamicClassExtension extends AbstractClassExtension {
          * @return a copy of this {@code Builder}
          */
         public Builder<E> async() {
-            Objects.requireNonNull(performerHolder, MessageFormat.format("No \"{0}\" operation is specified",
-                    operationName != null ? operationName: "<any>"));
+            checkPerformerHolder();
 
             performerHolder.setAsync(true);
             return new Builder<>(extensionClass, operationName, dynamicClassExtension, performerHolder);
@@ -793,12 +823,45 @@ public class DynamicClassExtension extends AbstractClassExtension {
          * @return a copy of this {@code Builder}
          */
         public <R> Builder<E> async(BiConsumer<? super R, ? super Throwable> aWhenComplete) {
-            Objects.requireNonNull(performerHolder, MessageFormat.format("No \"{0}\" operation is specified",
-                    operationName != null ? operationName: "<any>"));
+            checkPerformerHolder();
 
             performerHolder.setAsync(true);
             performerHolder.setWhenComplete(aWhenComplete);
             return new Builder<>(extensionClass, operationName, dynamicClassExtension, performerHolder);
+        }
+
+        /**
+         * Specifies a code which must be performed before running current operation (previously defined by calling {@code op()}
+         * or {@code voidOp()}).
+         *
+         * @param aBefore a lambda should be performed before running current operation. It takes an object the operation
+         *                should be performed for and an array of arguments
+         * @return a copy of this {@code Builder}
+         */
+        public Builder<E> before(BiConsumer<? super Object, Object[]> aBefore) {
+            checkPerformerHolder();
+
+            performerHolder.setBefore(aBefore);
+            return new Builder<>(extensionClass, operationName, dynamicClassExtension, performerHolder);
+        }
+
+        /**
+         * Specifies a code which must be performed before running current operation (previously defined by calling {@code op()}
+         * or {@code voidOp()}).
+         *
+         * @param anAfter a lambda should be performed after running current operation. It takes a result of the operation
+         * @return a copy of this {@code Builder}
+         */
+        public Builder<E> after(Consumer<? super Object> anAfter) {
+            checkPerformerHolder();
+
+            performerHolder.setAfter(anAfter);
+            return new Builder<>(extensionClass, operationName, dynamicClassExtension, performerHolder);
+        }
+
+        private void checkPerformerHolder() {
+            Objects.requireNonNull(performerHolder, MessageFormat.format("No \"{0}\" operation is specified",
+                    operationName != null ? operationName: "<any>"));
         }
 
         /**

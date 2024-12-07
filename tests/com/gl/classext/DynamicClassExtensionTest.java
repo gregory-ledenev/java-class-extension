@@ -131,6 +131,7 @@ public class DynamicClassExtensionTest {
                 shippingInfos.append("\n");
             shippingInfos.append(extension.ship());
             shippingInfos.append("\n").append(extension.track());
+            extension.getName();
         }
         System.out.println(shippingLog);
         System.out.println(shippingInfos);
@@ -501,7 +502,7 @@ public class DynamicClassExtensionTest {
                     op(Book.class, book -> new ShippingInfo(book.getName() + " book shipped")).
                     op(Furniture.class, furniture -> new ShippingInfo(furniture.getName() + " furniture shipped")).
                     op(ElectronicItem.class, electronicItem -> new ShippingInfo(electronicItem.getName() + " electronic item shipped")).
-                opName("log").async().
+                opName("log").
                     voidOp(Item.class, (Item item, Boolean isVerbose) -> {
                         if (!shippingLog.isEmpty())
                             shippingLog.append("\n");
@@ -732,32 +733,6 @@ public class DynamicClassExtensionTest {
     }
 
     @Test
-    void aspectTest() {
-        DynamicClassExtension dynamicClassExtension = new DynamicClassExtension().builder(Item_Shippable.class).
-                opName("hashCode").
-                    op(Object.class, o -> {
-                        aspectLog("Calling hashCode() for "+o.toString());
-                        int result = o.hashCode();
-                        aspectLog(MessageFormat.format("Result hashCode() = {0} for {1}", result, o.toString()));
-                        return result;
-                    }).
-                build();
-
-        Item[] items = {
-                new Book("The Mythical Man-Month"),
-                new Furniture("Sofa"),
-                new ElectronicItem("Soundbar"),
-                new AutoPart("Tire"),
-        };
-
-        for (Item item : items) {
-            Item_Shippable extension = dynamicClassExtension.extension(item, Item_Shippable.class);
-            extension.hashCode();
-        }
-        System.out.println(ASPECT_LOG.toString());
-    }
-
-    @Test
     void testWrongAsyncPlacement1() {
         try {
             DynamicClassExtension dynamicClassExtension = new DynamicClassExtension().builder(Item_Shippable.class).async().
@@ -787,15 +762,45 @@ public class DynamicClassExtensionTest {
     void testAsync() {
         DynamicClassExtension dynamicClassExtension = new DynamicClassExtension().builder(Item_Shippable.class).
                 opName("toString").
-                  op(Object.class, Object::toString).async().
+                    op(Object.class, Object::toString).async().
                 opName("hashCode").
-                  op(Object.class, Object::hashCode).async((Integer aO, Throwable aThrowable) -> System.out.println(aO.toString())).
+                    op(Object.class, Object::hashCode).
+                        async((Integer hashCode, Throwable throwable) -> System.out.println(hashCode.toString())).
                 build();
 
         Book book = new Book("The Mythical Man-Month");
         Item_Shippable extension = dynamicClassExtension.extension(book, Item_Shippable.class);
         extension.toString();
         extension.hashCode();
+    }
+
+    @Test
+    void testAspect() {
+        DynamicClassExtension dynamicClassExtension = new DynamicClassExtension().builder(Item_Shippable.class).
+                opName("toString").
+                    op(Object.class, Object::toString).
+                        before((object, args) -> System.out.println("BEFORE: " + object + "-> toString()")).
+                        after(result -> System.out.println("AFTER: result - " + result)).
+                build();
+
+        Book book = new Book("The Mythical Man-Month");
+        Item_Shippable extension = dynamicClassExtension.extension(book, Item_Shippable.class);
+        extension.toString();
+    }
+
+    @Test
+    void testAsyncAspect() {
+        DynamicClassExtension dynamicClassExtension = new DynamicClassExtension().builder(Item_Shippable.class).
+                opName("toString").
+                op(Object.class, Object::toString).
+                    async().
+                    before((object, args) -> System.out.println("BEFORE: " + object + "-> toString()")).
+                    after(result -> System.out.println("AFTER: result - " + result)).
+                build();
+
+        Book book = new Book("The Mythical Man-Month");
+        Item_Shippable extension = dynamicClassExtension.extension(book, Item_Shippable.class);
+        extension.toString();
     }
 }
 
