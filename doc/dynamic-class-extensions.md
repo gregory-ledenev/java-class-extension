@@ -102,7 +102,7 @@ System.out.println(DynamicClassExtension.sharedExtension(book, ItemShippable.cla
 ```
 
 #### Asynchronous Operations
-It is possible to use `Builder.async()` to declaratively define asynchronous operations. Such operation are running in background, and they are non-blocking therefore caller threads continue immediately.
+It is possible to use `Builder.async()` to declaratively define asynchronous operations. Such operations are running in background, and they are non-blocking therefore caller threads continue immediately.
 
 ```java
 DynamicClassExtension dynamicClassExtension = new DynamicClassExtension().builder(Item_Shippable.class).
@@ -114,12 +114,12 @@ Book book = new Book("The Mythical Man-Month");
 dynamicClassExtension.extension(book, ItemShippable.class).ship();
 ```
 **Notes:**
-* Operations must be already defined first via `Builder.op()` or `Builder.voidOp()`
+* Operations must be already defined first via the `Builder.op()` or `Builder.voidOp()` methods
 * Non-void operations return `0` or `null` instantly depending on the operation return type
 * Extension usage mirrors synchronous operations
 * Ideal for long-running tasks to improve responsiveness
 
-If there is a need to handle results of such asynchronous operations it can be done by specifying a lambda function as an argument to `Builder.async()`.
+If there is a need to handle results of such asynchronous operations it can be done by specifying a lambda function as an argument for `Builder.async()`.
 ```java
 DynamicClassExtension dynamicClassExtension = new DynamicClassExtension().builder(Item_Shippable.class).
         opName("ship").
