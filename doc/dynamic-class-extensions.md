@@ -58,7 +58,7 @@ Supporting a new `Item` class using the Java Class Extension library requires ju
 ### Details
 For the most of the cases a shared instance of `DynamicClassExtension` should be used. But if there is a need to have different implementations of extensions in different places or domains it is possible to create and utilize new instances of `DynamicClassExtension`.
 
-**Note:** Extensions returned by `DynamicClassExtension` do not directly correspond to the extension classes themselves. Therefore, it is crucial not to cast these extensions. Instead, always utilize only the methods provided by the extension interface.
+**Note:** Extensions returned by `DynamicClassExtension` do not directly correspond to certain classes themselves. Therefore, it is crucial not to cast these extensions. Instead, always utilize only the methods provided by the extension interface. For example, an extension obtained for the `ItemShippable` interface that combines both `Shippable` and `ItemInterface` can not be cast to the `Item`.
 
 If you need to check that an extension represents a particular object you may use the `ClassExtension.equals(Object, Object)` method:
 ```java

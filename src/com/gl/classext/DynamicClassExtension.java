@@ -486,29 +486,76 @@ public class DynamicClassExtension extends AbstractClassExtension {
     }
 
     /**
-     * Checks if there is a valid extension defined for a passed object. An extension is considered valid if there are
-     * corresponding operations registered for all its methods
+     * Checks if there is a valid extension defined for a passed object.An extension is considered valid if all its
+     * methods meet one of the following criteria:
+     * <ol>
+     * <li>Annotated by {@code @OptionalMethod}</li>
+     * <li>Correspond to registered operations</li>
+     * <li>Match suitable methods in the {@code aClass} class</li>
+     * </ol>
+     *
+     * This validation ensures that every method in the extension can be properly mapped and executed, maintaining
+     * consistency between the extension interface and the underlying implementation.
      *
      * @param aClass         object to check an extension for
-     * @param anExtensionClass class of extension
+     * @param anExtensionInterface interface of extension
      * @throws IllegalArgumentException if an extension is invalid
      */
-    @SuppressWarnings({"rawtypes"})
-    public <T> void checkValid(Class<?> aClass, Class<T> anExtensionClass) {
+    public <T> void checkValid(Class<?> aClass, Class<T> anExtensionInterface) {
         Objects.requireNonNull(aClass);
-        Objects.requireNonNull(anExtensionClass);
+        Objects.requireNonNull(anExtensionInterface);
 
-        for (Method method : anExtensionClass.getMethods()) {
+        List<String> undefinedOperations = listUndefinedOperations(aClass, anExtensionInterface);
+        if (! undefinedOperations.isEmpty())
+            throw new IllegalArgumentException(MessageFormat.format("No \"{0}\" operation for {1} in \"{2}\" extension",
+                    undefinedOperations.getFirst(),
+                    aClass,
+                    anExtensionInterface.getName()));
+    }
+
+    /**
+     * Lists all undefined operations. An operation is considered undefined if it is not annotated by {@code @OptionalMethod}
+     * and meets one of the following criteria:
+     * <ol>
+     * <li>Not correspond to a registered operation</li>
+     * <li>Do not match to a suitable method in the {@code aClass} class</li>
+     * </ol>
+     *
+     * @param aClass         object to check an extension for
+     * @param anExtensionInterface interface of extension
+     * @return a list of all undefined operations
+     */
+    public <T> List<String> listUndefinedOperations(Class<?> aClass, Class<T> anExtensionInterface) {
+        Objects.requireNonNull(aClass);
+        Objects.requireNonNull(anExtensionInterface);
+
+        List<String> result = new ArrayList<>();
+
+        for (Method method : anExtensionInterface.getMethods()) {
             if (method.isAnnotationPresent(OptionalMethod.class))
                 continue;
-            ExtensionOperationResult extensionOperation = findExtensionOperation(aClass, anExtensionClass, method, method.getParameterTypes());
-            Performer operation = (Performer) extensionOperation.operation;
-            if (operation == null)
-                throw new IllegalArgumentException(MessageFormat.format("No \"{0}\" operation for {1} in \"{2}\" extension",
-                        displayOperationName(method.getName(), void.class.equals(method.getReturnType()), method.getParameterTypes()),
-                        aClass,
-                        anExtensionClass.getName()));
+            ExtensionOperationResult extensionOperation = findExtensionOperation(aClass, anExtensionInterface, method, method.getParameterTypes());
+            PerformerHolder<?> operation = extensionOperation.operation;
+            if (operation == null && ! classHasMethod(aClass, method))
+                result.add(displayOperationName(method.getName(), void.class.equals(method.getReturnType()), method.getParameterTypes()));
         }
+
+        return result;
+    }
+
+    boolean classHasMethod(Class<?> aClass, Method aMethod) {
+        boolean result = false;
+
+        for (Method method : aClass.getMethods()) {
+            if (method.getName().equals(aMethod.getName()) &&
+                    method.getReturnType().equals(aMethod.getReturnType()) &&
+                    Arrays.equals(method.getParameterTypes(), aMethod.getParameterTypes())) {
+                result = true;
+                break;
+            }
+        }
+
+        return result;
     }
 
     /**
