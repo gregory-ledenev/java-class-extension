@@ -101,6 +101,65 @@ System.out.println(book.getName());
 System.out.println(DynamicClassExtension.sharedExtension(book, ItemShippable.class).getName());
 ```
 
+#### Asynchronous Operations
+It is possible to use `Builder.async()` to declaratively define asynchronous operations. Such operation are running in background, and they are non-blocking therefore caller threads continue immediately.
+
+```java
+DynamicClassExtension dynamicClassExtension = new DynamicClassExtension().builder(Item_Shippable.class).
+        opName("ship").
+            op(Book.class, shipBook(book)).async().
+        build();
+
+Book book = new Book("The Mythical Man-Month");
+dynamicClassExtension.extension(book, ItemShippable.class).ship();
+```
+**Notes:**
+* Operations must be already defined first via `Builder.op()` or `Builder.voidOp()`
+* Non-void operations return `0` or `null` instantly depending on the operation return type
+* Extension usage mirrors synchronous operations
+* Ideal for long-running tasks to improve responsiveness
+
+If there is a need to handle results of such asynchronous operations it can be done by specifying a lambda function as an argument to `Builder.async()`.
+```java
+DynamicClassExtension dynamicClassExtension = new DynamicClassExtension().builder(Item_Shippable.class).
+        opName("ship").
+            op(Book.class, shipBook(book)).
+                async((Book book, Throwable ex) -> System.out.println("Book shipped: " + book)).
+        build();
+
+Book book = new Book("The Mythical Man-Month");
+dynamicClassExtension.extension(book, ItemShippable.class).ship();
+```
+#### Limited Support of AOP Aspects
+The `DynamicClassExtension` provides limited support of Aspects by allowing to specify lambda functions which should be applied before and after performing of operations. It can be done via use of the `Builder.before()` and the `Builder.after()` methods.
+```java
+DynamicClassExtension dynamicClassExtension = new DynamicClassExtension().builder(Item_Shippable.class).
+        opName("ship").
+            op(Book.class, shipBook(book)).
+                before((object, args) -> LOGGER.info("BEFORE: " + object + "-> ship()")).
+                after(result -> LOGGER.info("AFTER: result - " + result)).
+        build();
+
+Book book = new Book("The Mythical Man-Month");
+dynamicClassExtension.extension(book, ItemShippable.class).ship();
+```
+**Notes:**
+* Operations must be already defined first via `Builder.op()` or `Builder.voidOp()`
+* Both synchronous and asynchronous operations are supported 
+
+Aspects are only supported for defined operations only. So if there is a need to intercept calls of usual methods - such methods should be dynamically "overridden" by defining operations with the same signature. The following example intersects `Object.toString()` method:
+```java
+DynamicClassExtension dynamicClassExtension = new DynamicClassExtension().builder(Item_Shippable.class).
+        opName("toString").
+            op(Object.class, Object::toString).
+                before((object, args) -> LOGGER.info("BEFORE: " + object + "-> ship()")).
+                after(result -> LOGGER.info("AFTER: result - " + result)).
+        build();
+
+Book book = new Book("The Mythical Man-Month");
+dynamicClassExtension.extension(book, ItemShippable.class).toString();
+```
+
 #### Cashing
 Cashing of extension objects are supported out of the box, and it can be controlled via the `Classextension.cacheEnabled` property. Cache utilizes weak references to release extension objects that are not in use. Though, to perform full cleanup either the `cacheCleanup()` should be used or automatic cleanup can be initiated via the `scheduleCacheCleanup()`. If automatic cache cleanup is used - it can be stopped by calling the `shutdownCacheCleanup()`.
 

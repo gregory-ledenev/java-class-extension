@@ -499,7 +499,7 @@ public class DynamicClassExtensionTest {
         DynamicClassExtension result = new DynamicClassExtension().builder(Item_Shippable.class).
                 opName("ship").
                     op(Item.class, book -> new ShippingInfo(book.getName() + " item NOT shipped")).
-                    op(Book.class, book -> new ShippingInfo(book.getName() + " book shipped")).
+                    op(Book.class, book -> new ShippingInfo(book.getName() + " book shipped")).async((Book aO, Throwable ex) -> {}).
                     op(Furniture.class, furniture -> new ShippingInfo(furniture.getName() + " furniture shipped")).
                     op(ElectronicItem.class, electronicItem -> new ShippingInfo(electronicItem.getName() + " electronic item shipped")).
                 opName("log").
