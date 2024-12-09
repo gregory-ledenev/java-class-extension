@@ -159,6 +159,30 @@ DynamicClassExtension dynamicClassExtension = new DynamicClassExtension().builde
 Book book = new Book("The Mythical Man-Month");
 dynamicClassExtension.extension(book, ItemShippable.class).toString();
 ```
+#### Altering Operations
+
+To alter an operation itself: 
+1. Remove it first using the `Builder.removeOp(...)` method
+2. Add a replacement operation using one of `Builder.op(...)` or `Builder.voidOp(...)` methods
+
+```java
+        DynamicClassExtension dynamicClassExtension = new DynamicClassExtension().builder(Item_Shippable.class).
+                opName("toString").
+                    removeOp(Object.class,new Class<?>[0]).
+                    op(Object.class, o -> "result: " + o.tostring()).
+                build();
+```
+
+To alter properties of an operation:
+1. Make an alteration intention for the operation using the `Builder.alterOp(...)` method
+2. Specify properties for the operation e.g. by using the `Builder.async(...)` method
+```java
+        DynamicClassExtension dynamicClassExtension = new DynamicClassExtension().builder(Item_Shippable.class).
+                opName("toString").
+                    alterOp(Object.class,new Class<?>[0]).
+                        async().
+                build();
+```
 
 #### Cashing
 Cashing of extension objects are supported out of the box, and it can be controlled via the `Classextension.cacheEnabled` property. Cache utilizes weak references to release extension objects that are not in use. Though, to perform full cleanup either the `cacheCleanup()` should be used or automatic cleanup can be initiated via the `scheduleCacheCleanup()`. If automatic cache cleanup is used - it can be stopped by calling the `shutdownCacheCleanup()`.
