@@ -166,22 +166,22 @@ To alter an operation itself:
 2. Add a replacement operation using one of `Builder.op(...)` or `Builder.voidOp(...)` methods
 
 ```java
-        DynamicClassExtension dynamicClassExtension = new DynamicClassExtension().builder(Item_Shippable.class).
-                opName("toString").
-                    removeOp(Object.class,new Class<?>[0]).
-                    op(Object.class, o -> "result: " + o.tostring()).
-                build();
+DynamicClassExtension dynamicClassExtension = new DynamicClassExtension().builder(Item_Shippable.class).
+        opName("toString").
+            removeOp(Object.class,new Class<?>[0]).
+            op(Object.class, o -> "result: " + o.tostring()).
+        build();
 ```
 
 To alter properties of an operation:
 1. Make an alteration intention for the operation using the `Builder.alterOp(...)` method
 2. Specify properties for the operation e.g. by using the `Builder.async(...)` method
 ```java
-        DynamicClassExtension dynamicClassExtension = new DynamicClassExtension().builder(Item_Shippable.class).
-                opName("toString").
-                    alterOp(Object.class,new Class<?>[0]).
-                        async().
-                build();
+DynamicClassExtension dynamicClassExtension = new DynamicClassExtension().builder(Item_Shippable.class).
+        opName("toString").
+            alterOp(Object.class,new Class<?>[0]).
+                async().
+        build();
 ```
 
 #### Cashing
