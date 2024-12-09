@@ -786,7 +786,7 @@ public class DynamicClassExtensionTest {
 
         Book book = new Book("The Mythical Man-Month");
         Item_Shippable extension = dynamicClassExtension.extension(book, Item_Shippable.class);
-        extension.toString();
+        out.println("RESULT: " + extension.toString());
     }
 
     @Test
@@ -802,6 +802,100 @@ public class DynamicClassExtensionTest {
         Book book = new Book("The Mythical Man-Month");
         Item_Shippable extension = dynamicClassExtension.extension(book, Item_Shippable.class);
         extension.toString();
+    }
+
+    @Test
+    void testAlterAspectsOperation() {
+        DynamicClassExtension dynamicClassExtension = new DynamicClassExtension().builder(Item_Shippable.class).
+                opName("toString").
+                    op(Object.class, Object::toString).
+                build();
+
+        Book book = new Book("The Mythical Man-Month");
+        Item_Shippable extension = dynamicClassExtension.extension(book, Item_Shippable.class);
+        out.println("RESULT: " + extension.toString());
+
+        // add aspects
+        StringBuilder stringBuilder = new StringBuilder();
+        dynamicClassExtension.builder(Item_Shippable.class).
+                opName("toString").
+                    alterOp(Object.class,new Class<?>[0]).
+                        before((object, args) -> stringBuilder.append("BEFORE: ").append(object).append("-> toString()\n")).
+                        after(result -> stringBuilder.append("AFTER: result - ").append(result).append("\n")).
+                build();
+        extension = dynamicClassExtension.extension(book, Item_Shippable.class);
+        stringBuilder.append("RESULT: " + extension.toString());
+        out.println(stringBuilder.toString());
+        assertEquals("""
+                     BEFORE: Book["The Mythical Man-Month"]-> toString()
+                     AFTER: result - Book["The Mythical Man-Month"]
+                     RESULT: Book["The Mythical Man-Month"]""", stringBuilder.toString());
+
+        // remove aspects
+        stringBuilder.setLength(0);
+        dynamicClassExtension.builder(Item_Shippable.class).
+                opName("toString").
+                    alterOp(Object.class,new Class<?>[0]).
+                        before(null).
+                        after(null).
+                build();
+        extension = dynamicClassExtension.extension(book, Item_Shippable.class);
+        stringBuilder.append("RESULT: " + extension.toString());
+        out.println(stringBuilder.toString());
+        assertEquals("""
+                     RESULT: Book["The Mythical Man-Month"]""", stringBuilder.toString());
+    }
+
+    @Test
+    void testAlterAsync() {
+        StringBuilder stringBuilder = new StringBuilder();
+        DynamicClassExtension dynamicClassExtension = new DynamicClassExtension().builder(Item_Shippable.class).
+                opName("toString").
+                    op(Object.class, Object::toString).
+                build();
+
+        Book book = new Book("The Mythical Man-Month");
+        Item_Shippable extension = dynamicClassExtension.extension(book, Item_Shippable.class);
+        stringBuilder.append("RESULT: " + extension.toString());
+        out.println(stringBuilder.toString());
+        assertEquals("""
+                     RESULT: Book["The Mythical Man-Month"]""", stringBuilder.toString());
+
+        // alter to async
+        stringBuilder.setLength(0);
+        dynamicClassExtension.builder(Item_Shippable.class).
+                opName("toString").
+                    alterOp(Object.class, new Class<?>[0]).
+                        async((o, ex) -> stringBuilder.append("ASYNC RESULT: " + o + "\n")).
+                build();
+        String result = extension.toString();
+        sleep();
+        stringBuilder.append("RESULT: " + result);
+        out.println(stringBuilder.toString());
+        assertEquals("""
+                     ASYNC RESULT: Book["The Mythical Man-Month"]
+                     RESULT: null""", stringBuilder.toString());
+
+        // clear async
+        stringBuilder.setLength(0);
+        dynamicClassExtension.builder(Item_Shippable.class).
+                opName("toString").
+                    alterOp(Object.class, new Class<?>[0]).
+                        async(false).
+                build();
+        result = extension.toString();
+        sleep();
+        stringBuilder.append("RESULT: " + result);
+        out.println(stringBuilder.toString());
+        assertEquals("""
+                    RESULT: Book["The Mythical Man-Month"]""", stringBuilder.toString());
+    }
+
+    private static void sleep() {
+        try {
+            Thread.sleep(1000);
+        } catch (InterruptedException aE) {
+        }
     }
 }
 

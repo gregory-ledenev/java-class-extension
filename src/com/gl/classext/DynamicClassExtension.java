@@ -130,6 +130,8 @@ public class DynamicClassExtension extends AbstractClassExtension {
         }
         public void setAsync(boolean aAsync) {
             async = aAsync;
+            if (! async)
+                whenComplete = null;
         }
 
         public BiConsumer<?, ? super Throwable> getWhenComplete() {
@@ -804,6 +806,20 @@ public class DynamicClassExtension extends AbstractClassExtension {
         }
 
         /**
+         * Alters an operation. Use following async(), before() and after() methods to alter the operation behaviour
+         * @param anObjectClass object class
+         * @param aParameterTypes arguments. Pass {@code null} or an empty array to define parameterless operation; otherwise pass
+         *               an array of parameter types
+         * @return a copy of this {@code Builder}
+         */
+        @SuppressWarnings("unused")
+        public <T1> Builder<E> alterOp(Class<T1> anObjectClass, Class<?>[] aParameterTypes) {
+            PerformerHolder<?> performerHolder = dynamicClassExtension.operationsMap.get(new OperationKey(anObjectClass, extensionClass,
+                    dynamicClassExtension.operationName(operationName, aParameterTypes)));
+            return new Builder<>(extensionClass, operationName, dynamicClassExtension, performerHolder);
+        }
+
+        /**
          * Adds a non-void parameterless operation
          * @param anObjectClass object class
          * @param anOperation lambda that defines an operation
@@ -849,14 +865,31 @@ public class DynamicClassExtension extends AbstractClassExtension {
 
         /**
          * Specifies that current operation (previously defined by calling {@code op()} or {@code voidOp()}) must be run
-         * asynchronously. Such an operation will not block the caller thread. For non-void operations - {@code 0} or
+         * asynchronously.<br/><br/>
+         *
+         * Asynchronous operations will not block the caller thread. For non-void operations - {@code 0} or
          * {@code null} will be returned immediately depending on operation return type.
+         *
          * @return a copy of this {@code Builder}
          */
         public Builder<E> async() {
+            return async(true);
+        }
+
+        /**
+         * Specifies whether current operation (previously defined by calling {@code op()} or {@code voidOp()}) must be run
+         * asynchronously or synchronously.<br/><br/>
+         *
+         * Asynchronous operations will not block the caller thread. For non-void operations - {@code 0} or
+         * {@code null} will be returned immediately depending on operation return type.
+         *
+         * @param isAsync {@code true} if an operation must be run asynchronously; {@code false} otherwise
+         * @return a copy of this {@code Builder}
+         */
+        public Builder<E> async(boolean isAsync) {
             checkPerformerHolder();
 
-            performerHolder.setAsync(true);
+            performerHolder.setAsync(isAsync);
             return new Builder<>(extensionClass, operationName, dynamicClassExtension, performerHolder);
         }
 
@@ -881,8 +914,8 @@ public class DynamicClassExtension extends AbstractClassExtension {
          * Specifies a code which must be performed before running current operation (previously defined by calling {@code op()}
          * or {@code voidOp()}).
          *
-         * @param aBefore a lambda should be performed before running current operation. It takes an object the operation
-         *                should be performed for and an array of arguments
+         * @param aBefore a lambda function should be performed before running current operation. It takes an object the operation
+         *                should be performed for and an array of arguments.
          * @return a copy of this {@code Builder}
          */
         public Builder<E> before(BiConsumer<? super Object, Object[]> aBefore) {
@@ -896,7 +929,7 @@ public class DynamicClassExtension extends AbstractClassExtension {
          * Specifies a code which must be performed before running current operation (previously defined by calling {@code op()}
          * or {@code voidOp()}).
          *
-         * @param anAfter a lambda should be performed after running current operation. It takes a result of the operation
+         * @param anAfter a lambda function should be performed after running current operation. It takes a result of the operation
          * @return a copy of this {@code Builder}
          */
         public Builder<E> after(Consumer<? super Object> anAfter) {
