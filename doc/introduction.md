@@ -75,7 +75,7 @@ Class extensions (categories) are beneficial because they:
 
 These benefits lead to more flexible, maintainable, and efficient code structures. Unfortunately, Java does not natively support class extensions (categories) and there is a little chance such support is going to be introduced in the near future.
 
-Java Class Extension library provides a valuable alternative for native class extensions with just a little more verbose code and little more complex implementation.
+Java Class Extensions library provides a valuable alternative for native class extensions with just a little more verbose code and little more complex implementation.
 
 The library leverages the `ClassExtension` interface, which facilitates querying for an extension based on an object's extension interface. Once obtained, these extensions unlock additional functionality with remarkable ease. For example, obtaining a `Shippable` extension and using its `ship()` method to perform shipping a book would look like:
 ```java
@@ -125,10 +125,23 @@ The library supports the following approaches:
 
 The choice between them ultimately depends on several factors like implementation details, performance, personal preferences, coding style, established habits and specific project requirements. Each approach has its strengths and weaknesses, and the best choice will depend on the particular context and needs of your project.
 
-Performance-wise, Dynamic Class Extensions are generally **slower** than Static Class Extensions. The difference can be ~30% for [Proxy](static-class-extensions.md#proxy) and ~100% for [Direct](static-class-extensions.md#direct) Static Class Extensions. So if performance is a major factor - you should consider using Static Class Extensions.
+Performance-wise, Dynamic Class Extensions are generally **slower** than Static Class Extensions. The difference can be ~30% for [Proxy](static-class-extensions.md#proxy) and ~100% for [Direct](static-class-extensions.md#direct) Static Class Extensions. So if performance is a major factor - you should consider using Direct Static Class Extensions.
 
 Dynamic Class Extensions are generally simpler, as they only require adding new interfaces and defining operations via lambdas. And they are very flexible, allowing changing configuration on the fly, supporting asynchronous operations, a bit of aspects etc. However, if the extension logic is sufficiently complex and necessitates coding new classes for extensions functionality anyway, it may be worthwhile to consider using Static Class Extensions. 
 
+While the Java Class Extensions Library requires slightly more code and efforts than native class extensions in other languages, it offers several significant advantages:
+1. Full Inheritance and Polymorphism Support
+   * Dynamic resolution of extension methods
+   * Enables complex hierarchies and method overriding
+   * Dynamic methods overriding in Dynamic Class Extensions
+2. Extensions are fully functional classes
+   * Can add and manage new state
+   * Support for additional helper methods
+   * Flexibility to implement complex logic
+3. Conflict-Free Integration
+   * No clashes with third-party libraries
+   * Multiple extensions with identical names can coexist in different packages
 
+These features provide greater flexibility and power, allowing for more sophisticated and maintainable code structures compared to native class extensions in many other languages.
 
 Next >> [Static Class Extensions](static-class-extensions.md)
