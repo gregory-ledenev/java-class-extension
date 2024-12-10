@@ -1,4 +1,4 @@
-## Java Class Extensions Library - Dynamic Class Extensions
+## Java Class Extension Library - Dynamic Class Extensions
 
 Class `DynamicClassExtension` provides a way to emulate class extensions (categories) by composing extensions as a set of lambda operations. To specify an extension:
 
