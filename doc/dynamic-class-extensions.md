@@ -1,4 +1,4 @@
-## Java Class Extensions Library - Dynamic Class Extensions
+## Java Class Extension Library - Dynamic Class Extensions
 
 Class `DynamicClassExtension` provides a way to emulate class extensions (categories) by composing extensions as a set of lambda operations. To specify an extension:
 
@@ -58,7 +58,7 @@ Supporting a new `Item` class using the Java Class Extension library requires ju
 ### Details
 For the most of the cases a shared instance of `DynamicClassExtension` should be used. But if there is a need to have different implementations of extensions in different places or domains it is possible to create and utilize new instances of `DynamicClassExtension`.
 
-**Note:** Extensions returned by `DynamicClassExtension` do not directly correspond to the extension classes themselves. Therefore, it is crucial not to cast these extensions. Instead, always utilize only the methods provided by the extension interface.
+**Note:** Extensions returned by `DynamicClassExtension` do not directly correspond to certain classes themselves. Therefore, it is crucial not to cast these extensions. Instead, always utilize only the methods provided by the extension interface. For example, an extension obtained for the `ItemShippable` interface that combines both `Shippable` and `ItemInterface` can not be cast to the `Item`.
 
 If you need to check that an extension represents a particular object you may use the `ClassExtension.equals(Object, Object)` method:
 ```java
@@ -99,6 +99,89 @@ interface ItemShippable extends ItemInterface{
 Book book = new Book("The Mythical Man-Month");
 System.out.println(book.getName());
 System.out.println(DynamicClassExtension.sharedExtension(book, ItemShippable.class).getName());
+```
+
+#### Asynchronous Operations
+It is possible to use `Builder.async()` to declaratively define asynchronous operations. Such operations are running in background, and they are non-blocking therefore caller threads continue immediately.
+
+```java
+DynamicClassExtension dynamicClassExtension = new DynamicClassExtension().builder(Item_Shippable.class).
+        opName("ship").
+            op(Book.class, shipBook(book)).async().
+        build();
+
+Book book = new Book("The Mythical Man-Month");
+dynamicClassExtension.extension(book, ItemShippable.class).ship();
+```
+**Notes:**
+* Operations must be already defined first via the `Builder.op()` or `Builder.voidOp()` methods
+* Non-void operations return `0` or `null` instantly depending on the operation return type
+* Extension usage mirrors synchronous operations
+* Ideal for long-running tasks to improve responsiveness
+
+If there is a need to handle results of such asynchronous operations it can be done by specifying a lambda function as an argument for `Builder.async()`.
+```java
+DynamicClassExtension dynamicClassExtension = new DynamicClassExtension().builder(Item_Shippable.class).
+        opName("ship").
+            op(Book.class, shipBook(book)).
+                async((Book book, Throwable ex) -> System.out.println("Book shipped: " + book)).
+        build();
+
+Book book = new Book("The Mythical Man-Month");
+dynamicClassExtension.extension(book, ItemShippable.class).ship();
+```
+#### Limited Support of AOP Aspects
+The `DynamicClassExtension` provides limited support of Aspects by allowing to specify lambda functions which should be applied before and after performing of operations. It can be done via use of the `Builder.before()` and the `Builder.after()` methods.
+```java
+DynamicClassExtension dynamicClassExtension = new DynamicClassExtension().builder(Item_Shippable.class).
+        opName("ship").
+            op(Book.class, shipBook(book)).
+                before((object, args) -> LOGGER.info("BEFORE: " + object + "-> ship()")).
+                after(result -> LOGGER.info("AFTER: result - " + result)).
+        build();
+
+Book book = new Book("The Mythical Man-Month");
+dynamicClassExtension.extension(book, ItemShippable.class).ship();
+```
+**Notes:**
+* Operations must be already defined first via `Builder.op()` or `Builder.voidOp()`
+* Both synchronous and asynchronous operations are supported 
+
+Aspects are only supported for defined operations only. So if there is a need to intercept calls of usual methods - such methods should be dynamically "overridden" by defining operations with the same signature. The following example intersects `Object.toString()` method:
+```java
+DynamicClassExtension dynamicClassExtension = new DynamicClassExtension().builder(Item_Shippable.class).
+        opName("toString").
+            op(Object.class, Object::toString).
+                before((object, args) -> LOGGER.info("BEFORE: " + object + "-> ship()")).
+                after(result -> LOGGER.info("AFTER: result - " + result)).
+        build();
+
+Book book = new Book("The Mythical Man-Month");
+dynamicClassExtension.extension(book, ItemShippable.class).toString();
+```
+#### Altering Operations
+
+To alter an operation itself: 
+1. Remove it first using the `Builder.removeOp(...)` method
+2. Add a replacement operation using one of `Builder.op(...)` or `Builder.voidOp(...)` methods
+
+```java
+DynamicClassExtension dynamicClassExtension = new DynamicClassExtension().builder(Item_Shippable.class).
+        opName("toString").
+            removeOp(Object.class,new Class<?>[0]).
+                op(Object.class, o -> "result: " + o.tostring()).
+        build();
+```
+
+To alter properties of an operation:
+1. Make an alteration intention for the operation using the `Builder.alterOp(...)` method
+2. Specify properties for the operation e.g. by using the `Builder.async(...)` method
+```java
+DynamicClassExtension dynamicClassExtension = new DynamicClassExtension().builder(Item_Shippable.class).
+        opName("ship").
+            alterOp(Fuurniture.class,new Class<?>[0]).
+                async().
+        build();
 ```
 
 #### Cashing

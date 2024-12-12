@@ -1,4 +1,4 @@
-## Java Class Extensions Library - Static Class Extensions
+## Java Class Extension Library - Static Class Extensions
 
 There is the `StaticClassExtension` class, which offers methods for dynamically finding and creating extension objects as needed. With this approach you should define and implement extensions as usual Java classes and then utilize the Java Class Extension library to find matching extension classes and create extension objects using the `extension(Object Class)` method.
 

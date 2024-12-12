@@ -5,6 +5,7 @@ import org.junit.jupiter.api.Test;
 
 import java.text.MessageFormat;
 
+import static java.lang.System.out;
 import static org.junit.jupiter.api.Assertions.*;
 
 @SuppressWarnings("unused")
@@ -98,7 +99,7 @@ public class DynamicClassExtensionTest {
             if (!shippingInfos.isEmpty())
                 shippingInfos.append("\n");
             shippingInfos.append(shippingInfo);
-            System.out.println(shippingInfo);
+            out.println(shippingInfo);
         }
 
         assertEquals("""
@@ -129,11 +130,13 @@ public class DynamicClassExtensionTest {
             extension.log();
             if (!shippingInfos.isEmpty())
                 shippingInfos.append("\n");
-            shippingInfos.append(extension.ship());
+            ShippingInfo ship = extension.ship();
+            shippingInfos.append(ship);
             shippingInfos.append("\n").append(extension.track());
+            extension.getName();
         }
-        System.out.println(shippingLog);
-        System.out.println(shippingInfos);
+        out.println(shippingLog);
+        out.println(shippingInfos);
 
         assertEquals("""
                      The Mythical Man-Month is about to be shipped
@@ -175,7 +178,7 @@ public class DynamicClassExtensionTest {
             }
             names.append(extension.toString());
         }
-        System.out.println(names);
+        out.println(names);
 
         assertEquals("""
                      Book["The Mythical Man-Month"]
@@ -192,7 +195,7 @@ public class DynamicClassExtensionTest {
             }
             names.append(extension.getName());
         }
-        System.out.println(names);
+        out.println(names);
 
         assertEquals("""
                      The Mythical Man-Month
@@ -207,7 +210,7 @@ public class DynamicClassExtensionTest {
 
         DynamicClassExtension dynamicClassExtension = setupDynamicClassExtension(shippingLog);
         String string = dynamicClassExtension.toString();
-        System.out.println(string);
+        out.println(string);
         assertEquals("""
                      interface com.gl.classext.ClassExtension$DelegateHolder {
                          getDelegate {
@@ -241,7 +244,7 @@ public class DynamicClassExtensionTest {
 
         DynamicClassExtension dynamicClassExtension = setupDynamicClassExtension(shippingLog);
         String string = dynamicClassExtension.toString(false);
-        System.out.println(string);
+        out.println(string);
         assertEquals("""
                      interface com.gl.classext.ClassExtension$DelegateHolder {
                          java.lang.String {
@@ -281,7 +284,7 @@ public class DynamicClassExtensionTest {
             extension.calculateShippingCost();
             fail("Unexpectedly succeeded call: float calculateShippingCost()");
         } catch (Exception ex) {
-            System.out.println(ex.getMessage());
+            out.println(ex.getMessage());
         }
     }
 
@@ -302,7 +305,7 @@ public class DynamicClassExtensionTest {
             Item_Shippable extension = dynamicClassExtension.extension(item, Item_Shippable.class);
             extension.log();
         }
-        System.out.println(shippingLog);
+        out.println(shippingLog);
         String expectedLog = """
                           The Mythical Man-Month is about to be shipped
                           Sofa is about to be shipped
@@ -319,7 +322,7 @@ public class DynamicClassExtensionTest {
             Item_Shippable extension = dynamicClassExtension.extension(item, Item_Shippable.class);
             extension.log();
         }
-        System.out.println(shippingLog);
+        out.println(shippingLog);
 
         // remove log()
         dynamicClassExtension = setupDynamicClassExtension(shippingLog);
@@ -334,7 +337,7 @@ public class DynamicClassExtensionTest {
             }
             fail("Unexpectedly succeeded call: log()");
         } catch (Exception ex) {
-            System.out.println(ex.getMessage());
+            out.println(ex.getMessage());
         }
     }
 
@@ -360,7 +363,7 @@ public class DynamicClassExtensionTest {
                     build();
             fail("Failed to detect duplicated operation: T ship()");
         } catch (Exception ex) {
-            System.out.println(ex.getMessage());
+            out.println(ex.getMessage());
         }
 
         try {
@@ -371,7 +374,7 @@ public class DynamicClassExtensionTest {
                     build();
             fail("Failed to detect duplicated operation: void ship()");
         } catch (Exception ex) {
-            System.out.println(ex.getMessage());
+            out.println(ex.getMessage());
         }
 
         try {
@@ -382,7 +385,7 @@ public class DynamicClassExtensionTest {
                     build();
             fail("Failed to detect duplicated operation: ship()");
         } catch (Exception ex) {
-            System.out.println(ex.getMessage());
+            out.println(ex.getMessage());
         }
 
         try {
@@ -393,7 +396,7 @@ public class DynamicClassExtensionTest {
                     build();
             fail("Failed to detect duplicated operation: T ship(boolean)");
         } catch (Exception ex) {
-            System.out.println(ex.getMessage());
+            out.println(ex.getMessage());
         }
 
         try {
@@ -404,7 +407,7 @@ public class DynamicClassExtensionTest {
                     build();
             fail("Failed to detect duplicated operation: T ship(boolean)");
         } catch (Exception ex) {
-            System.out.println(ex.getMessage());
+            out.println(ex.getMessage());
         }
     }
 
@@ -473,8 +476,8 @@ public class DynamicClassExtensionTest {
             shippingInfos.append(extension.ship());
             shippingInfos.append("\n").append(extension.track(true));
         }
-        System.out.println(shippingLog);
-        System.out.println(shippingInfos);
+        out.println(shippingLog);
+        out.println(shippingInfos);
 
         assertEquals("""
                      The Mythical Man-Month is about to be shipped in 1 hour
@@ -608,7 +611,7 @@ public class DynamicClassExtensionTest {
             System.gc();
             assertFalse(dynamicClassExtension.cacheIsEmpty());
             try {
-                System.out.println("Waiting 1.5 minutes for automatic cache cleanup...");
+                out.println("Waiting 1.5 minutes for automatic cache cleanup...");
                 Thread.sleep(90000);
             } catch (InterruptedException aE) {
                 // do nothing
@@ -638,7 +641,7 @@ public class DynamicClassExtensionTest {
                 extension.log();
             }
         }
-        System.out.println("DYNAMIC - Elapsed time: " + ((System.currentTimeMillis()-startTime) / 1000f));
+        out.println("DYNAMIC - Elapsed time: " + ((System.currentTimeMillis()-startTime) / 1000f));
     }
 
     @Test
@@ -646,32 +649,31 @@ public class DynamicClassExtensionTest {
         for (int i = 0; i < 20; i++) {
             performanceTestDynamic();
             StaticClassExtensionTest.performanceTestStatic();
-            System.out.println("-----------");
+            out.println("-----------");
             System.gc();
         }
     }
 
         @Test
-    void validationTest() {
+    void ensureInvalidTest() {
         StringBuilder shippingLog = new StringBuilder();
         DynamicClassExtension dynamicClassExtension = setupDynamicClassExtension(shippingLog);
 
         try {
             dynamicClassExtension.checkValid(ElectronicItem.class, Item_Shippable.class);
             fail("Unexpectedly valid extension: " + Item_Shippable.class.getName());
-        } catch (Exception ex) {
-            System.out.println(ex.getMessage());
+        } catch (IllegalArgumentException ex) {
+            out.println(ex.getMessage());
         }
     }
 
     @Test
-    void checkOperationsImplementedTest() {
+    void listUndefinedOperationsTest() {
         StringBuilder shippingLog = new StringBuilder();
         DynamicClassExtension dynamicClassExtension = setupDynamicClassExtension(shippingLog);
-
-        assertFalse(dynamicClassExtension.isPresent(ElectronicItem.class, Item_Shippable.class, "calculateShippingCost", null));
-        assertTrue(dynamicClassExtension.isPresent(ElectronicItem.class, Item_Shippable.class, "log", new Class<?>[]{boolean.class}));
-        assertTrue(dynamicClassExtension.isPresent(ElectronicItem.class, Item_Shippable.class, "log", null));
+        String result = String.join("\n", dynamicClassExtension.listUndefinedOperations(ElectronicItem.class, Item_Shippable.class));
+        out.println(result);
+        assertEquals("T calculateShippingCost()", result);
     }
 
     @Test
@@ -722,6 +724,178 @@ public class DynamicClassExtensionTest {
         Book book = new Book("The Mythical Man-Month");
         Item_Shippable extension = dynamicClassExtension.extension(book, Item_Shippable.class);
         assertEquals(book.hashCode(), extension.hashCode());
+    }
+
+    final private StringBuilder ASPECT_LOG = new StringBuilder();
+    void aspectLog(String aValue) {
+        if (!ASPECT_LOG.isEmpty())
+            ASPECT_LOG.append("\n");
+        ASPECT_LOG.append(aValue);
+    }
+
+    @Test
+    void testWrongAsyncPlacement1() {
+        try {
+            DynamicClassExtension dynamicClassExtension = new DynamicClassExtension().builder(Item_Shippable.class).async().
+                    opName("hashCode").
+                    op(Object.class, Object::hashCode).
+                    build();
+            fail("Wrong async() call right after the builder init");
+        } catch (Exception ex) {
+            // it is fine
+        }
+    }
+
+    @Test
+    void testWrongAsyncPlacement2() {
+        try {
+            DynamicClassExtension dynamicClassExtension = new DynamicClassExtension().builder(Item_Shippable.class).
+                    opName("hashCode").async().
+                    op(Object.class, Object::hashCode).
+                    build();
+            fail("Wrong async() call right after operation name");
+        } catch (Exception ex) {
+            // it is fine
+        }
+    }
+
+    @Test
+    void testAsync() {
+        DynamicClassExtension dynamicClassExtension = new DynamicClassExtension().builder(Item_Shippable.class).
+                opName("toString").
+                    op(Object.class, Object::toString).async().
+                opName("hashCode").
+                    op(Object.class, Object::hashCode).
+                        async((Integer hashCode, Throwable throwable) -> out.println(hashCode.toString())).
+                build();
+
+        Book book = new Book("The Mythical Man-Month");
+        Item_Shippable extension = dynamicClassExtension.extension(book, Item_Shippable.class);
+        extension.toString();
+        extension.hashCode();
+    }
+
+    @Test
+    void testAspect() {
+        DynamicClassExtension dynamicClassExtension = new DynamicClassExtension().builder(Item_Shippable.class).
+                opName("toString").
+                    op(Object.class, Object::toString).
+                        before((object, args) -> out.println("BEFORE: " + object + "-> toString()")).
+                        after(result -> out.println("AFTER: result - " + result)).
+                build();
+
+        Book book = new Book("The Mythical Man-Month");
+        Item_Shippable extension = dynamicClassExtension.extension(book, Item_Shippable.class);
+        out.println("RESULT: " + extension.toString());
+    }
+
+    @Test
+    void testAsyncAspect() {
+        DynamicClassExtension dynamicClassExtension = new DynamicClassExtension().builder(Item_Shippable.class).
+                opName("toString").
+                op(Object.class, Object::toString).
+                    async().
+                    before((object, args) -> out.println("BEFORE: " + object + "-> toString()")).
+                    after(result -> out.println("AFTER: result - " + result)).
+                build();
+
+        Book book = new Book("The Mythical Man-Month");
+        Item_Shippable extension = dynamicClassExtension.extension(book, Item_Shippable.class);
+        extension.toString();
+    }
+
+    @Test
+    void testAlterAspectsOperation() {
+        DynamicClassExtension dynamicClassExtension = new DynamicClassExtension().builder(Item_Shippable.class).
+                opName("toString").
+                    op(Object.class, Object::toString).
+                build();
+
+        Book book = new Book("The Mythical Man-Month");
+        Item_Shippable extension = dynamicClassExtension.extension(book, Item_Shippable.class);
+        out.println("RESULT: " + extension.toString());
+
+        // add aspects
+        StringBuilder stringBuilder = new StringBuilder();
+        dynamicClassExtension.builder(Item_Shippable.class).
+                opName("toString").
+                    alterOp(Object.class,new Class<?>[0]).
+                        before((object, args) -> stringBuilder.append("BEFORE: ").append(object).append("-> toString()\n")).
+                        after(result -> stringBuilder.append("AFTER: result - ").append(result).append("\n")).
+                build();
+        extension = dynamicClassExtension.extension(book, Item_Shippable.class);
+        stringBuilder.append("RESULT: " + extension.toString());
+        out.println(stringBuilder.toString());
+        assertEquals("""
+                     BEFORE: Book["The Mythical Man-Month"]-> toString()
+                     AFTER: result - Book["The Mythical Man-Month"]
+                     RESULT: Book["The Mythical Man-Month"]""", stringBuilder.toString());
+
+        // remove aspects
+        stringBuilder.setLength(0);
+        dynamicClassExtension.builder(Item_Shippable.class).
+                opName("toString").
+                    alterOp(Object.class,new Class<?>[0]).
+                        before(null).
+                        after(null).
+                build();
+        extension = dynamicClassExtension.extension(book, Item_Shippable.class);
+        stringBuilder.append("RESULT: " + extension.toString());
+        out.println(stringBuilder.toString());
+        assertEquals("""
+                     RESULT: Book["The Mythical Man-Month"]""", stringBuilder.toString());
+    }
+
+    @Test
+    void testAlterAsync() {
+        StringBuilder stringBuilder = new StringBuilder();
+        DynamicClassExtension dynamicClassExtension = new DynamicClassExtension().builder(Item_Shippable.class).
+                opName("toString").
+                    op(Object.class, Object::toString).
+                build();
+
+        Book book = new Book("The Mythical Man-Month");
+        Item_Shippable extension = dynamicClassExtension.extension(book, Item_Shippable.class);
+        stringBuilder.append("RESULT: " + extension.toString());
+        out.println(stringBuilder.toString());
+        assertEquals("""
+                     RESULT: Book["The Mythical Man-Month"]""", stringBuilder.toString());
+
+        // alter to async
+        stringBuilder.setLength(0);
+        dynamicClassExtension.builder(Item_Shippable.class).
+                opName("toString").
+                    alterOp(Object.class, new Class<?>[0]).
+                        async((o, ex) -> stringBuilder.append("ASYNC RESULT: " + o + "\n")).
+                build();
+        String result = extension.toString();
+        sleep();
+        stringBuilder.append("RESULT: " + result);
+        out.println(stringBuilder.toString());
+        assertEquals("""
+                     ASYNC RESULT: Book["The Mythical Man-Month"]
+                     RESULT: null""", stringBuilder.toString());
+
+        // clear async
+        stringBuilder.setLength(0);
+        dynamicClassExtension.builder(Item_Shippable.class).
+                opName("toString").
+                    alterOp(Object.class, new Class<?>[0]).
+                        async(false).
+                build();
+        result = extension.toString();
+        sleep();
+        stringBuilder.append("RESULT: " + result);
+        out.println(stringBuilder.toString());
+        assertEquals("""
+                    RESULT: Book["The Mythical Man-Month"]""", stringBuilder.toString());
+    }
+
+    private static void sleep() {
+        try {
+            Thread.sleep(1000);
+        } catch (InterruptedException aE) {
+        }
     }
 }
 

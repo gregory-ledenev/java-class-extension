@@ -29,13 +29,12 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.text.MessageFormat;
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Function;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
 /**
@@ -98,26 +97,68 @@ import java.util.stream.Collectors;
  * @see <a href="https://github.com/gregory-ledenev/java-class-extension/blob/main/doc/dynamic-class-extensions.md">More details</a>
  * @author Gregory Ledenev
  */
-public class DynamicClassExtension implements ClassExtension {
+public class DynamicClassExtension extends AbstractClassExtension {
+    private final ConcurrentHashMap<OperationKey, PerformerHolder<?>> operationsMap = new ConcurrentHashMap<>();
+    private static final DynamicClassExtension dynamicClassExtension = new DynamicClassExtension();
 
-    private boolean cacheEnabled;
+    public static DynamicClassExtension sharedInstance() {
+        return dynamicClassExtension;
+    }
 
     @FunctionalInterface
     interface Performer<R> {
         R perform(Object[] anArgs);
     }
 
+    static class PerformerHolder<R> {
+        private final Performer<R> performer;
+        private boolean async;
+        private BiConsumer<?, ? super Throwable> whenComplete;
+        private BiConsumer<Object, Object[]> before;
+        private Consumer<Object> after;
 
-    /**
-     * Represents an operation that accepts a single input argument and returns no
-     * result. Unlike most other functional interfaces, {@code Consumer} is expected
-     * to operate via side effects.
-     *
-     * <p>This is a <a href="package-summary.html">functional interface</a>
-     * whose functional method is {@link #accept(Object)}.
-     *
-     * @param <T> the type of the input to the operation
-     */
+        PerformerHolder(Performer<R> aPerformer) {
+            performer = aPerformer;
+        }
+
+        public Performer<R> getPerformer() {
+            return performer;
+        }
+
+        public boolean isAsync() {
+            return async;
+        }
+        public void setAsync(boolean aAsync) {
+            async = aAsync;
+            if (! async)
+                whenComplete = null;
+        }
+
+        public BiConsumer<?, ? super Throwable> getWhenComplete() {
+            return whenComplete;
+        }
+
+        public void setWhenComplete(BiConsumer<?, ? super Throwable> aWhenComplete) {
+            whenComplete = aWhenComplete;
+        }
+
+        public BiConsumer<? super Object, Object[]> getBefore() {
+            return before;
+        }
+
+        public void setBefore(BiConsumer<? super Object, Object[]> aBefore) {
+            before = aBefore;
+        }
+
+        public Consumer<? super Object> getAfter() {
+            return after;
+        }
+
+        public void setAfter(Consumer<? super Object> anAfter) {
+            after = anAfter;
+        }
+    }
+
     @FunctionalInterface
     @SuppressWarnings({"unchecked"})
     public interface ConsumerPerformer<T> extends Performer<Void>, Consumer<T> {
@@ -199,7 +240,7 @@ public class DynamicClassExtension implements ClassExtension {
 
     static final String SUFFIX_BI = "Bi";
 
-    <R, T, E> void addExtensionOperation(Class<T> aClass,
+    <R, T, E> PerformerHolder<R> addExtensionOperation(Class<T> aClass,
                                          Class<E> anExtensionInterface,
                                          String anOperationName,
                                          FunctionPerformer<T, R> anOperation) {
@@ -208,7 +249,9 @@ public class DynamicClassExtension implements ClassExtension {
         OperationKey key = new OperationKey(aClass, anExtensionInterface, operationName(anOperationName, null));
         if (operationsMap.containsKey(key))
             duplicateOperationError(displayOperationName(anOperationName, false, null));
-        operationsMap.put(key, anOperation);
+        PerformerHolder<R> result = new PerformerHolder<>(anOperation);
+        operationsMap.put(key, result);
+        return result;
     }
 
     private static <T, E> void checkAddOperationArguments(Class<T> aClass, Class<E> anExtensionInterface, String anOperationName, Object anOperation) {
@@ -224,7 +267,7 @@ public class DynamicClassExtension implements ClassExtension {
 
     static final private Class<?>[] SINGLE_PARAMETERS = {Object.class};
 
-    <R, T, U, E> void addExtensionOperation(Class<T> aClass,
+    <R, T, U, E> PerformerHolder<R> addExtensionOperation(Class<T> aClass,
                                             Class<E> anExtensionInterface,
                                             String anOperationName,
                                             BiFunctionPerformer<T, U, R> anOperation) {
@@ -233,10 +276,12 @@ public class DynamicClassExtension implements ClassExtension {
         OperationKey key = new OperationKey(aClass, anExtensionInterface, operationName(anOperationName, SINGLE_PARAMETERS));
         if (operationsMap.containsKey(key))
             duplicateOperationError(displayOperationName(anOperationName, false, SINGLE_PARAMETERS));
-        operationsMap.put(key, anOperation);
+        PerformerHolder<R> result = new PerformerHolder<>(anOperation);
+        operationsMap.put(key, result);
+        return result;
     }
 
-    <T, E> void addVoidExtensionOperation(Class<T> aClass,
+    <T, E> PerformerHolder<Void> addVoidExtensionOperation(Class<T> aClass,
                                           Class<E> anExtensionInterface,
                                           String anOperationName,
                                           ConsumerPerformer<T> anOperation) {
@@ -245,10 +290,12 @@ public class DynamicClassExtension implements ClassExtension {
         OperationKey key = new OperationKey(aClass, anExtensionInterface, operationName(anOperationName, null));
         if (operationsMap.containsKey(key))
             duplicateOperationError(displayOperationName(anOperationName, true, null));
-        operationsMap.put(key, anOperation);
+        PerformerHolder<Void> result = new PerformerHolder<>(anOperation);
+        operationsMap.put(key, result);
+        return result;
     }
 
-    <T, U, E> void addVoidExtensionOperation(Class<T> aClass,
+    <T, U, E> PerformerHolder<Void> addVoidExtensionOperation(Class<T> aClass,
                                              Class<E> anExtensionInterface,
                                              String anOperationName,
                                              BiConsumerPerformer<T, U> anOperation) {
@@ -257,10 +304,12 @@ public class DynamicClassExtension implements ClassExtension {
         OperationKey key = new OperationKey(aClass, anExtensionInterface, operationName(anOperationName, SINGLE_PARAMETERS));
         if (operationsMap.containsKey(key))
             duplicateOperationError(displayOperationName(anOperationName, true, SINGLE_PARAMETERS));
-        operationsMap.put(key, anOperation);
+        PerformerHolder<Void> result = new PerformerHolder<>(anOperation);
+        operationsMap.put(key, result);
+        return result;
     }
 
-    <T, E> Object getExtensionOperation(Class<T> aClass,
+    <T, E> PerformerHolder<?> getExtensionOperation(Class<T> aClass,
                                         Class<E> anExtensionInterface,
                                         String anOperationName) {
         Objects.requireNonNull(aClass);
@@ -377,23 +426,26 @@ public class DynamicClassExtension implements ClassExtension {
         return result;
     }
 
-    @SuppressWarnings({"rawtypes"})
+    @SuppressWarnings({"unchecked", "rawtypes"})
     <T> Object performOperation(DynamicClassExtension aClassExtension, Object anObject, Class<T> anExtensionClass, Method method, Object[] args) throws InvocationTargetException, IllegalAccessException {
         Object result;
 
         ExtensionOperationResult extensionOperation = findExtensionOperation(anObject, anExtensionClass, method, args);
-        Performer operation = (Performer) extensionOperation.operation();
-        if (operation != null) {
+        PerformerHolder<?> performerHolder = extensionOperation.operation();
+        if (performerHolder != null) {
             if (aClassExtension.isVerbose())
                 aClassExtension.logger.info(MessageFormat.format("Performing dynamic operation for delegate \"{0}\": ({1}) -> {2}",
                         anObject,
                         extensionOperation.inClass().getName(),
-                        operationKeyToString(new OperationKey(anObject.getClass(), anExtensionClass, method.getName()), operation)));
-            List<Object> arguments = new ArrayList<>();
-            arguments.add(anObject);
-            if (args != null)
-                arguments.addAll(Arrays.asList(args));
-            result = operation.perform(arguments.toArray());
+                        operationKeyToString(new OperationKey(anObject.getClass(), anExtensionClass, method.getName()), performerHolder)));
+            if (performerHolder.isAsync()) {
+                CompletableFuture<?> future = CompletableFuture.supplyAsync(() -> performOperation(anObject, args, performerHolder));
+                if (performerHolder.getWhenComplete() != null)
+                    future.whenComplete((BiConsumer) performerHolder.getWhenComplete());
+                result = dummyReturnValue(method);
+            } else {
+                result = performOperation(anObject, args, performerHolder);
+            }
         } else {
             if (method.getDeclaringClass().isAssignableFrom(anObject.getClass())) {
                 if (aClassExtension.isVerbose())
@@ -410,30 +462,102 @@ public class DynamicClassExtension implements ClassExtension {
         return result;
     }
 
+    private static Object performOperation(Object anObject, Object[] args, PerformerHolder<?> performerHolder) {
+        Object result;
+        List<Object> arguments = new ArrayList<>();
+        arguments.add(anObject);
+        if (args != null)
+            arguments.addAll(Arrays.asList(args));
+
+        if (performerHolder.getBefore() != null)
+            performerHolder.getBefore().accept(anObject, args);
+
+        result = performerHolder.getPerformer().perform(arguments.toArray());
+
+        if (performerHolder.getAfter() != null)
+            performerHolder.getAfter().accept(result);
+        return result;
+    }
+
+    private Object dummyReturnValue(Method aMethod) {
+        Class<?> returnType = aMethod.getReturnType();
+        if (returnType.isPrimitive() || Number.class.isAssignableFrom(returnType) || Boolean.class.isAssignableFrom(returnType))
+            return 0;
+        else
+            return null;
+    }
+
     /**
-     * Checks if there is a valid extension defined for a passed object. An extension is considered valid if there are
-     * corresponding operations registered for all its methods
+     * Checks if there is a valid extension defined for a passed object.An extension is considered valid if all its
+     * methods meet one of the following criteria:
+     * <ol>
+     * <li>Annotated by {@code @OptionalMethod}</li>
+     * <li>Correspond to registered operations</li>
+     * <li>Match suitable methods in the {@code aClass} class</li>
+     * </ol>
+     *
+     * This validation ensures that every method in the extension can be properly mapped and executed, maintaining
+     * consistency between the extension interface and the underlying implementation.
      *
      * @param aClass         object to check an extension for
-     * @param anExtensionClass class of extension
+     * @param anExtensionInterface interface of extension
      * @throws IllegalArgumentException if an extension is invalid
      */
-    @SuppressWarnings({"rawtypes"})
-    public <T> void checkValid(Class<?> aClass, Class<T> anExtensionClass) {
+    public <T> void checkValid(Class<?> aClass, Class<T> anExtensionInterface) {
         Objects.requireNonNull(aClass);
-        Objects.requireNonNull(anExtensionClass);
+        Objects.requireNonNull(anExtensionInterface);
 
-        for (Method method : anExtensionClass.getMethods()) {
+        List<String> undefinedOperations = listUndefinedOperations(aClass, anExtensionInterface);
+        if (! undefinedOperations.isEmpty())
+            throw new IllegalArgumentException(MessageFormat.format("No \"{0}\" operation for {1} in \"{2}\" extension",
+                    undefinedOperations.getFirst(),
+                    aClass,
+                    anExtensionInterface.getName()));
+    }
+
+    /**
+     * Lists all undefined operations. An operation is considered undefined if it is not annotated by {@code @OptionalMethod}
+     * and meets one of the following criteria:
+     * <ol>
+     * <li>Not correspond to a registered operation</li>
+     * <li>Do not match to a suitable method in the {@code aClass} class</li>
+     * </ol>
+     *
+     * @param aClass         object to check an extension for
+     * @param anExtensionInterface interface of extension
+     * @return a list of all undefined operations
+     */
+    public <T> List<String> listUndefinedOperations(Class<?> aClass, Class<T> anExtensionInterface) {
+        Objects.requireNonNull(aClass);
+        Objects.requireNonNull(anExtensionInterface);
+
+        List<String> result = new ArrayList<>();
+
+        for (Method method : anExtensionInterface.getMethods()) {
             if (method.isAnnotationPresent(OptionalMethod.class))
                 continue;
-            ExtensionOperationResult extensionOperation = findExtensionOperation(aClass, anExtensionClass, method, method.getParameterTypes());
-            Performer operation = (Performer) extensionOperation.operation;
-            if (operation == null)
-                throw new IllegalArgumentException(MessageFormat.format("No \"{0}\" operation for {1} in \"{2}\" extension",
-                        displayOperationName(method.getName(), void.class.equals(method.getReturnType()), method.getParameterTypes()),
-                        aClass,
-                        anExtensionClass.getName()));
+            ExtensionOperationResult extensionOperation = findExtensionOperation(aClass, anExtensionInterface, method, method.getParameterTypes());
+            PerformerHolder<?> operation = extensionOperation.operation;
+            if (operation == null && ! classHasMethod(aClass, method))
+                result.add(displayOperationName(method.getName(), void.class.equals(method.getReturnType()), method.getParameterTypes()));
         }
+
+        return result;
+    }
+
+    boolean classHasMethod(Class<?> aClass, Method aMethod) {
+        boolean result = false;
+
+        for (Method method : aClass.getMethods()) {
+            if (method.getName().equals(aMethod.getName()) &&
+                    method.getReturnType().equals(aMethod.getReturnType()) &&
+                    Arrays.equals(method.getParameterTypes(), aMethod.getParameterTypes())) {
+                result = true;
+                break;
+            }
+        }
+
+        return result;
     }
 
     /**
@@ -458,7 +582,7 @@ public class DynamicClassExtension implements ClassExtension {
         }
     }
 
-    record ExtensionOperationResult(Object operation, Class<?> inClass) {}
+    record ExtensionOperationResult(PerformerHolder<?> operation, Class<?> inClass) {}
 
     <T> ExtensionOperationResult findExtensionOperation(Object anObject, Class<T> anExtensionInterface, Method method, Object[] anArgs) {
         return findExtensionOperation(anObject.getClass(), anExtensionInterface, method, anArgs);
@@ -484,7 +608,7 @@ public class DynamicClassExtension implements ClassExtension {
 
         all: for (Class<?> objectClass : objectClasses) {
             for (Class<?> extensionInterface : extensionInterfaces) {
-                Object operation = getExtensionOperation(objectClass, extensionInterface, operationName);
+                PerformerHolder<?> operation = getExtensionOperation(objectClass, extensionInterface, operationName);
                 if (operation != null) {
                     result = new ExtensionOperationResult(operation, objectClass);
                     break all;
@@ -497,7 +621,7 @@ public class DynamicClassExtension implements ClassExtension {
 
     @SuppressWarnings({"rawtypes", "unchecked"})
     <T> ExtensionOperationResult findExtensionOperationByClass(Class<?> anObjectClass, Class<T> anExtensionInterface, Method method, Object[] anArgs) {
-        Object result;
+        PerformerHolder<?> result;
         Class current = anObjectClass;
         do {
             result = getExtensionOperation(current, anExtensionInterface, operationName(method.getName(), parameterTypes(anArgs)));
@@ -603,86 +727,19 @@ public class DynamicClassExtension implements ClassExtension {
         return operationKeyToString(anOperationKey, operationsMap.get(anOperationKey));
     }
 
-    String operationKeyToString(OperationKey anOperationKey, Object lambda) {
+    String operationKeyToString(OperationKey anOperationKey, PerformerHolder<?> aPerformerHolder) {
         String operationName = anOperationKey.simpleOperationName();
         String result = null;
-        if (lambda instanceof Function)
+        Performer<?> performer = aPerformerHolder.performer;
+        if (performer instanceof Function)
             result = MessageFormat.format("T {0}()\n", operationName);
-        else if (lambda instanceof BiFunction)
+        else if (performer instanceof BiFunction)
             result = MessageFormat.format("T {0}(T)\n", operationName);
-        else if (lambda instanceof Consumer)
+        else if (performer instanceof Consumer)
             result = MessageFormat.format("void {0}()\n", operationName);
-        else if (lambda instanceof BiConsumer)
+        else if (performer instanceof BiConsumer)
             result = MessageFormat.format("void {0}(T)\n", operationName);
         return result;
-    }
-
-    private final ConcurrentHashMap<OperationKey, Object> operationsMap = new ConcurrentHashMap<>();
-    private static final DynamicClassExtension dynamicClassExtension = new DynamicClassExtension();
-
-    //region Cache methods
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public boolean isCacheEnabled() {
-        return cacheEnabled;
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public void setCacheEnabled(boolean isCacheEnabled) {
-        if (cacheEnabled != isCacheEnabled) {
-            cacheEnabled = isCacheEnabled;
-            if (! isCacheEnabled)
-                cacheClear();
-        }
-    }
-
-    @SuppressWarnings("rawtypes")
-    final ThreadSafeWeakCache extensionCache = new ThreadSafeWeakCache();
-
-    /**
-     * {@inheritDoc}
-     */
-    public void cacheCleanup() {
-        extensionCache.cleanup();
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    public void cacheClear() {
-        extensionCache.clear();
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    public void scheduleCacheCleanup() {
-        extensionCache.scheduleCleanup();
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    public void shutdownCacheCleanup() {
-        extensionCache.shutdownCleanup();
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    public boolean cacheIsEmpty() {
-        return extensionCache.isEmpty();
-    }
-    //endregion
-
-    public static DynamicClassExtension sharedInstance() {
-        return dynamicClassExtension;
     }
 
     @SuppressWarnings("unused")
@@ -707,17 +764,22 @@ public class DynamicClassExtension implements ClassExtension {
     public static class Builder<E> {
         private final DynamicClassExtension dynamicClassExtension;
         private final Class<E> extensionClass;
-        private String operationName;
+        private final String operationName;
+        private final PerformerHolder<?> performerHolder;
 
-        Builder(Class<E> aExtensionClass, DynamicClassExtension aDynamicClassExtension) {
-            extensionClass = aExtensionClass;
-            dynamicClassExtension = aDynamicClassExtension;
+        Builder(Class<E> anExtensionClass, DynamicClassExtension aDynamicClassExtension) {
+            this(anExtensionClass, null, aDynamicClassExtension, null);
         }
 
-        Builder(Class<E> aExtensionClass, String aOperationName, DynamicClassExtension aDynamicClassExtension) {
+        Builder(Class<E> anExtensionClass, String anOperationName, DynamicClassExtension aDynamicClassExtension) {
+            this(anExtensionClass, anOperationName, aDynamicClassExtension, null);
+        }
+
+        Builder(Class<E> aExtensionClass, String aOperationName, DynamicClassExtension aDynamicClassExtension, PerformerHolder<?> aPerformerHolder) {
             extensionClass = aExtensionClass;
             operationName = aOperationName;
             dynamicClassExtension = aDynamicClassExtension;
+            performerHolder = aPerformerHolder;
         }
 
         /**
@@ -744,14 +806,28 @@ public class DynamicClassExtension implements ClassExtension {
         }
 
         /**
+         * Alters an operation. Use following async(), before() and after() methods to alter the operation behaviour
+         * @param anObjectClass object class
+         * @param aParameterTypes arguments. Pass {@code null} or an empty array to define parameterless operation; otherwise pass
+         *               an array of parameter types
+         * @return a copy of this {@code Builder}
+         */
+        @SuppressWarnings("unused")
+        public <T1> Builder<E> alterOp(Class<T1> anObjectClass, Class<?>[] aParameterTypes) {
+            PerformerHolder<?> performerHolder = dynamicClassExtension.operationsMap.get(new OperationKey(anObjectClass, extensionClass,
+                    dynamicClassExtension.operationName(operationName, aParameterTypes)));
+            return new Builder<>(extensionClass, operationName, dynamicClassExtension, performerHolder);
+        }
+
+        /**
          * Adds a non-void parameterless operation
          * @param anObjectClass object class
          * @param anOperation lambda that defines an operation
          * @return a copy of this {@code Builder}
          */
         public <R, T1> Builder<E> op(Class<T1> anObjectClass, FunctionPerformer<T1, R> anOperation) {
-            dynamicClassExtension.addExtensionOperation(anObjectClass, extensionClass, operationName, anOperation);
-            return new Builder<>(extensionClass, operationName, dynamicClassExtension);
+            PerformerHolder<R> performerHolder = dynamicClassExtension.addExtensionOperation(anObjectClass, extensionClass, operationName, anOperation);
+            return new Builder<>(extensionClass, operationName, dynamicClassExtension, performerHolder);
         }
 
         /**
@@ -761,8 +837,8 @@ public class DynamicClassExtension implements ClassExtension {
          * @return a copy of this {@code Builder}
          */
         public <R, T1, U> Builder<E> op(Class<T1> anObjectClass, BiFunctionPerformer<T1, U, R> anOperation) {
-            dynamicClassExtension.addExtensionOperation(anObjectClass, extensionClass, operationName, anOperation);
-            return new Builder<>(extensionClass, operationName, dynamicClassExtension);
+            PerformerHolder<R> performerHolder = dynamicClassExtension.addExtensionOperation(anObjectClass, extensionClass, operationName, anOperation);
+            return new Builder<>(extensionClass, operationName, dynamicClassExtension, performerHolder);
         }
 
         /**
@@ -772,8 +848,8 @@ public class DynamicClassExtension implements ClassExtension {
          * @return a copy of this {@code Builder}
          */
         public <T1> Builder<E> voidOp(Class<T1> anObjectClass, ConsumerPerformer<T1> anOperation) {
-            dynamicClassExtension.addVoidExtensionOperation(anObjectClass, extensionClass, operationName, anOperation);
-            return new Builder<>(extensionClass, operationName, dynamicClassExtension);
+            PerformerHolder<Void> performerHolder = dynamicClassExtension.addVoidExtensionOperation(anObjectClass, extensionClass, operationName, anOperation);
+            return new Builder<>(extensionClass, operationName, dynamicClassExtension, performerHolder);
         }
 
         /**
@@ -783,8 +859,89 @@ public class DynamicClassExtension implements ClassExtension {
          * @return a copy of this {@code Builder}
          */
         public <T1, U> Builder<E> voidOp(Class<T1> anObjectClass, BiConsumerPerformer<T1, U> anOperation) {
-            dynamicClassExtension.addVoidExtensionOperation(anObjectClass, extensionClass, operationName, anOperation);
-            return new Builder<>(extensionClass, operationName, dynamicClassExtension);
+            PerformerHolder<Void> performerHolder = dynamicClassExtension.addVoidExtensionOperation(anObjectClass, extensionClass, operationName, anOperation);
+            return new Builder<>(extensionClass, operationName, dynamicClassExtension, performerHolder);
+        }
+
+        /**
+         * Specifies that current operation (previously defined by calling {@code op()} or {@code voidOp()}) must be run
+         * asynchronously.<br/><br/>
+         *
+         * Asynchronous operations will not block the caller thread. For non-void operations - {@code 0} or
+         * {@code null} will be returned immediately depending on operation return type.
+         *
+         * @return a copy of this {@code Builder}
+         */
+        public Builder<E> async() {
+            return async(true);
+        }
+
+        /**
+         * Specifies whether current operation (previously defined by calling {@code op()} or {@code voidOp()}) must be run
+         * asynchronously or synchronously.<br/><br/>
+         *
+         * Asynchronous operations will not block the caller thread. For non-void operations - {@code 0} or
+         * {@code null} will be returned immediately depending on operation return type.
+         *
+         * @param isAsync {@code true} if an operation must be run asynchronously; {@code false} otherwise
+         * @return a copy of this {@code Builder}
+         */
+        public Builder<E> async(boolean isAsync) {
+            checkPerformerHolder();
+
+            performerHolder.setAsync(isAsync);
+            return new Builder<>(extensionClass, operationName, dynamicClassExtension, performerHolder);
+        }
+
+        /**
+         * Specifies that current operation (previously defined by calling {@code op()} or {@code voidOp()}) must be run
+         * asynchronously. Such an operation will not block the caller thread. For non-void operations - {@code 0} or
+         * {@code null} will be returned immediately depending on operation return type.
+         *
+         * @param aWhenComplete a lambda to be called when an operation completes. It provides an operation result and
+         *                      an exception if the operation fails.
+         * @return a copy of this {@code Builder}
+         */
+        public <R> Builder<E> async(BiConsumer<? super R, ? super Throwable> aWhenComplete) {
+            checkPerformerHolder();
+
+            performerHolder.setAsync(true);
+            performerHolder.setWhenComplete(aWhenComplete);
+            return new Builder<>(extensionClass, operationName, dynamicClassExtension, performerHolder);
+        }
+
+        /**
+         * Specifies a code which must be performed before running current operation (previously defined by calling {@code op()}
+         * or {@code voidOp()}).
+         *
+         * @param aBefore a lambda function should be performed before running current operation. It takes an object the operation
+         *                should be performed for and an array of arguments.
+         * @return a copy of this {@code Builder}
+         */
+        public Builder<E> before(BiConsumer<? super Object, Object[]> aBefore) {
+            checkPerformerHolder();
+
+            performerHolder.setBefore(aBefore);
+            return new Builder<>(extensionClass, operationName, dynamicClassExtension, performerHolder);
+        }
+
+        /**
+         * Specifies a code which must be performed before running current operation (previously defined by calling {@code op()}
+         * or {@code voidOp()}).
+         *
+         * @param anAfter a lambda function should be performed after running current operation. It takes a result of the operation
+         * @return a copy of this {@code Builder}
+         */
+        public Builder<E> after(Consumer<? super Object> anAfter) {
+            checkPerformerHolder();
+
+            performerHolder.setAfter(anAfter);
+            return new Builder<>(extensionClass, operationName, dynamicClassExtension, performerHolder);
+        }
+
+        private void checkPerformerHolder() {
+            Objects.requireNonNull(performerHolder, MessageFormat.format("No \"{0}\" operation is specified",
+                    operationName != null ? operationName: "<any>"));
         }
 
         /**
@@ -795,31 +952,5 @@ public class DynamicClassExtension implements ClassExtension {
             return dynamicClassExtension;
         }
     }
-
-    //region Verbose Mode support methods
-    boolean verbose;
-
-    @Override
-    public boolean isVerbose() {
-        return verbose;
-    }
-
-    @Override
-    public void setVerbose(boolean isVerbose) {
-        if (verbose != isVerbose) {
-            verbose = isVerbose;
-            if (isVerbose())
-                setupLogger();
-        }
-    }
-
-    Logger logger;
-    protected void setupLogger() {
-        if (logger == null) {
-            logger = Logger.getLogger(getClass().getName());
-            logger.setLevel(Level.ALL);
-        }
-    }
-    //endregion
 }
 
