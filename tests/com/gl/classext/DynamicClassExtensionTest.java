@@ -4,6 +4,8 @@ package com.gl.classext;
 import org.junit.jupiter.api.Test;
 
 import java.text.MessageFormat;
+import java.util.ArrayList;
+import java.util.List;
 
 import static java.lang.System.out;
 import static org.junit.jupiter.api.Assertions.*;
@@ -889,6 +891,74 @@ public class DynamicClassExtensionTest {
         out.println(stringBuilder.toString());
         assertEquals("""
                     RESULT: Book["The Mythical Man-Month"]""", stringBuilder.toString());
+    }
+
+    @Test
+    void testAspectUsingBuilder() {
+        List<String> out = new ArrayList<>();
+        DynamicClassExtension dynamicClassExtension = new DynamicClassExtension().builder(Item_Shippable.class).
+//                opName("toString").
+//                    op(Object.class, Object::toString).
+                opName("log").
+                    voidOp(Item.class, (Item item, Boolean isVerbose) -> out.add(item.getName() + " is about to be shipped in 1 hour")).
+                    voidOp(Item.class, item -> out.add(item.getName() +" is about to be shipped")).
+                build();
+
+        dynamicClassExtension.aspectBuilder().
+                extensionInterface("*").
+                    operation("toString()").
+                        objectClass(Object.class).
+                            before((object, args) -> out.add("BEFORE: " + object + "-> toString()")).
+                            after(result -> out.add("AFTER: result - " + result)).
+                        objectClass(Book.class).
+                            before((object, args) -> out.add("BOOK BEFORE: " + object + "-> toString()")).
+                            after(result -> out.add("BOOK AFTER: result - " + result)).
+                    objectClass(Item.class).
+                        operation("log()").
+                            before((object, args) -> out.add("BEFORE LOG: " + object + "-> toString()")).
+                        operation("log(boolean)").
+                            after(result -> out.add("AFTER LOG: result - " + result));
+
+        Item[] items = {
+                new Book("The Mythical Man-Month"),
+                new Furniture("Sofa"),
+                new ElectronicItem("Soundbar"),
+                new AutoPart("Tire"),
+        };
+
+        for (Item item : items) {
+            Item_Shippable extension = dynamicClassExtension.extension(item, Item_Shippable.class);
+            extension.toString();
+            extension.log();
+            extension.log(true);
+        }
+        String outString = String.join("\n", out);
+        System.out.println(outString);
+        assertEquals("""
+                            BOOK BEFORE: Book["The Mythical Man-Month"]-> toString()
+                            BOOK AFTER: result - Book["The Mythical Man-Month"]
+                            BEFORE LOG: Book["The Mythical Man-Month"]-> toString()
+                            The Mythical Man-Month is about to be shipped
+                            The Mythical Man-Month is about to be shipped in 1 hour
+                            AFTER LOG: result - null
+                            BEFORE: Furniture["Sofa"]-> toString()
+                            AFTER: result - Furniture["Sofa"]
+                            BEFORE LOG: Furniture["Sofa"]-> toString()
+                            Sofa is about to be shipped
+                            Sofa is about to be shipped in 1 hour
+                            AFTER LOG: result - null
+                            BEFORE: ElectronicItem["Soundbar"]-> toString()
+                            AFTER: result - ElectronicItem["Soundbar"]
+                            BEFORE LOG: ElectronicItem["Soundbar"]-> toString()
+                            Soundbar is about to be shipped
+                            Soundbar is about to be shipped in 1 hour
+                            AFTER LOG: result - null
+                            BEFORE: AutoPart["Tire"]-> toString()
+                            AFTER: result - AutoPart["Tire"]
+                            BEFORE LOG: AutoPart["Tire"]-> toString()
+                            Tire is about to be shipped
+                            Tire is about to be shipped in 1 hour
+                            AFTER LOG: result - null""", outString);
     }
 
     private static void sleep() {

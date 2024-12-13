@@ -31,10 +31,7 @@ import java.text.MessageFormat;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.function.BiConsumer;
-import java.util.function.BiFunction;
-import java.util.function.Consumer;
-import java.util.function.Function;
+import java.util.function.*;
 import java.util.stream.Collectors;
 
 /**
@@ -438,19 +435,34 @@ public class DynamicClassExtension extends AbstractClassExtension {
                         anObject,
                         extensionOperation.inClass().getName(),
                         operationKeyToString(new OperationKey(anObject.getClass(), anExtensionClass, method.getName()), performerHolder)));
+
+            Pointcut beforePointcut = performerHolder.before == null ?
+                    getPointcut(anExtensionClass, anObject.getClass(), method.getName(), method.getParameterTypes(), AdviceType.BEFORE) : null;
+            Pointcut afterPointcut = performerHolder.after == null ?
+                    getPointcut(anExtensionClass, anObject.getClass(), method.getName(), method.getParameterTypes(), AdviceType.AFTER) : null;
+
             if (performerHolder.isAsync()) {
-                CompletableFuture<?> future = CompletableFuture.supplyAsync(() -> performOperation(anObject, args, performerHolder));
+                CompletableFuture<?> future = CompletableFuture.supplyAsync(() -> performOperation(anObject, args,
+                        performerHolder,
+                        beforePointcut, afterPointcut));
                 if (performerHolder.getWhenComplete() != null)
                     future.whenComplete((BiConsumer) performerHolder.getWhenComplete());
                 result = dummyReturnValue(method);
             } else {
-                result = performOperation(anObject, args, performerHolder);
+                result = performOperation(anObject, args, performerHolder, beforePointcut, afterPointcut);
             }
         } else {
+            Pointcut beforePointcut = getPointcut(anExtensionClass, anObject.getClass(), method.getName(), method.getParameterTypes(), AdviceType.BEFORE);
+            Pointcut afterPointcut =  getPointcut(anExtensionClass, anObject.getClass(), method.getName(), method.getParameterTypes(), AdviceType.AFTER);
+
             if (method.getDeclaringClass().isAssignableFrom(anObject.getClass())) {
                 if (aClassExtension.isVerbose())
                     aClassExtension.logger.info(MessageFormat.format("Performing operation for delegate \"{0}\" -> {1}", anObject, method));
+                if (beforePointcut != null)
+                    beforePointcut.before(anObject, args);
                 result = method.invoke(anObject, args);
+                if (afterPointcut != null)
+                    afterPointcut.after(result);
             } else if (method.getDeclaringClass().isAssignableFrom(PrivateDelegateHolder.class)) {
                 result = method.invoke((PrivateDelegateHolder)() -> anObject, args);
             } else {
@@ -462,7 +474,9 @@ public class DynamicClassExtension extends AbstractClassExtension {
         return result;
     }
 
-    private static Object performOperation(Object anObject, Object[] args, PerformerHolder<?> performerHolder) {
+    private static Object performOperation(Object anObject, Object[] args,
+                                           PerformerHolder<?> performerHolder,
+                                           Pointcut aBeforePointcut, Pointcut anAfterPointcut) {
         Object result;
         List<Object> arguments = new ArrayList<>();
         arguments.add(anObject);
@@ -471,11 +485,16 @@ public class DynamicClassExtension extends AbstractClassExtension {
 
         if (performerHolder.getBefore() != null)
             performerHolder.getBefore().accept(anObject, args);
+        else if (aBeforePointcut != null)
+            aBeforePointcut.before(anObject, args);
 
         result = performerHolder.getPerformer().perform(arguments.toArray());
 
         if (performerHolder.getAfter() != null)
             performerHolder.getAfter().accept(result);
+        else if (anAfterPointcut != null)
+            anAfterPointcut.after(result);
+
         return result;
     }
 
