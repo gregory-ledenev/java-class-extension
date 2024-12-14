@@ -7,6 +7,7 @@ import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.List;
 
+import static com.gl.classext.AbstractClassExtension.AroundAdvice.applyDefault;
 import static java.lang.System.out;
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -903,6 +904,7 @@ public class DynamicClassExtensionTest {
                     voidOp(Item.class, (Item item, Boolean isVerbose) -> out.add(item.getName() + " is about to be shipped in 1 hour")).
                     voidOp(Item.class, item -> out.add(item.getName() +" is about to be shipped")).
                 build();
+//        dynamicClassExtension.setVerbose(true);
 
         dynamicClassExtension.aspectBuilder().
                 extensionInterface("*").
@@ -913,11 +915,13 @@ public class DynamicClassExtensionTest {
                         objectClass(Book.class).
                             before((object, args) -> out.add("BOOK BEFORE: " + object + "-> toString()")).
                             after(result -> out.add("BOOK AFTER: result - " + result)).
+                        objectClass(AutoPart.class).
+                            around((performer, object, args) -> "ALTERED AUTO PART: " + applyDefault(performer, object, args)).
                     objectClass(Item.class).
                         operation("log()").
-                            before((object, args) -> out.add("BEFORE LOG: " + object + "-> toString()")).
+                            around(AbstractClassExtension.AroundAdvice::applyDefault).
                         operation("log(boolean)").
-                            after(result -> out.add("AFTER LOG: result - " + result));
+                            after(result -> out.add("AFTER log(boolean): result - " + result));
 
         Item[] items = {
                 new Book("The Mythical Man-Month"),
@@ -928,37 +932,32 @@ public class DynamicClassExtensionTest {
 
         for (Item item : items) {
             Item_Shippable extension = dynamicClassExtension.extension(item, Item_Shippable.class);
-            extension.toString();
+            System.out.println(extension.toString());
             extension.log();
             extension.log(true);
         }
+        System.out.println("-----------");
         String outString = String.join("\n", out);
         System.out.println(outString);
         assertEquals("""
-                            BOOK BEFORE: Book["The Mythical Man-Month"]-> toString()
-                            BOOK AFTER: result - Book["The Mythical Man-Month"]
-                            BEFORE LOG: Book["The Mythical Man-Month"]-> toString()
-                            The Mythical Man-Month is about to be shipped
-                            The Mythical Man-Month is about to be shipped in 1 hour
-                            AFTER LOG: result - null
-                            BEFORE: Furniture["Sofa"]-> toString()
-                            AFTER: result - Furniture["Sofa"]
-                            BEFORE LOG: Furniture["Sofa"]-> toString()
-                            Sofa is about to be shipped
-                            Sofa is about to be shipped in 1 hour
-                            AFTER LOG: result - null
-                            BEFORE: ElectronicItem["Soundbar"]-> toString()
-                            AFTER: result - ElectronicItem["Soundbar"]
-                            BEFORE LOG: ElectronicItem["Soundbar"]-> toString()
-                            Soundbar is about to be shipped
-                            Soundbar is about to be shipped in 1 hour
-                            AFTER LOG: result - null
-                            BEFORE: AutoPart["Tire"]-> toString()
-                            AFTER: result - AutoPart["Tire"]
-                            BEFORE LOG: AutoPart["Tire"]-> toString()
-                            Tire is about to be shipped
-                            Tire is about to be shipped in 1 hour
-                            AFTER LOG: result - null""", outString);
+                     BOOK BEFORE: Book["The Mythical Man-Month"]-> toString()
+                     BOOK AFTER: result - Book["The Mythical Man-Month"]
+                     The Mythical Man-Month is about to be shipped
+                     The Mythical Man-Month is about to be shipped in 1 hour
+                     AFTER log(boolean): result - null
+                     BEFORE: Furniture["Sofa"]-> toString()
+                     AFTER: result - Furniture["Sofa"]
+                     Sofa is about to be shipped
+                     Sofa is about to be shipped in 1 hour
+                     AFTER log(boolean): result - null
+                     BEFORE: ElectronicItem["Soundbar"]-> toString()
+                     AFTER: result - ElectronicItem["Soundbar"]
+                     Soundbar is about to be shipped
+                     Soundbar is about to be shipped in 1 hour
+                     AFTER log(boolean): result - null
+                     Tire is about to be shipped
+                     Tire is about to be shipped in 1 hour
+                     AFTER log(boolean): result - null""", outString);
     }
 
     private static void sleep() {

@@ -10,6 +10,8 @@ import java.util.logging.Logger;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
+import static java.text.MessageFormat.*;
+
 public abstract class AbstractClassExtension implements ClassExtension {
     //region Cache methods
     private boolean cacheEnabled = true;
@@ -150,13 +152,42 @@ public abstract class AbstractClassExtension implements ClassExtension {
     }
 
     public enum AdviceType {
-        BEFORE, AFTER
+        BEFORE,
+        AFTER,
+        AROUND
+    }
+
+    @FunctionalInterface
+    interface Performer<R> {
+        R perform(Object anObject, Object[] anArgs);
+    }
+
+    @FunctionalInterface
+    public interface AroundAdvice {
+        Object apply(Object performer, Object object, Object[] args);
+
+        @SuppressWarnings("rawtypes")
+        static Object applyDefault(Object performer, Object object, Object[] args) {
+            Objects.requireNonNull(performer);
+            Objects.requireNonNull(object);
+
+            if (performer instanceof Performer)
+                return applyDefault((Performer) performer, object, args);
+            else
+                throw new IllegalStateException("Unsupported performer for around advice: " + performer);
+        }
+
+        @SuppressWarnings("rawtypes")
+        private static Object applyDefault(Performer performer, Object object, Object[] args) {
+            return performer.perform(object, args);
+        }
     }
 
     public record Pointcut(Predicate<Class<?>> extensionInterface,
-                    Predicate<Class<?>> objectClass,
+                           Predicate<Class<?>> objectClass,
                            BiPredicate<String, Class<?>[]> operation,
-                    AdviceType adviceType, Object advice) {
+                           AdviceType adviceType, Object advice) {
+
         public Pointcut(Predicate<Class<?>> extensionInterface, Predicate<Class<?>> objectClass, BiPredicate<String, Class<?>[]> operation, AdviceType adviceType, Object advice) {
             this.extensionInterface = extensionInterface;
             this.objectClass = objectClass;
@@ -164,13 +195,17 @@ public abstract class AbstractClassExtension implements ClassExtension {
             this.adviceType = adviceType;
             switch (this.adviceType) {
                 case BEFORE:
-                    if (! (advice instanceof BiConsumer))
+                    if (!(advice instanceof BiConsumer))
                         throw new IllegalArgumentException("Advice(BEFORE) is not a BiConsumer");
-                break;
+                    break;
                 case AFTER:
-                    if (! (advice instanceof Consumer))
+                    if (!(advice instanceof Consumer))
                         throw new IllegalArgumentException("Advice(AFTER) is not a Consumer");
-                break;
+                    break;
+                case AROUND:
+                    if (!(advice instanceof AroundAdvice))
+                        throw new IllegalArgumentException("Advice(AROUND) is not a AroundAdvice");
+                    break;
                 default:
                     throw new IllegalStateException("Unexpected value: " + this.adviceType);
             }
@@ -204,6 +239,10 @@ public abstract class AbstractClassExtension implements ClassExtension {
         @SuppressWarnings("unchecked")
         public void after(Object aResult) {
             ((Consumer<? super Object>) advice).accept(aResult);
+        }
+
+        public Object around(Object aPerformer, Object anObject, Object[] anArguments) {
+            return ((AroundAdvice) advice).apply(aPerformer, anObject, anArguments);
         }
     }
 
@@ -262,9 +301,18 @@ public abstract class AbstractClassExtension implements ClassExtension {
         public AspectBuilder operation(String anOperation) {
             Objects.requireNonNull(anOperation);
 
-            operation = (operation, parameterTypes) ->
-                    operationNameMatches(operation, anOperation) &&
-                    operationParameterTypesMatch(anOperation, parameterTypes);
+            operation = new BiPredicate<>() {
+                @Override
+                public boolean test(String operation, Class<?>[] parameterTypes) {
+                    return AspectBuilder.this.operationNameMatches(operation, anOperation) &&
+                            AspectBuilder.this.operationParameterTypesMatch(anOperation, parameterTypes);
+                }
+
+                @Override
+                public String toString() {
+                    return format("OperationPredicate(\"{0}\")", anOperation);
+                }
+            };
             return this;
         }
 
@@ -297,6 +345,8 @@ public abstract class AbstractClassExtension implements ClassExtension {
             if (anOperation.contains("(")) {
                 String params = anOperation.replaceAll(".*\\((.*)\\).*", "$1");
                 result = params.split("\\s*,\\s*");
+                for (int i = 0; i < result.length; i++)
+                    result[i] = result[i].trim();
             }
             return result.length == 1 && "".equals(result[0]) ? EMPTY_PARAMETERS : result;
         }
@@ -315,6 +365,13 @@ public abstract class AbstractClassExtension implements ClassExtension {
             return this;
         }
 
+        public AspectBuilder around(AroundAdvice anAround) {
+            Objects.requireNonNull(anAround);
+            checkPrerequisites();
+            classExtension.addPointcut(new Pointcut(extensionInterface, objectClass, operation, AdviceType.AROUND, anAround));
+            return this;
+        }
+
         private void checkPrerequisites() {
             Objects.requireNonNull(objectClass, "Object class is not specified");
             Objects.requireNonNull(extensionInterface, "Extension interface is not specified");
@@ -322,23 +379,53 @@ public abstract class AbstractClassExtension implements ClassExtension {
         }
 
         private static Predicate<Class<?>> getClassPredicate(String aClassName) {
-            return aClass -> matches(
-                    aClassName,
-                    aClassName.contains(".") ? aClass.getName() : aClass.getSimpleName());
+            return new Predicate<>() {
+                @Override
+                public boolean test(Class<?> aClass) {
+                    return matches(
+                            aClassName,
+                            aClassName.contains(".") ? aClass.getName() : aClass.getSimpleName());
+                }
+
+                @Override
+                public String toString() {
+                    return format("ClassPredicate(\"{0}\")", aClassName);
+                }
+            };
+        }
+
+        private static Predicate<Class<?>> getClassPredicate(Class<?> anExtensionClass) {
+            return new Predicate<>() {
+                @Override
+                public boolean test(Class<?> obj) {
+                    return anExtensionClass.equals(obj);
+                }
+
+                @Override
+                public String toString() {
+                    return format("ClassPredicate(\"{0}\")", anExtensionClass);
+                }
+            };
+        }
+
+        private static Predicate<Class<?>> getClassPredicate(Class<?>[] anExtensionClasses) {
+            return new Predicate<>() {
+                @Override
+                public boolean test(Class<?> aClass) {
+                    return Arrays.asList(anExtensionClasses).contains(aClass);
+                }
+
+                @Override
+                public String toString() {
+                    return format("ClassPredicate(\"{0}\")", Arrays.toString(anExtensionClasses));
+                }
+            };
         }
 
         private static boolean matches(String aPattern, String aString) {
             return Pattern.matches(
                     aPattern.replace("*", ".*").replace("?", "."),
                     aString);
-        }
-
-        private static Predicate<Class<?>> getClassPredicate(Class<?> anExtensionClass) {
-            return anExtensionClass::equals;
-        }
-
-        private static Predicate<Class<?>> getClassPredicate(Class<?>[] anExtensionClasses) {
-            return aClass -> Arrays.asList(anExtensionClasses).contains(aClass);
         }
     }
 }
