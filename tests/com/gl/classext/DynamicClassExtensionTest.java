@@ -7,7 +7,8 @@ import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.List;
 
-import static com.gl.classext.AbstractClassExtension.AroundAdvice.applyDefault;
+import static com.gl.classext.Aspects.*;
+import static com.gl.classext.Aspects.AroundAdvice.applyDefault;
 import static java.lang.System.out;
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -15,10 +16,11 @@ import static org.junit.jupiter.api.Assertions.*;
 public class DynamicClassExtensionTest {
     interface ItemInterface {
         String getName();
+        void setName(String name);
     }
 
     static class Item implements ItemInterface {
-        private final String name;
+        private String name;
 
         public Item(String aName) {
             name = aName;
@@ -31,6 +33,11 @@ public class DynamicClassExtensionTest {
 
         public String getName() {
             return name;
+        }
+
+        @Override
+        public void setName(String name) {
+            this.name = name;
         }
     }
 
@@ -910,18 +917,18 @@ public class DynamicClassExtensionTest {
                 extensionInterface("*").
                     operation("toString()").
                         objectClass(Object.class).
-                            before((object, args) -> out.add("BEFORE: " + object + "-> toString()")).
-                            after(result -> out.add("AFTER: result - " + result)).
+                            before((operation, object, args) -> out.add("BEFORE: " + object + "-> toString()")).
+                            after((result, operation, object, args) -> out.add("AFTER: result - " + result)).
                         objectClass(Book.class).
-                            before((object, args) -> out.add("BOOK BEFORE: " + object + "-> toString()")).
-                            after(result -> out.add("BOOK AFTER: result - " + result)).
+                            before((operation,object, args) -> out.add("BOOK BEFORE: " + object + "-> toString()")).
+                            after((result, operation, object, args) -> out.add("BOOK AFTER: result - " + result)).
                         objectClass(AutoPart.class).
-                            around((performer, object, args) -> "ALTERED AUTO PART: " + applyDefault(performer, object, args)).
+                            around((performer, operation, object, args) -> "ALTERED AUTO PART: " + applyDefault(performer, operation, object, args)).
                     objectClass(Item.class).
                         operation("log()").
-                            around(AbstractClassExtension.AroundAdvice::applyDefault).
+                            around(AroundAdvice::applyDefault).
                         operation("log(boolean)").
-                            after(result -> out.add("AFTER log(boolean): result - " + result));
+                            after((result, operation, object, args) -> out.add("AFTER log(boolean): result - " + result));
 
         Item[] items = {
                 new Book("The Mythical Man-Month"),
@@ -936,7 +943,7 @@ public class DynamicClassExtensionTest {
             extension.log();
             extension.log(true);
         }
-        System.out.println("-----------");
+        System.out.println("----------- Aspects Enabled");
         String outString = String.join("\n", out);
         System.out.println(outString);
         assertEquals("""
@@ -958,6 +965,60 @@ public class DynamicClassExtensionTest {
                      Tire is about to be shipped
                      Tire is about to be shipped in 1 hour
                      AFTER log(boolean): result - null""", outString);
+
+        dynamicClassExtension.setAspectsEnabled(false);
+        out.clear();
+        for (Item item : items) {
+            Item_Shippable extension = dynamicClassExtension.extension(item, Item_Shippable.class);
+            System.out.println(extension.toString());
+            extension.log();
+            extension.log(true);
+        }
+        System.out.println("----------- Aspects Disabled");
+        outString = String.join("\n", out);
+        System.out.println(outString);
+        assertEquals("""
+                     The Mythical Man-Month is about to be shipped
+                     The Mythical Man-Month is about to be shipped in 1 hour
+                     Sofa is about to be shipped
+                     Sofa is about to be shipped in 1 hour
+                     Soundbar is about to be shipped
+                     Soundbar is about to be shipped in 1 hour
+                     Tire is about to be shipped
+                     Tire is about to be shipped in 1 hour""", outString);
+    }
+
+    @Test
+    void logPerformTimeExtensionTEst() {
+        Item[] items = {
+                new Book("The Mythical Man-Month"),
+                new Furniture("Sofa"),
+                new ElectronicItem("Soundbar"),
+                new AutoPart("Tire"),
+        };
+
+        for (Item item : items) {
+            Item_Shippable extension = Aspects.logPerformTimeExtension(item, Item_Shippable.class);
+            System.out.println(extension.toString());
+        }
+    }
+
+    @Test
+    void propertyChangeAdviceTest() {
+        DynamicClassExtension dynamicClassExtension = new DynamicClassExtension();
+
+        dynamicClassExtension.aspectBuilder().
+                extensionInterface(ItemInterface.class).
+                objectClass(Item.class).
+                    operation("setName(*)").
+                        around(new PropertyChangeAdvice(evt -> out.println(evt.toString())));
+
+        Book book = new Book("The Mythical Man-Month");
+        Item_Shippable extension = dynamicClassExtension.extension(book, Item_Shippable.class);
+        out.println(extension.getName());
+        extension.setName("Shining");
+        out.println(extension.getName());
+        extension.setName("Shining");
     }
 
     private static void sleep() {

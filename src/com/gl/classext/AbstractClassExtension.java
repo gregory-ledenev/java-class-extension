@@ -1,16 +1,11 @@
 package com.gl.classext;
 
 import java.util.*;
-import java.util.function.BiConsumer;
-import java.util.function.BiPredicate;
-import java.util.function.Consumer;
-import java.util.function.Predicate;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
-import static java.text.MessageFormat.*;
+import static com.gl.classext.Aspects.*;
 
 public abstract class AbstractClassExtension implements ClassExtension {
     //region Cache methods
@@ -101,7 +96,17 @@ public abstract class AbstractClassExtension implements ClassExtension {
     }
 //endregion}
 
-    protected List<Pointcut> pointcuts = Collections.synchronizedList(new ArrayList<>());
+    protected final List<Pointcut> pointcuts = Collections.synchronizedList(new ArrayList<>());
+
+    public boolean isAspectsEnabled() {
+        return aspectsEnabled;
+    }
+
+    public void setAspectsEnabled(boolean aAspectsEnabled) {
+        aspectsEnabled = aAspectsEnabled;
+    }
+
+    private boolean aspectsEnabled = true;
 
     protected void addPointcut(Pointcut aPointcut) {
         pointcuts.add(aPointcut);
@@ -151,281 +156,8 @@ public abstract class AbstractClassExtension implements ClassExtension {
         return new AspectBuilder(this);
     }
 
-    public enum AdviceType {
-        BEFORE,
-        AFTER,
-        AROUND
-    }
-
     @FunctionalInterface
     interface Performer<R> {
-        R perform(Object anObject, Object[] anArgs);
-    }
-
-    @FunctionalInterface
-    public interface AroundAdvice {
-        Object apply(Object performer, Object object, Object[] args);
-
-        @SuppressWarnings("rawtypes")
-        static Object applyDefault(Object performer, Object object, Object[] args) {
-            Objects.requireNonNull(performer);
-            Objects.requireNonNull(object);
-
-            if (performer instanceof Performer)
-                return applyDefault((Performer) performer, object, args);
-            else
-                throw new IllegalStateException("Unsupported performer for around advice: " + performer);
-        }
-
-        @SuppressWarnings("rawtypes")
-        private static Object applyDefault(Performer performer, Object object, Object[] args) {
-            return performer.perform(object, args);
-        }
-    }
-
-    public record Pointcut(Predicate<Class<?>> extensionInterface,
-                           Predicate<Class<?>> objectClass,
-                           BiPredicate<String, Class<?>[]> operation,
-                           AdviceType adviceType, Object advice) {
-
-        public Pointcut(Predicate<Class<?>> extensionInterface, Predicate<Class<?>> objectClass, BiPredicate<String, Class<?>[]> operation, AdviceType adviceType, Object advice) {
-            this.extensionInterface = extensionInterface;
-            this.objectClass = objectClass;
-            this.operation = operation;
-            this.adviceType = adviceType;
-            switch (this.adviceType) {
-                case BEFORE:
-                    if (!(advice instanceof BiConsumer))
-                        throw new IllegalArgumentException("Advice(BEFORE) is not a BiConsumer");
-                    break;
-                case AFTER:
-                    if (!(advice instanceof Consumer))
-                        throw new IllegalArgumentException("Advice(AFTER) is not a Consumer");
-                    break;
-                case AROUND:
-                    if (!(advice instanceof AroundAdvice))
-                        throw new IllegalArgumentException("Advice(AROUND) is not a AroundAdvice");
-                    break;
-                default:
-                    throw new IllegalStateException("Unexpected value: " + this.adviceType);
-            }
-            this.advice = advice;
-        }
-
-        public boolean accept(Class<?> anExtensionInterface, Class<?> anObjectClass,
-                              String anOperation, Class<?>[] anOperationParameterTypes,
-                              AdviceType anAdviceType) {
-            return adviceType == anAdviceType &&
-                    operation.test(anOperation, anOperationParameterTypes) &&
-                    extensionInterface.test(anExtensionInterface) &&
-                    objectClass.test(anObjectClass);
-        }
-
-        public boolean accept(String anOperation, Class<?>[] anOperationParameterTypes,
-                              AdviceType anAdviceType) {
-            return adviceType == anAdviceType && operation.test(anOperation, anOperationParameterTypes);
-        }
-
-        public boolean accept(Class<?> anExtensionInterface, Class<?> anObjectClass) {
-            return extensionInterface.test(anExtensionInterface) &&
-                    objectClass.test(anObjectClass);
-        }
-
-        @SuppressWarnings("unchecked")
-        public void before(Object anObject, Object[] anArguments) {
-            ((BiConsumer<? super Object, Object[]>) advice).accept(anObject, anArguments);
-        }
-
-        @SuppressWarnings("unchecked")
-        public void after(Object aResult) {
-            ((Consumer<? super Object>) advice).accept(aResult);
-        }
-
-        public Object around(Object aPerformer, Object anObject, Object[] anArguments) {
-            return ((AroundAdvice) advice).apply(aPerformer, anObject, anArguments);
-        }
-    }
-
-    public static class AspectBuilder {
-        private final AbstractClassExtension classExtension;
-        private Predicate<Class<?>> extensionInterface;
-        private Predicate<Class<?>> objectClass;
-        private BiPredicate<String, Class<?>[]> operation;
-
-        public AspectBuilder(AbstractClassExtension aClassExtension) {
-            classExtension = aClassExtension;
-        }
-
-        public AspectBuilder extensionInterface(String anInterfaceName) {
-            Objects.requireNonNull(anInterfaceName);
-
-            extensionInterface = getClassPredicate(anInterfaceName);
-            return this;
-        }
-
-        public AspectBuilder extensionInterface(Class<?> anExtensionInterface) {
-            Objects.requireNonNull(anExtensionInterface);
-
-            extensionInterface = getClassPredicate(anExtensionInterface);
-            return this;
-        }
-
-        public AspectBuilder extensionInterface(Class<?>[] anExtensionInterface) {
-            Objects.requireNonNull(anExtensionInterface);
-
-            extensionInterface = getClassPredicate(anExtensionInterface);
-            return this;
-        }
-
-        public AspectBuilder objectClass(String aClassName) {
-            Objects.requireNonNull(aClassName);
-
-            objectClass = getClassPredicate(aClassName);
-            return this;
-        }
-
-        public AspectBuilder objectClass(Class<?> anObjectClass) {
-            Objects.requireNonNull(anObjectClass);
-
-            objectClass = getClassPredicate(anObjectClass);
-            return this;
-        }
-
-        public AspectBuilder objectClass(Class<?>[] anObjectClasses) {
-            Objects.requireNonNull(anObjectClasses);
-
-            objectClass = getClassPredicate(anObjectClasses);
-            return this;
-        }
-
-        public AspectBuilder operation(String anOperation) {
-            Objects.requireNonNull(anOperation);
-
-            operation = new BiPredicate<>() {
-                @Override
-                public boolean test(String operation, Class<?>[] parameterTypes) {
-                    return AspectBuilder.this.operationNameMatches(operation, anOperation) &&
-                            AspectBuilder.this.operationParameterTypesMatch(anOperation, parameterTypes);
-                }
-
-                @Override
-                public String toString() {
-                    return format("OperationPredicate(\"{0}\")", anOperation);
-                }
-            };
-            return this;
-        }
-
-        private boolean operationParameterTypesMatch(String anOperation, Class<?>[] aParameterTypes) {
-            String[] operationParameters = getOperationParameters(anOperation);
-            boolean result = false;
-            if (operationParameters.length == aParameterTypes.length) {
-                result = operationParameters.length == 0;
-                for (int i = 0; i < operationParameters.length && ! result; i++)
-                    result = matches(operationParameters[i], aParameterTypes[i].getName()) ||
-                            matches(operationParameters[i], aParameterTypes[i].getSimpleName());
-            }
-
-            return result;
-        }
-
-        private boolean operationNameMatches(String anOperation, String anOperationPattern) {
-            return matches(getOperationName(anOperation), getOperationName(anOperationPattern));
-        }
-
-        private String getOperationName(String anOperation) {
-            int index = anOperation.indexOf("(");
-            return index > 0 ? anOperation.substring(0, index) : anOperation;
-        }
-
-        static final String[] EMPTY_PARAMETERS = new String[0];
-
-        private String[] getOperationParameters(String anOperation) {
-            String[] result = EMPTY_PARAMETERS;
-            if (anOperation.contains("(")) {
-                String params = anOperation.replaceAll(".*\\((.*)\\).*", "$1");
-                result = params.split("\\s*,\\s*");
-                for (int i = 0; i < result.length; i++)
-                    result[i] = result[i].trim();
-            }
-            return result.length == 1 && "".equals(result[0]) ? EMPTY_PARAMETERS : result;
-        }
-
-        public AspectBuilder before(BiConsumer<? super Object, Object[]> aBefore) {
-            Objects.requireNonNull(aBefore);
-            checkPrerequisites();
-            classExtension.addPointcut(new Pointcut(extensionInterface, objectClass, operation, AdviceType.BEFORE, aBefore));
-            return this;
-        }
-
-        public AspectBuilder after(Consumer<? super Object> anAfter) {
-            Objects.requireNonNull(anAfter);
-            checkPrerequisites();
-            classExtension.addPointcut(new Pointcut(extensionInterface, objectClass, operation, AdviceType.AFTER, anAfter));
-            return this;
-        }
-
-        public AspectBuilder around(AroundAdvice anAround) {
-            Objects.requireNonNull(anAround);
-            checkPrerequisites();
-            classExtension.addPointcut(new Pointcut(extensionInterface, objectClass, operation, AdviceType.AROUND, anAround));
-            return this;
-        }
-
-        private void checkPrerequisites() {
-            Objects.requireNonNull(objectClass, "Object class is not specified");
-            Objects.requireNonNull(extensionInterface, "Extension interface is not specified");
-            Objects.requireNonNull(operation, "Operation name is not specified");
-        }
-
-        private static Predicate<Class<?>> getClassPredicate(String aClassName) {
-            return new Predicate<>() {
-                @Override
-                public boolean test(Class<?> aClass) {
-                    return matches(
-                            aClassName,
-                            aClassName.contains(".") ? aClass.getName() : aClass.getSimpleName());
-                }
-
-                @Override
-                public String toString() {
-                    return format("ClassPredicate(\"{0}\")", aClassName);
-                }
-            };
-        }
-
-        private static Predicate<Class<?>> getClassPredicate(Class<?> anExtensionClass) {
-            return new Predicate<>() {
-                @Override
-                public boolean test(Class<?> obj) {
-                    return anExtensionClass.equals(obj);
-                }
-
-                @Override
-                public String toString() {
-                    return format("ClassPredicate(\"{0}\")", anExtensionClass);
-                }
-            };
-        }
-
-        private static Predicate<Class<?>> getClassPredicate(Class<?>[] anExtensionClasses) {
-            return new Predicate<>() {
-                @Override
-                public boolean test(Class<?> aClass) {
-                    return Arrays.asList(anExtensionClasses).contains(aClass);
-                }
-
-                @Override
-                public String toString() {
-                    return format("ClassPredicate(\"{0}\")", Arrays.toString(anExtensionClasses));
-                }
-            };
-        }
-
-        private static boolean matches(String aPattern, String aString) {
-            return Pattern.matches(
-                    aPattern.replace("*", ".*").replace("?", "."),
-                    aString);
-        }
+        R perform(String operation, Object anObject, Object[] anArgs);
     }
 }

@@ -33,6 +33,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.*;
 import java.util.stream.Collectors;
 
+import static com.gl.classext.Aspects.*;
 import static java.text.MessageFormat.*;
 
 /**
@@ -170,7 +171,7 @@ public class DynamicClassExtension extends AbstractClassExtension {
     @SuppressWarnings({"unchecked"})
     public interface ConsumerPerformer<T> extends Performer<Void>, Consumer<T> {
         @Override
-        default Void perform(Object anObject, Object[] anArgs) {
+        default Void perform(String operation, Object anObject, Object[] anArgs) {
             accept((T) anObject);
             return null;
         }
@@ -194,7 +195,7 @@ public class DynamicClassExtension extends AbstractClassExtension {
     @SuppressWarnings({"unchecked"})
     public interface BiConsumerPerformer<T, U> extends Performer<Void>, BiConsumer<T, U> {
         @Override
-        default Void perform(Object anObject, Object[] anArgs) {
+        default Void perform(String operation, Object anObject, Object[] anArgs) {
             if (anArgs == null)
                 accept(null, null);
             else
@@ -216,7 +217,7 @@ public class DynamicClassExtension extends AbstractClassExtension {
     @SuppressWarnings({"unchecked"})
     public interface FunctionPerformer<T, R> extends Performer<R>, Function<T, R> {
         @Override
-        default R perform(Object anObject, Object[] anArgs) {
+        default R perform(String operation, Object anObject, Object[] anArgs) {
             return apply((T) anObject);
         }
     }
@@ -238,7 +239,7 @@ public class DynamicClassExtension extends AbstractClassExtension {
     @SuppressWarnings({"unchecked"})
     public interface BiFunctionPerformer<T, U, R> extends Performer<R>, BiFunction<T, U, R> {
         @Override
-        default R perform(Object anObject, Object[] anArgs) {
+        default R perform(String operation, Object anObject, Object[] anArgs) {
             return ((anArgs == null) ?
                     apply(null, null) :
                     apply((T) anObject, anArgs.length > 0 ? (U) anArgs[0] : null));
@@ -455,22 +456,24 @@ public class DynamicClassExtension extends AbstractClassExtension {
         if (aClassExtension.isVerbose())
             aClassExtension.logger.info(format("Performing dynamic operation for delegate \"{0}\" -> {1}", anObject, method));
 
-        Pointcut aroundPointcut = performerHolder.before == null ?
+        Pointcut aroundPointcut = isAspectsEnabled() && performerHolder.before == null ?
                 getPointcut(anExtensionClass, anObject.getClass(), method.getName(), method.getParameterTypes(), AdviceType.AROUND) : null;
-        Pointcut beforePointcut = performerHolder.before == null && aroundPointcut == null ?
+        Pointcut beforePointcut = isAspectsEnabled() && performerHolder.before == null && aroundPointcut == null ?
                 getPointcut(anExtensionClass, anObject.getClass(), method.getName(), method.getParameterTypes(), AdviceType.BEFORE) : null;
-        Pointcut afterPointcut = performerHolder.after == null && aroundPointcut == null ?
+        Pointcut afterPointcut = isAspectsEnabled() && performerHolder.after == null && aroundPointcut == null ?
                 getPointcut(anExtensionClass, anObject.getClass(), method.getName(), method.getParameterTypes(), AdviceType.AFTER) : null;
 
         if (performerHolder.isAsync()) {
-            CompletableFuture<?> future = CompletableFuture.supplyAsync(() -> performOperation(aClassExtension, anObject, args,
+            CompletableFuture<?> future = CompletableFuture.supplyAsync(() -> performOperation(aClassExtension,
+                    method.getName(), anObject, args,
                     performerHolder,
                     beforePointcut, afterPointcut, aroundPointcut));
             if (performerHolder.getWhenComplete() != null)
                 future.whenComplete((BiConsumer) performerHolder.getWhenComplete());
             result = dummyReturnValue(method);
         } else {
-            result = performOperation(aClassExtension, anObject, args,
+            result = performOperation(aClassExtension,
+                    method.getName(), anObject, args,
                     performerHolder,
                     beforePointcut, afterPointcut, aroundPointcut);
         }
@@ -478,10 +481,17 @@ public class DynamicClassExtension extends AbstractClassExtension {
     }
 
     private <T> Object performStaticOperation(DynamicClassExtension aClassExtension, Object anObject, Class<T> anExtensionClass, Method method, Object[] args) throws IllegalAccessException, InvocationTargetException {
-        Object result = null;
-        Pointcut aroundPointcut =  getPointcut(anExtensionClass, anObject.getClass(), method.getName(), method.getParameterTypes(), AdviceType.AROUND);
-        Pointcut beforePointcut = aroundPointcut == null ? getPointcut(anExtensionClass, anObject.getClass(), method.getName(), method.getParameterTypes(), AdviceType.BEFORE) : null;
-        Pointcut afterPointcut =  aroundPointcut == null ? getPointcut(anExtensionClass, anObject.getClass(), method.getName(), method.getParameterTypes(), AdviceType.AFTER) : null;
+        Object result;
+
+        Pointcut aroundPointcut = null;
+        Pointcut beforePointcut = null;
+        Pointcut afterPointcut = null;
+
+        if (aClassExtension.isAspectsEnabled()) {
+            aroundPointcut = getPointcut(anExtensionClass, anObject.getClass(), method.getName(), method.getParameterTypes(), AdviceType.AROUND);
+            beforePointcut = aroundPointcut == null ? getPointcut(anExtensionClass, anObject.getClass(), method.getName(), method.getParameterTypes(), AdviceType.BEFORE) : null;
+            afterPointcut = aroundPointcut == null ? getPointcut(anExtensionClass, anObject.getClass(), method.getName(), method.getParameterTypes(), AdviceType.AFTER) : null;
+        }
 
         if (method.getDeclaringClass().isAssignableFrom(anObject.getClass())) {
             if (aClassExtension.isVerbose())
@@ -489,19 +499,19 @@ public class DynamicClassExtension extends AbstractClassExtension {
             if (beforePointcut != null) {
                 if (aClassExtension.isVerbose())
                     aClassExtension.logger.info(formatAdvice(anObject, beforePointcut, AdviceType.BEFORE));
-                beforePointcut.before(anObject, args);
+                beforePointcut.before(method.getName(), anObject, args);
             }
 
             if (aroundPointcut != null) {
                 if (aClassExtension.isVerbose())
                     aClassExtension.logger.info(formatAdvice(anObject, aroundPointcut, AdviceType.AROUND));
-                result = aroundPointcut.around((Performer<Object>) (anObject1, anArgs) -> {
+                result = aroundPointcut.around((Performer<Object>) (operation, anObject1, anArgs) -> {
                     try {
                         return method.invoke(anObject1, anArgs);
                     } catch (Exception ex) {
                         throw new RuntimeException(ex);
                     }
-                }, anObject, args);
+                }, method.getName(), anObject, args);
             } else {
                 result = method.invoke(anObject, args);
             }
@@ -509,7 +519,7 @@ public class DynamicClassExtension extends AbstractClassExtension {
             if (afterPointcut != null) {
                 if (aClassExtension.isVerbose())
                     aClassExtension.logger.info(formatAdvice(anObject, afterPointcut, AdviceType.AFTER));
-                afterPointcut.after(result);
+                afterPointcut.after(result, method.getName(), anObject, args);
             }
         } else if (method.getDeclaringClass().isAssignableFrom(PrivateDelegateHolder.class)) {
             result = method.invoke((PrivateDelegateHolder)() -> anObject, args);
@@ -521,37 +531,41 @@ public class DynamicClassExtension extends AbstractClassExtension {
     }
 
     private static Object performOperation(DynamicClassExtension aClassExtension,
-                                           Object anObject, Object[] args,
+                                           String anOperation, Object anObject, Object[] args,
                                            PerformerHolder<?> performerHolder,
                                            Pointcut aBeforePointcut, Pointcut anAfterPointcut, Pointcut anAroundPointcut) {
         Object result;
 
-        if (performerHolder.getBefore() != null) {
-            if (aClassExtension.isVerbose())
-                aClassExtension.logger.info(formatAdvice(anObject, performerHolder, AdviceType.BEFORE));
-            performerHolder.getBefore().accept(anObject, args);
-        } else if (aBeforePointcut != null) {
-            if (aClassExtension.isVerbose())
-                aClassExtension.logger.info(formatAdvice(anObject, aBeforePointcut, AdviceType.BEFORE));
-            aBeforePointcut.before(anObject, args);
+        if (aClassExtension.isAspectsEnabled()) {
+            if (performerHolder.getBefore() != null) {
+                if (aClassExtension.isVerbose())
+                    aClassExtension.logger.info(formatAdvice(anObject, performerHolder, AdviceType.BEFORE));
+                performerHolder.getBefore().accept(anObject, args);
+            } else if (aBeforePointcut != null) {
+                if (aClassExtension.isVerbose())
+                    aClassExtension.logger.info(formatAdvice(anObject, aBeforePointcut, AdviceType.BEFORE));
+                aBeforePointcut.before(anOperation, anObject, args);
+            }
         }
 
-        if (anAroundPointcut != null) {
+        if (aClassExtension.isAspectsEnabled() && anAroundPointcut != null) {
             if (aClassExtension.isVerbose())
                 aClassExtension.logger.info(formatAdvice(anObject, anAroundPointcut, AdviceType.AROUND));
-            result = anAroundPointcut.around(performerHolder.getPerformer(), anObject, args);
+            result = anAroundPointcut.around(performerHolder.getPerformer(), anOperation, anObject, args);
         } else {
-            result = performerHolder.getPerformer().perform(anObject, args);
+            result = performerHolder.getPerformer().perform(anOperation, anObject, args);
         }
 
-        if (performerHolder.getAfter() != null) {
-            if (aClassExtension.isVerbose())
-                aClassExtension.logger.info(formatAdvice(anObject, performerHolder, AdviceType.AFTER));
-            performerHolder.getAfter().accept(result);
-        } else if (anAfterPointcut != null) {
-            if (aClassExtension.isVerbose())
-                aClassExtension.logger.info(formatAdvice(anObject, anAfterPointcut, AdviceType.AFTER));
-            anAfterPointcut.after(result);
+        if (aClassExtension.isAspectsEnabled()) {
+            if (performerHolder.getAfter() != null) {
+                if (aClassExtension.isVerbose())
+                    aClassExtension.logger.info(formatAdvice(anObject, performerHolder, AdviceType.AFTER));
+                performerHolder.getAfter().accept(result);
+            } else if (anAfterPointcut != null) {
+                if (aClassExtension.isVerbose())
+                    aClassExtension.logger.info(formatAdvice(anObject, anAfterPointcut, AdviceType.AFTER));
+                anAfterPointcut.after(result, anOperation, anObject, args);
+            }
         }
 
         return result;
