@@ -357,7 +357,7 @@ public class DynamicClassExtension extends AbstractClassExtension {
         Objects.requireNonNull(anExtensionInterface);
 
         try {
-            return (T) Proxy.newProxyInstance(anExtensionInterface.getClassLoader(),
+            return (T) Proxy.newProxyInstance(getClass().getClassLoader(),
                     new Class<?>[]{anExtensionInterface, PrivateDelegateHolder.class},
                     (proxy, method, args) -> performOperation(this, anObject, anExtensionInterface, method, args));
         } catch (Exception ex) {
@@ -1047,6 +1047,35 @@ public class DynamicClassExtension extends AbstractClassExtension {
         public DynamicClassExtension build() {
             return dynamicClassExtension;
         }
+    }
+
+    /**
+     * Returns a new instance of {@code AspectBuilder} used to build aspects for extensions
+     * @return a new instance of {@code AspectBuilder}
+     */
+    public AspectBuilder<DynamicClassExtension> aspectBuilder() {
+        return new AspectBuilder<>(this);
+    }
+
+    /**
+     * Returns a simple extension for a {@code aLambdaFunction} lambda that associates a description with it. It is not
+     * for lambda functions possible to customize what is returned by the {@code toString()} method which can be pretty
+     * inconvenient for debugging. This method allows to specify a textual description that should be returned by
+     * {@code toString()} method.
+     *
+     * @param aLambdaFunction      lambda function
+     * @param aFunctionalInterface functional interface of lambda function
+     * @param aDescription         description to be returned by {@code toString()}
+     * @return description associated with the lambda function
+     */
+    public static <T> T lambdaWithDescription(Object aLambdaFunction, Class<T> aFunctionalInterface, String aDescription) {
+        DynamicClassExtension dynamicClassExtension = new DynamicClassExtension().
+                builder(aFunctionalInterface).
+                opName("toString").
+                op(Object.class, o -> aDescription).
+                build();
+        dynamicClassExtension.setCacheEnabled(false);
+        return dynamicClassExtension.extension(aLambdaFunction, aFunctionalInterface);
     }
 }
 

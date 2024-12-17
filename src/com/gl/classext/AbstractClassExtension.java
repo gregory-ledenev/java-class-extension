@@ -152,11 +152,7 @@ public abstract class AbstractClassExtension implements ClassExtension {
                 toList();
     }
 
-    public AspectBuilder aspectBuilder() {
-        return new AspectBuilder(this);
-    }
-
-    @FunctionalInterface
+   @FunctionalInterface
     interface Performer<R> {
         R perform(String operation, Object anObject, Object[] anArgs);
     }

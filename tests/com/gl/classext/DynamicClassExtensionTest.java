@@ -9,6 +9,7 @@ import java.util.List;
 
 import static com.gl.classext.Aspects.*;
 import static com.gl.classext.Aspects.AroundAdvice.applyDefault;
+import static com.gl.classext.DynamicClassExtension.lambdaWithDescription;
 import static java.lang.System.out;
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -989,7 +990,7 @@ public class DynamicClassExtensionTest {
     }
 
     @Test
-    void logPerformTimeExtensionTEst() {
+    void logPerformTimeExtensionTest() {
         Item[] items = {
                 new Book("The Mythical Man-Month"),
                 new Furniture("Sofa"),
@@ -1019,6 +1020,40 @@ public class DynamicClassExtensionTest {
         extension.setName("Shining");
         out.println(extension.getName());
         extension.setName("Shining");
+    }
+
+
+    @Test
+    void logBeforeAndAfterAdviceTest() {
+        DynamicClassExtension dynamicClassExtension = new DynamicClassExtension().
+                aspectBuilder().
+                    extensionInterface(ItemInterface.class).
+                        objectClass(Item.class).
+                        operation("*").
+                            before(new LogBeforeAdvice()).
+                            after(new LogAfterAdvice()).
+                build();
+
+        Item[] items = {
+                new Book("The Mythical Man-Month"),
+                new Furniture("Sofa"),
+                new ElectronicItem("Soundbar"),
+                new AutoPart("Tire"),
+        };
+
+        for (Item item : items) {
+            Item_Shippable extension = dynamicClassExtension.extension(item, Item_Shippable.class);
+            System.out.println(extension.toString());
+        }
+    }
+
+    @Test
+    void extensionWithDescriptionTest() {
+        final String description = "Some description for Runnable";
+        Runnable runnable = () -> {};
+        Runnable extension = lambdaWithDescription(runnable, Runnable.class, description);
+        out.println(extension.toString());
+        assertEquals(description, extension.toString());
     }
 
     private static void sleep() {

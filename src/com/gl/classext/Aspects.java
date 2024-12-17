@@ -13,27 +13,74 @@ import java.util.regex.Pattern;
 
 import static java.text.MessageFormat.format;
 
+/**
+ * Defines classes to allow support of Aspects
+ */
 public class Aspects {
+    /**
+     * Defines Advice type
+     */
     public enum AdviceType {
         BEFORE,
         AFTER,
         AROUND
     }
 
+    /**
+     * Functional interface for {@code AdviceType.BEFORE} advices.
+     */
     @FunctionalInterface
     public interface BeforeAdvice {
+        /**
+         * Applies this function to the given arguments
+         *
+         * @param operation an operation to be performed
+         * @param object    object to perform the operation for
+         * @param args      arguments for the operation
+         */
         void accept(String operation, Object object, Object[] args);
     }
 
+    /**
+     * Functional interface for {@code AdviceType.AFTER} advices.
+     */
     @FunctionalInterface
     public interface AfterAdvice {
+        /**
+         * Applies this function to the given arguments
+         *
+         * @param result    result of an operation
+         * @param operation the operation to be performed
+         * @param object    object to perform the operation for
+         * @param args      arguments for the operation
+         */
         void accept(Object result, String operation, Object object, Object[] args);
     }
 
+    /**
+     * Functional interface for {@code AdviceType.AROUND} advices.
+     */
     @FunctionalInterface
     public interface AroundAdvice {
+        /**
+         * Applies this function to the given arguments. This function essentially replaces standard handling of the
+         * operation. Use the {@code applyDefault} method to perform standard handling.
+         *
+         * @param performer performer object that is responsible for actual operation performing
+         * @param operation the operation to be performed
+         * @param object    object to perform the operation for
+         * @param args      arguments for the operation
+         */
         Object apply(Object performer, String operation, Object object, Object[] args);
 
+        /**
+         * Performs default handling of an operation.
+         *
+         * @param performer performer object that is responsible for actual operation performing
+         * @param operation the operation to be performed
+         * @param object    object to perform the operation for
+         * @param args      arguments for the operation
+         */
         @SuppressWarnings("rawtypes")
         static Object applyDefault(Object performer, String operation, Object object, Object[] args) {
             Objects.requireNonNull(performer);
@@ -107,59 +154,118 @@ public class Aspects {
         }
     }
 
-    public static class AspectBuilder {
-        private final AbstractClassExtension classExtension;
+    /**
+     * Builder that allows adding Aspects to the operations
+     * @param <T>
+     */
+    public static class AspectBuilder<T extends AbstractClassExtension> {
+        private final T classExtension;
         private Predicate<Class<?>> extensionInterface;
         private Predicate<Class<?>> objectClass;
         private BiPredicate<String, Class<?>[]> operation;
 
-        public AspectBuilder(AbstractClassExtension aClassExtension) {
+        /**
+         * Creates a new instance of {@code AspectBuilder} and supplies a {@code ClassExtension} to build Aspects for
+         * @param aClassExtension a {@code ClassExtension} to build Aspects for
+         */
+        public AspectBuilder(T aClassExtension) {
             classExtension = aClassExtension;
         }
 
-        public AspectBuilder extensionInterface(String anInterfaceName) {
+        /**
+         * Optional terminal operation that simply returns a {@code ClassExtension}
+         * @return a {@code ClassExtension} to build Aspects for
+         */
+        public T build() {
+            return classExtension;
+        }
+
+        /**
+         * Specifies an extension interface the Aspects should be added fpr
+         *
+         * @param anInterfaceName name of an extension interface. It is possible to use * and ? wildcards to define a
+         *                        pattern all extension interfaces should match.
+         * @return this Builder
+         */
+        public AspectBuilder<T> extensionInterface(String anInterfaceName) {
             Objects.requireNonNull(anInterfaceName);
 
             extensionInterface = getClassPredicate(anInterfaceName);
             return this;
         }
 
-        public AspectBuilder extensionInterface(Class<?> anExtensionInterface) {
+        /**
+         * Specifies an extension interface the Aspects should be added fpr
+         * @param anExtensionInterface an extension interface
+         * @return this Builder
+         */
+        public AspectBuilder<T> extensionInterface(Class<?> anExtensionInterface) {
             Objects.requireNonNull(anExtensionInterface);
 
             extensionInterface = getClassPredicate(anExtensionInterface);
             return this;
         }
 
-        public AspectBuilder extensionInterface(Class<?>[] anExtensionInterface) {
-            Objects.requireNonNull(anExtensionInterface);
+        /**
+         * Specifies extension interfaces the Aspects should be added fpr
+         * @param anExtensionInterfaces extension interfaces
+         * @return this Builder
+         */
+        public AspectBuilder<T> extensionInterface(Class<?>[] anExtensionInterfaces) {
+            Objects.requireNonNull(anExtensionInterfaces);
 
-            extensionInterface = getClassPredicate(anExtensionInterface);
+            extensionInterface = getClassPredicate(anExtensionInterfaces);
             return this;
         }
 
-        public AspectBuilder objectClass(String aClassName) {
-            Objects.requireNonNull(aClassName);
+        /**
+         * Specifies an object class the Aspects should be added fpr
+         *
+         * @param anObjectClassName name of an object class. It is possible to use * and ? wildcards to define a *
+         *                          pattern all object classes should match.
+         * @return this Builder
+         */
+        public AspectBuilder<T> objectClass(String anObjectClassName) {
+            Objects.requireNonNull(anObjectClassName);
 
-            objectClass = getClassPredicate(aClassName);
+            objectClass = getClassPredicate(anObjectClassName);
             return this;
         }
 
-        public AspectBuilder objectClass(Class<?> anObjectClass) {
+        /**
+         * Specifies an object class the Aspects should be added fpr
+         *
+         * @param anObjectClass an object class
+         * @return this Builder
+         */
+        public AspectBuilder<T> objectClass(Class<?> anObjectClass) {
             Objects.requireNonNull(anObjectClass);
 
             objectClass = getClassPredicate(anObjectClass);
             return this;
         }
 
-        public AspectBuilder objectClass(Class<?>[] anObjectClasses) {
+        /**
+         * Specifies an object classes the Aspects should be added fpr
+         *
+         * @param anObjectClasses an object classes
+         * @return this Builder
+         */
+        public AspectBuilder<T> objectClass(Class<?>[] anObjectClasses) {
             Objects.requireNonNull(anObjectClasses);
 
             objectClass = getClassPredicate(anObjectClasses);
             return this;
         }
 
-        public AspectBuilder operation(String anOperation) {
+        /**
+         * Specifies an operation the Aspects should be added fpr
+         *
+         * @param anOperation name of an operation. It is possible to use * and ? wildcards to define a * pattern all
+         *                    operations should match.
+         * @return this Builder
+         */
+        public AspectBuilder<T> operation(String anOperation) {
             Objects.requireNonNull(anOperation);
 
             operation = new BiPredicate<>() {
@@ -212,21 +318,39 @@ public class Aspects {
             return result.length == 1 && "".equals(result[0]) ? EMPTY_PARAMETERS : result;
         }
 
-        public AspectBuilder before(BeforeAdvice aBefore) {
+        /**
+         * Adds a {@code AspectType.BEFORE} advice for a previously specified combination of extension interface(s), object
+         * class(es) and operation(s)
+         * @param aBefore advice to be added
+         * @return this Builder
+         */
+        public AspectBuilder<T> before(BeforeAdvice aBefore) {
             Objects.requireNonNull(aBefore);
             checkPrerequisites();
             classExtension.addPointcut(new Pointcut(extensionInterface, objectClass, operation, AdviceType.BEFORE, aBefore));
             return this;
         }
 
-        public AspectBuilder after(AfterAdvice anAfter) {
+        /**
+         * Adds a {@code AspectType.AFTER} advice for a previously specified combination of extension interface(s), object
+         * class(es) and operation(s)
+         * @param anAfter advice to be added
+         * @return this Builder
+         */
+        public AspectBuilder<T> after(AfterAdvice anAfter) {
             Objects.requireNonNull(anAfter);
             checkPrerequisites();
             classExtension.addPointcut(new Pointcut(extensionInterface, objectClass, operation, AdviceType.AFTER, anAfter));
             return this;
         }
 
-        public AspectBuilder around(AroundAdvice anAround) {
+        /**
+         * Adds a {@code AspectType.AROUND} advice for a previously specified combination of extension interface(s), object
+         * class(es) and operation(s)
+         * @param anAround advice to be added
+         * @return this Builder
+         */
+        public AspectBuilder<T> around(AroundAdvice anAround) {
             Objects.requireNonNull(anAround);
             checkPrerequisites();
             classExtension.addPointcut(new Pointcut(extensionInterface, objectClass, operation, AdviceType.AROUND, anAround));
@@ -290,17 +414,30 @@ public class Aspects {
         }
     }
 
+    /**
+     * Advice (before) that allows logging operations
+     */
     public static class LogBeforeAdvice implements BeforeAdvice {
         final Logger logger;
 
+        /**
+         * Creates a new instance of {@code LogBeforeAdvice}
+         */
         public LogBeforeAdvice() {
             logger = Logger.getLogger(getClass().getName());
         }
 
+        /**
+         * Creates a new instance of {@code LogBeforeAdvice} and supplies a {@code Logger} to it
+         * @param aLogger logger
+         */
         public LogBeforeAdvice(Logger aLogger) {
             logger = aLogger;
         }
 
+        /**
+         * {@inheritDoc}
+         */
         @Override
         public void accept(String operation, Object object, Object[] args) {
             logger.info(format("BEFORE: {0} -> {1}({2})",
@@ -309,17 +446,30 @@ public class Aspects {
         }
     }
 
+    /**
+     * Advice (after) that allows logging results of operations
+     */
     public static class LogAfterAdvice implements AfterAdvice {
         final Logger logger;
 
+        /**
+         * Creates a new instance of {@code LogAfterAdvice}
+         */
         public LogAfterAdvice() {
             logger = Logger.getLogger(getClass().getName());
         }
 
+        /**
+         * Creates a new instance of {@code LogAfterAdvice} and supplies a {@code Logger} to it
+         * @param aLogger logger
+         */
         public LogAfterAdvice(Logger aLogger) {
             logger = aLogger;
         }
 
+        /**
+         * {@inheritDoc}
+         */
         @Override
         public void accept(Object result, String operation, Object object, Object[] args) {
             logger.info(format("AFTER: {0} -> {1}({2}) = {3}",
@@ -330,17 +480,30 @@ public class Aspects {
         }
     }
 
+    /**
+     * Advice (around) that allows logging perform times for operations
+     */
     public static class LogPerformTimeAdvice implements AroundAdvice {
         final Logger logger;
 
+        /**
+         * Creates a new instance of {@code LogPerformTimeAdvice}
+         */
         public LogPerformTimeAdvice() {
             logger = Logger.getLogger(getClass().getName());
         }
 
+        /**
+         * Creates a new instance of {@code LogPerformTimeAdvice} and supplies a {@code Logger} to it
+         * @param aLogger logger
+         */
         public LogPerformTimeAdvice(Logger aLogger) {
             logger = aLogger;
         }
 
+        /**
+         * {@inheritDoc}
+         */
         @Override
         public Object apply(Object performer, String operation, Object object, Object[] args) {
             long startTime = System.currentTimeMillis();
@@ -351,7 +514,14 @@ public class Aspects {
         }
     }
 
+    /**
+     * Advice (around) that allows tracking all property changes.
+     */
     public static class PropertyChangeAdvice implements AroundAdvice {
+        /**
+         * Creates a new instance of {@code PropertyChangeAdvice} and supplies it with a {@code PropertyChangeListener}
+         * @param aPropertyChangeListener property change listener
+         */
         public PropertyChangeAdvice(PropertyChangeListener aPropertyChangeListener) {
             Objects.requireNonNull(aPropertyChangeListener);
 
@@ -387,6 +557,9 @@ public class Aspects {
             return result;
         }
 
+        /**
+         * {@inheritDoc}
+         */
         @Override
         public Object apply(Object performer, String operation, Object object, Object[] args) {
             final String prefix = "set";
@@ -415,13 +588,42 @@ public class Aspects {
         }
     }
 
+    /**
+     * Utility methods that returns an extension with added perform time logging for all the operations. Note: returned
+     * extensions will not be cached.
+     * @param anObject             object to return an extension object for
+     * @param anExtensionInterface interface of extension object to be returned
+     * @return an extension object
+     */
     public static <T> T logPerformTimeExtension(Object anObject, Class<T> anExtensionInterface) {
-        DynamicClassExtension dynamicClassExtension = new DynamicClassExtension();
-        dynamicClassExtension.aspectBuilder().
-                objectClass("*").
-                extensionInterface("*").
-                operation("*").
-                    around(new LogPerformTimeAdvice());
+        DynamicClassExtension dynamicClassExtension = new DynamicClassExtension().
+                aspectBuilder().
+                    objectClass("*").
+                    extensionInterface("*").
+                    operation("*").
+                        around(new LogPerformTimeAdvice()).
+                build();
+        dynamicClassExtension.setCacheEnabled(false);
+        return dynamicClassExtension.extension(anObject, anExtensionInterface);
+    }
+
+    /**
+     * Utility methods that returns an extension with added logging of before and after all the operations. Note: returned
+     * extensions will not be cached.
+     * @param anObject             object to return an extension object for
+     * @param anExtensionInterface interface of extension object to be returned
+     * @return an extension object
+     */
+    public static <T> T logBeforeAndAfterExtension(Object anObject, Class<T> anExtensionInterface) {
+        DynamicClassExtension dynamicClassExtension = new DynamicClassExtension().
+                aspectBuilder().
+                    objectClass("*").
+                    extensionInterface("*").
+                    operation("*").
+                        before(new LogBeforeAdvice()).
+                        after(new LogAfterAdvice()).
+                build();
+        dynamicClassExtension.setCacheEnabled(false);
         return dynamicClassExtension.extension(anObject, anExtensionInterface);
     }
 }
