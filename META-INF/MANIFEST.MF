@@ -1,5 +1,5 @@
 Manifest-Version: 1.0
 Implementation-Title: Java Class Extension Library
-Implementation-Version: 1.0.0
+Implementation-Version: 1.1.0
 Implementation-Vendor: Gregory Ledenev (gregory.ledenev37@gmail.com)
 

@@ -1058,10 +1058,10 @@ public class DynamicClassExtension extends AbstractClassExtension {
     }
 
     /**
-     * Returns a simple extension for a {@code aLambdaFunction} lambda that associates a description with it. It is not
-     * for lambda functions possible to customize what is returned by the {@code toString()} method which can be pretty
-     * inconvenient for debugging. This method allows to specify a textual description that should be returned by
-     * {@code toString()} method.
+     * Returns an extension (wrapper) for a lambda function that associates a custom description with it. Lambda functions
+     * in Java cannot customize their {@code toString()} method output, which can be inconvenient for debugging. This
+     * method allows specifying a textual description that will be returned by the {@code toString()} method of the
+     * wrapper.
      *
      * @param aLambdaFunction      lambda function
      * @param aFunctionalInterface functional interface of lambda function
