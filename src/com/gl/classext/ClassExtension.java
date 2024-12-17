@@ -56,12 +56,28 @@ public interface ClassExtension {
      * @param <T> defines a class of delegate objects to work with
      */
     interface DelegateHolder<T> {
+        /**
+         * Returns a delegate object an extension works with
+         * @return a delegate object
+         */
         T getDelegate();
 
+        /**
+         * Specifies a delegate object an extension should work with
+         * @param aDelegate a delegate object
+         */
         void setDelegate(T aDelegate);
     }
 
+    /**
+     * An interface used internally by proxy implementations to allow querying for a delegate object an
+     * extensions works with
+     */
     interface PrivateDelegateHolder {
+        /**
+         * Returns a delegate object an extension works with
+         * @return a delegate object
+         */
         Object __getDelegate();
     }
 

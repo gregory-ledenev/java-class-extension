@@ -154,6 +154,14 @@ public abstract class AbstractClassExtension implements ClassExtension {
 
    @FunctionalInterface
     interface Performer<R> {
-        R perform(String operation, Object anObject, Object[] anArgs);
+       /**
+        * Represents an operation explicitly defined by its arguments that returns some result.
+        *
+        * @param operation operation name
+        * @param anObject  an object to perform the operation for
+        * @param anArgs    arguments
+        * @return operation result
+        */
+       R perform(String operation, Object anObject, Object[] anArgs);
     }
 }

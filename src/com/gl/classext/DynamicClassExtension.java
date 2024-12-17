@@ -167,9 +167,27 @@ public class DynamicClassExtension extends AbstractClassExtension {
         }
     }
 
+    /**
+     * Represents an operation that accepts a single input argument and returns no
+     * result. Unlike most other functional interfaces, {@code Consumer} is expected
+     * to operate via side effects.
+     *
+     * <p>This is a <a href="package-summary.html">functional interface</a>
+     * whose functional method is {@link #accept(Object)}.
+     *
+     * @param <T> the type of the input to the operation
+     */
     @FunctionalInterface
     @SuppressWarnings({"unchecked"})
     public interface ConsumerPerformer<T> extends Performer<Void>, Consumer<T> {
+        /**
+         * Performs an operation explicitly defined by its arguments that returns some result.
+         *
+         * @param operation operation name
+         * @param anObject  an object to perform the operation for
+         * @param anArgs    arguments
+         * @return operation result
+         */
         @Override
         default Void perform(String operation, Object anObject, Object[] anArgs) {
             accept((T) anObject);
@@ -194,6 +212,14 @@ public class DynamicClassExtension extends AbstractClassExtension {
     @FunctionalInterface
     @SuppressWarnings({"unchecked"})
     public interface BiConsumerPerformer<T, U> extends Performer<Void>, BiConsumer<T, U> {
+        /**
+         * Performs an operation explicitly defined by its arguments that returns some result.
+         *
+         * @param operation operation name
+         * @param anObject  an object to perform the operation for
+         * @param anArgs    arguments
+         * @return operation result
+         */
         @Override
         default Void perform(String operation, Object anObject, Object[] anArgs) {
             if (anArgs == null)
@@ -216,6 +242,14 @@ public class DynamicClassExtension extends AbstractClassExtension {
     @FunctionalInterface
     @SuppressWarnings({"unchecked"})
     public interface FunctionPerformer<T, R> extends Performer<R>, Function<T, R> {
+        /**
+         * Performs an operation explicitly defined by its arguments that returns some result.
+         *
+         * @param operation operation name
+         * @param anObject  an object to perform the operation for
+         * @param anArgs    arguments
+         * @return operation result
+         */
         @Override
         default R perform(String operation, Object anObject, Object[] anArgs) {
             return apply((T) anObject);
@@ -238,6 +272,14 @@ public class DynamicClassExtension extends AbstractClassExtension {
     @FunctionalInterface
     @SuppressWarnings({"unchecked"})
     public interface BiFunctionPerformer<T, U, R> extends Performer<R>, BiFunction<T, U, R> {
+        /**
+         * Performs an operation explicitly defined by its arguments that returns some result.
+         *
+         * @param operation operation name
+         * @param anObject  an object to perform the operation for
+         * @param anArgs    arguments
+         * @return operation result
+         */
         @Override
         default R perform(String operation, Object anObject, Object[] anArgs) {
             return ((anArgs == null) ?
