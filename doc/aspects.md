@@ -18,7 +18,7 @@ Aspects allows developers to separate these concerns from core business logic, r
 
 ### Defining Aspects
 The `AspectBuilder` enables defining Aspects for `ClassExtensions`. Create an instance using the `aspectBuilder()` method of `DynamicClassExtension` or `StaticClassExtension`. Use this builder to define Aspects for pointcuts specified by extension interfaces, object classes, and operations. Supports exact values and wildcards for flexible aspect definition.
-
+ 
 ```java
 StaticClassExtension.sharedInstance().aspectBuilder().
         extensionInterface("*").
