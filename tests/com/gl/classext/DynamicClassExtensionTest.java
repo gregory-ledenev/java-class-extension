@@ -6,6 +6,7 @@ import org.junit.jupiter.api.Test;
 import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.logging.Logger;
 
 import static com.gl.classext.Aspects.*;
 import static com.gl.classext.Aspects.AroundAdvice.applyDefault;
@@ -1088,10 +1089,53 @@ public class DynamicClassExtensionTest {
         assertEquals(description, extension.toString());
     }
 
+    static int retryTestCount = 0;
+
+    @Test
+    void retryAdviceTest() {
+        DynamicClassExtension dynamicClassExtension = new DynamicClassExtension().
+                aspectBuilder().
+                    extensionInterface(ItemInterface.class).
+                        objectClass(Item.class).
+                            operation("ship()").
+                                around(new RetryAdvice(2, 1000, Logger.getLogger(getClass().getName()))).
+                build().
+                builder(Item_Shippable.class).
+                    opName("ship").
+                        op(Book.class, (book) -> {
+                            if (retryTestCount > 0)
+                                return new com.gl.classext.ShippingInfo("Shipped: " + book);
+                            else {
+                                retryTestCount++;
+                                throw new IllegalStateException("Failed to ship: " + book);
+                            }
+                        }).
+                        async((result, ex) -> {
+                            if (ex != null) {
+                                out.println("FAILED: " + ex);
+                            } else {
+                                out.println(result);
+                                assertEquals("ShippingInfo[result=Shipped: Book[\"The Mythical Man-Month\"]]", result);
+                            }
+                        }).
+                build();
+
+        Book book = new Book("The Mythical Man-Month");
+        Item_Shippable extension = dynamicClassExtension.extension(book, Item_Shippable.class);
+        System.out.println(extension.ship());
+
+        try {
+            Thread.sleep(5000);
+        } catch (InterruptedException ex) {
+            ex.printStackTrace();
+        }
+    }
+
     private static void sleep() {
         try {
             Thread.sleep(1000);
-        } catch (InterruptedException aE) {
+        } catch (InterruptedException ex) {
+            ex.printStackTrace();
         }
     }
 }

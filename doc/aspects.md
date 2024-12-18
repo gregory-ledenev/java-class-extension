@@ -81,5 +81,6 @@ The Java Class Extension Library offers several ready to use Advices - lambda fu
 * `Aspects.LogAfterAdvice` - adds logging of operation results
 * `Aspects.LogPerformTimeAdvice` - allows logging perform times for operations
 * `Aspects.PropertyChangeAdvice` - allows tracking all property changes.
+* `Aspects.RetryAdvice` - automatically retries failed operations.
 
 Next >> [Utilities](utilities.md)

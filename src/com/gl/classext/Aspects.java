@@ -8,6 +8,7 @@ import java.util.Arrays;
 import java.util.Objects;
 import java.util.function.BiPredicate;
 import java.util.function.Predicate;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.regex.Pattern;
 
@@ -583,6 +584,72 @@ public class Aspects {
                             oldPropertyValue,
                             newPropertyValue));
             }
+
+            return result;
+        }
+    }
+
+    /**
+     * Advice (around) that automatically retries failed operations. Executes the operation multiple times upon exception,
+     * up to a specified retry limit, before propagating the final failure.
+     */
+    public static class RetryAdvice implements AroundAdvice {
+        private final int retryCount;
+        private final long sleepTime;
+        private final Logger logger;
+
+        /**
+         * Creates a new advice
+         *
+         * @param aRetryCount retry count
+         */
+        public RetryAdvice(int aRetryCount) {
+            this(aRetryCount, 0, null);
+        }
+
+        /**
+         * Creates a new advice
+         *
+         * @param aRetryCount retry count
+         * @param aSleepTime  sleep before the next try
+         * @param aLogger     logger
+         */
+        public RetryAdvice(int aRetryCount, long aSleepTime, Logger aLogger) {
+            retryCount = aRetryCount;
+            sleepTime = aSleepTime;
+            logger = aLogger;
+        }
+
+        /**
+         * {@inheritDoc}
+         */
+        @Override
+        public Object apply(Object performer, String operation, Object object, Object[] args) {
+            Object result = null;
+            RuntimeException resultEx = null;
+            for (int i = 0; i < retryCount; i++) {
+                try {
+                    result = AroundAdvice.applyDefault(performer, operation, object, args);
+                    resultEx = null;
+                } catch (Throwable ex) {
+                    resultEx = new RuntimeException(ex);
+                    if (logger != null)
+                        logger.log(Level.SEVERE, "Failed to perform operation: " + operation,  ex);
+                }
+                if (i < retryCount -1 && sleepTime > 0) {
+                    try {
+                        if (logger != null)
+                            logger.info("Sleeping for: " + sleepTime);
+                        Thread.sleep(sleepTime);
+                        if (logger != null)
+                            logger.info("Retrying operation: " + operation);
+                    } catch (Exception ex) {
+                        // do nothing
+                    }
+                }
+            }
+            if (resultEx != null)
+                throw resultEx;
 
             return result;
         }
