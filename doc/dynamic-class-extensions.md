@@ -130,35 +130,7 @@ DynamicClassExtension dynamicClassExtension = new DynamicClassExtension().builde
 Book book = new Book("The Mythical Man-Month");
 dynamicClassExtension.extension(book, ItemShippable.class).ship();
 ```
-#### Support of AOP Aspects
-The `DynamicClassExtension` provides support of Aspects by allowing to specify lambda functions which explicitly should be applied before, after or around operations. It can be done via use of the `Builder.before()`, `Builder.after()` and `Builder.around` methods respectively.
-```java
-DynamicClassExtension dynamicClassExtension = new DynamicClassExtension().builder(Item_Shippable.class).
-        opName("ship").
-            op(Book.class, shipBook(book)).
-                before((operation object, args) -> LOGGER.info("BEFORE: " + object + "-> ship()")).
-                after((result, operation, object, args) -> LOGGER.info("AFTER: result - " + result)).
-        build();
 
-Book book = new Book("The Mythical Man-Month");
-dynamicClassExtension.extension(book, ItemShippable.class).ship();
-```
-**Notes:**
-* Operations must be already defined first via `Builder.op()` or `Builder.voidOp()`
-* Both synchronous and asynchronous operations are supported 
-
-Aspects are only supported for defined operations only. So if there is a need to intercept calls of usual methods - such methods should be dynamically "overridden" by defining operations with the same signature. The following example intersects `Object.toString()` method:
-```java
-DynamicClassExtension dynamicClassExtension = new DynamicClassExtension().builder(Item_Shippable.class).
-        opName("toString").
-            op(Object.class, Object::toString).
-                before((operation, object, args) -> LOGGER.info("BEFORE: " + object + "-> ship()")).
-                after((result, operation, object, args) -> LOGGER.info("AFTER: result - " + result)).
-        build();
-
-Book book = new Book("The Mythical Man-Month");
-dynamicClassExtension.extension(book, ItemShippable.class).toString();
-```
 #### Altering Operations
 
 To alter an operation itself: 
