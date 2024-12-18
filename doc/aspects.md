@@ -9,8 +9,6 @@ Common use cases for Aspects include:
 * Exception handling and error management
 * Caching
 * Auditing and compliance
-* Cross-cutting concerns in web and enterprise applications
-* Device compatibility and data synchronization in mobile apps
 * Quota management for APIs
 * Retry mechanisms
 
