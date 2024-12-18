@@ -64,6 +64,8 @@ Shippable.extensionFor(item).ship();
 1. [Introduction](doc/introduction.md)
 2. [Static Class Extensions](doc/static-class-extensions.md)
 3. [Dynamic Class Extensions](doc/dynamic-class-extensions.md)
+4. [Aspects](doc/aspects.md)
+5. [Utilities](doc/utilities.md)
 
 ## Adding to Your Build 
 To add Java Class Extension library to your build:

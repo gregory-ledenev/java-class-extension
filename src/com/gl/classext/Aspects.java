@@ -589,13 +589,13 @@ public class Aspects {
     }
 
     /**
-     * Utility methods that returns an extension with added perform time logging for all the operations. Note: returned
+     * Utility method that returns an extension with added performance logging for all operations. Note: returned
      * extensions will not be cached.
      * @param anObject             object to return an extension object for
      * @param anExtensionInterface interface of extension object to be returned
      * @return an extension object
      */
-    public static <T> T logPerformTimeExtension(Object anObject, Class<T> anExtensionInterface) {
+    public static <T> T logPerformanceExtension(Object anObject, Class<T> anExtensionInterface) {
         DynamicClassExtension dynamicClassExtension = new DynamicClassExtension().
                 aspectBuilder().
                     objectClass("*").
@@ -608,7 +608,7 @@ public class Aspects {
     }
 
     /**
-     * Utility methods that returns an extension with added logging of before and after all the operations. Note: returned
+     * Utility method that returns an extension with logging added before and after all the operations. Note: returned
      * extensions will not be cached.
      * @param anObject             object to return an extension object for
      * @param anExtensionInterface interface of extension object to be returned
@@ -622,6 +622,28 @@ public class Aspects {
                     operation("*").
                         before(new LogBeforeAdvice()).
                         after(new LogAfterAdvice()).
+                build();
+        dynamicClassExtension.setCacheEnabled(false);
+        return dynamicClassExtension.extension(anObject, anExtensionInterface);
+    }
+
+
+    /**
+     * Utility method that returns an extension with added ability to listen for property changes. Note: returned
+     * extensions will not be cached.
+     *
+     * @param anObject                object to return an extension object for
+     * @param anExtensionInterface    interface of extension object to be returned
+     * @param aPropertyChangeListener property change listener
+     * @return an extension object
+     */
+    public static <T> T propertyChangeExtension(Object anObject, Class<T> anExtensionInterface, PropertyChangeListener aPropertyChangeListener) {
+        DynamicClassExtension dynamicClassExtension = new DynamicClassExtension().
+                aspectBuilder().
+                objectClass("*").
+                extensionInterface("*").
+                operation("set*(*)").
+                around(new PropertyChangeAdvice(aPropertyChangeListener)).
                 build();
         dynamicClassExtension.setCacheEnabled(false);
         return dynamicClassExtension.extension(anObject, anExtensionInterface);

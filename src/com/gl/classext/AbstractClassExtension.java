@@ -6,12 +6,17 @@ import java.util.logging.Logger;
 import java.util.stream.Stream;
 
 import static com.gl.classext.Aspects.*;
+import static java.text.MessageFormat.format;
 
 public abstract class AbstractClassExtension implements ClassExtension {
     //region Cache methods
     private boolean cacheEnabled = true;
     @SuppressWarnings("rawtypes")
     protected final ThreadSafeWeakCache extensionCache = new ThreadSafeWeakCache();
+
+    protected static String formatAdvice(Object anObject, Object anAdvice, AdviceType anAdviceType) {
+        return format("{0} -> {1} for {2}", anAdviceType, anAdvice, anObject);
+    }
 
     /**
      * {@inheritDoc}

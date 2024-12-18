@@ -2,6 +2,10 @@ package com.gl.classext;
 
 import org.junit.jupiter.api.Test;
 
+import java.util.ArrayList;
+import java.util.List;
+
+import static com.gl.classext.Aspects.AroundAdvice.applyDefault;
 import static org.junit.jupiter.api.Assertions.*;
 
 interface ItemInterface {
@@ -444,5 +448,50 @@ public class StaticClassExtensionTest {
         assertEquals(book.toString(), shippableItem.toString());
 
         assertSame(shippable, Shippable.extensionFor(book));
+    }
+
+    @Test
+    void testAspectUsingBuilder() {
+        List<String> out = new ArrayList<>();
+        StaticClassExtension staticClassExtension = new StaticClassExtension();
+
+        staticClassExtension.aspectBuilder().
+                extensionInterface("*").
+                    operation("toString()").
+                    objectClass(Object.class).
+                        before((operation, object, args) -> out.add("BEFORE: " + object + "-> toString()")).
+                        after((result, operation, object, args) -> out.add("AFTER: result - " + result)).
+                    objectClass(Book.class).
+                        before((operation,object, args) -> out.add("BOOK BEFORE: " + object + "-> toString()")).
+                        after((result, operation, object, args) -> out.add("BOOK AFTER: result - " + result)).
+                    objectClass(AutoPart.class).
+                        before((operation, object, args) -> out.add("BEFORE: " + object + "-> toString()")).
+                        after((result, operation, object, args) -> out.add("AFTER: result - " + result)).
+                        around((performer, operation, object, args) -> "ALTERED AUTO PART: " + applyDefault(performer, operation, object, args));
+
+        Item[] items = {
+                new Book("The Mythical Man-Month"),
+                new Furniture("Sofa"),
+                new ElectronicItem("Soundbar"),
+                new AutoPart("Tire"),
+        };
+
+        for (Item item : items) {
+            ShippableItemInterface extension = staticClassExtension.extension(item, ShippableItemInterface.class);
+            out.add(extension.toString());
+        }
+        String outString = String.join("\n", out);
+        System.out.println(outString);
+        assertEquals("""
+                     BOOK BEFORE: The Mythical Man-Month-> toString()
+                     BOOK AFTER: result - The Mythical Man-Month
+                     The Mythical Man-Month
+                     BEFORE: Sofa-> toString()
+                     AFTER: result - Sofa
+                     Sofa
+                     BEFORE: Soundbar-> toString()
+                     AFTER: result - Soundbar
+                     Soundbar
+                     ALTERED AUTO PART: Tire""", outString);
     }
 }

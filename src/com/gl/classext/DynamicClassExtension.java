@@ -108,8 +108,9 @@ public class DynamicClassExtension extends AbstractClassExtension {
         private final Performer<R> performer;
         private boolean async;
         private BiConsumer<?, ? super Throwable> whenComplete;
-        private BiConsumer<Object, Object[]> before;
-        private Consumer<Object> after;
+        private BeforeAdvice before;
+        private AfterAdvice after;
+        private AroundAdvice around;
         private String operationKey;
 
         PerformerHolder(Performer<R> aPerformer) {
@@ -137,20 +138,28 @@ public class DynamicClassExtension extends AbstractClassExtension {
             whenComplete = aWhenComplete;
         }
 
-        public BiConsumer<? super Object, Object[]> getBefore() {
+        public BeforeAdvice getBefore() {
             return before;
         }
 
-        public void setBefore(BiConsumer<? super Object, Object[]> aBefore) {
+        public void setBefore(BeforeAdvice aBefore) {
             before = aBefore;
         }
 
-        public Consumer<? super Object> getAfter() {
+        public AfterAdvice getAfter() {
             return after;
         }
 
-        public void setAfter(Consumer<? super Object> anAfter) {
-            after = anAfter;
+        public void setAfter(AfterAdvice aAfter) {
+            after = aAfter;
+        }
+
+        public AroundAdvice getAround() {
+            return around;
+        }
+
+        public void setAround(AroundAdvice aAround) {
+            around = aAround;
         }
 
         public String getOperationKey() {
@@ -493,17 +502,27 @@ public class DynamicClassExtension extends AbstractClassExtension {
     }
 
     @SuppressWarnings({"unchecked", "rawtypes"})
-    private <T> Object performDynamicOperation(DynamicClassExtension aClassExtension, Object anObject, Class<T> anExtensionClass, Method method, Object[] args, PerformerHolder<?> performerHolder) {
+    private static <T> Object performDynamicOperation(DynamicClassExtension aClassExtension, Object anObject, Class<T> anExtensionClass, Method method, Object[] args, PerformerHolder<?> performerHolder) {
         Object result;
         if (aClassExtension.isVerbose())
             aClassExtension.logger.info(format("Performing dynamic operation for delegate \"{0}\" -> {1}", anObject, method));
 
-        Pointcut aroundPointcut = isAspectsEnabled() && performerHolder.before == null ?
-                getPointcut(anExtensionClass, anObject.getClass(), method.getName(), method.getParameterTypes(), AdviceType.AROUND) : null;
-        Pointcut beforePointcut = isAspectsEnabled() && performerHolder.before == null && aroundPointcut == null ?
-                getPointcut(anExtensionClass, anObject.getClass(), method.getName(), method.getParameterTypes(), AdviceType.BEFORE) : null;
-        Pointcut afterPointcut = isAspectsEnabled() && performerHolder.after == null && aroundPointcut == null ?
-                getPointcut(anExtensionClass, anObject.getClass(), method.getName(), method.getParameterTypes(), AdviceType.AFTER) : null;
+        Pointcut aroundPointcut;
+        Pointcut beforePointcut;
+        Pointcut afterPointcut;
+
+        if (aClassExtension.isAspectsEnabled()) {
+            aroundPointcut = performerHolder.around == null ?
+                    aClassExtension.getPointcut(anExtensionClass, anObject.getClass(), method.getName(), method.getParameterTypes(), AdviceType.AROUND) : null;
+            beforePointcut = performerHolder.before == null && aroundPointcut == null ?
+                    aClassExtension.getPointcut(anExtensionClass, anObject.getClass(), method.getName(), method.getParameterTypes(), AdviceType.BEFORE) : null;
+            afterPointcut = performerHolder.after == null && aroundPointcut == null ?
+                    aClassExtension.getPointcut(anExtensionClass, anObject.getClass(), method.getName(), method.getParameterTypes(), AdviceType.AFTER) : null;
+        } else {
+            beforePointcut = null;
+            afterPointcut = null;
+            aroundPointcut = null;
+        }
 
         if (performerHolder.isAsync()) {
             CompletableFuture<?> future = CompletableFuture.supplyAsync(() -> performOperation(aClassExtension,
@@ -512,7 +531,7 @@ public class DynamicClassExtension extends AbstractClassExtension {
                     beforePointcut, afterPointcut, aroundPointcut));
             if (performerHolder.getWhenComplete() != null)
                 future.whenComplete((BiConsumer) performerHolder.getWhenComplete());
-            result = dummyReturnValue(method);
+            result = aClassExtension.dummyReturnValue(method);
         } else {
             result = performOperation(aClassExtension,
                     method.getName(), anObject, args,
@@ -522,7 +541,7 @@ public class DynamicClassExtension extends AbstractClassExtension {
         return result;
     }
 
-    private <T> Object performStaticOperation(DynamicClassExtension aClassExtension, Object anObject, Class<T> anExtensionClass, Method method, Object[] args) throws IllegalAccessException, InvocationTargetException {
+    private static <T> Object performStaticOperation(DynamicClassExtension aClassExtension, Object anObject, Class<T> anExtensionClass, Method method, Object[] args) throws IllegalAccessException, InvocationTargetException {
         Object result;
 
         Pointcut aroundPointcut = null;
@@ -530,9 +549,9 @@ public class DynamicClassExtension extends AbstractClassExtension {
         Pointcut afterPointcut = null;
 
         if (aClassExtension.isAspectsEnabled()) {
-            aroundPointcut = getPointcut(anExtensionClass, anObject.getClass(), method.getName(), method.getParameterTypes(), AdviceType.AROUND);
-            beforePointcut = aroundPointcut == null ? getPointcut(anExtensionClass, anObject.getClass(), method.getName(), method.getParameterTypes(), AdviceType.BEFORE) : null;
-            afterPointcut = aroundPointcut == null ? getPointcut(anExtensionClass, anObject.getClass(), method.getName(), method.getParameterTypes(), AdviceType.AFTER) : null;
+            aroundPointcut = aClassExtension.getPointcut(anExtensionClass, anObject.getClass(), method.getName(), method.getParameterTypes(), AdviceType.AROUND);
+            beforePointcut = aroundPointcut == null ? aClassExtension.getPointcut(anExtensionClass, anObject.getClass(), method.getName(), method.getParameterTypes(), AdviceType.BEFORE) : null;
+            afterPointcut = aroundPointcut == null ? aClassExtension.getPointcut(anExtensionClass, anObject.getClass(), method.getName(), method.getParameterTypes(), AdviceType.AFTER) : null;
         }
 
         if (method.getDeclaringClass().isAssignableFrom(anObject.getClass())) {
@@ -579,10 +598,10 @@ public class DynamicClassExtension extends AbstractClassExtension {
         Object result;
 
         if (aClassExtension.isAspectsEnabled()) {
-            if (performerHolder.getBefore() != null) {
+            if (performerHolder.getBefore() != null && performerHolder.getAround() == null) {
                 if (aClassExtension.isVerbose())
                     aClassExtension.logger.info(formatAdvice(anObject, performerHolder, AdviceType.BEFORE));
-                performerHolder.getBefore().accept(anObject, args);
+                performerHolder.getBefore().accept(anOperation, anObject, args);
             } else if (aBeforePointcut != null) {
                 if (aClassExtension.isVerbose())
                     aClassExtension.logger.info(formatAdvice(anObject, aBeforePointcut, AdviceType.BEFORE));
@@ -590,7 +609,11 @@ public class DynamicClassExtension extends AbstractClassExtension {
             }
         }
 
-        if (aClassExtension.isAspectsEnabled() && anAroundPointcut != null) {
+        if (aClassExtension.isAspectsEnabled() && performerHolder.getAround() != null) {
+            if (aClassExtension.isVerbose())
+                aClassExtension.logger.info(formatAdvice(anObject, performerHolder.getAround(), AdviceType.AROUND));
+            result = performerHolder.getAround().apply(performerHolder.getPerformer(), anOperation, anObject, args);
+        } else if (aClassExtension.isAspectsEnabled() && anAroundPointcut != null) {
             if (aClassExtension.isVerbose())
                 aClassExtension.logger.info(formatAdvice(anObject, anAroundPointcut, AdviceType.AROUND));
             result = anAroundPointcut.around(performerHolder.getPerformer(), anOperation, anObject, args);
@@ -599,10 +622,10 @@ public class DynamicClassExtension extends AbstractClassExtension {
         }
 
         if (aClassExtension.isAspectsEnabled()) {
-            if (performerHolder.getAfter() != null) {
+            if (performerHolder.getAfter() != null && performerHolder.getAround() == null) {
                 if (aClassExtension.isVerbose())
                     aClassExtension.logger.info(formatAdvice(anObject, performerHolder, AdviceType.AFTER));
-                performerHolder.getAfter().accept(result);
+                performerHolder.getAfter().accept(result, anOperation, anObject,args);
             } else if (anAfterPointcut != null) {
                 if (aClassExtension.isVerbose())
                     aClassExtension.logger.info(formatAdvice(anObject, anAfterPointcut, AdviceType.AFTER));
@@ -611,10 +634,6 @@ public class DynamicClassExtension extends AbstractClassExtension {
         }
 
         return result;
-    }
-
-    private static String formatAdvice(Object anObject, Object anAdvice, AdviceType anAdviceType) {
-        return format("{0} -> {1} for {2}", anAdviceType, anAdvice, anObject);
     }
 
     private Object dummyReturnValue(Method aMethod) {
@@ -782,11 +801,11 @@ public class DynamicClassExtension extends AbstractClassExtension {
     }
 
 
-    String operationName(String anOperationName, Class<?>[] aParameterTypes) {
+    static String operationName(String anOperationName, Class<?>[] aParameterTypes) {
         return aParameterTypes == null || aParameterTypes.length == 0 ? anOperationName : anOperationName + SUFFIX_BI;
     }
 
-    String displayOperationName(String anOperationName, boolean isVoid, Object[] anArgs) {
+    static String displayOperationName(String anOperationName, boolean isVoid, Object[] anArgs) {
         return format("{0} {1}({2})",
                 isVoid ? "void" : "T",
                 anOperationName,
@@ -953,7 +972,7 @@ public class DynamicClassExtension extends AbstractClassExtension {
         @SuppressWarnings("unused")
         public <T1> Builder<E> alterOp(Class<T1> anObjectClass, Class<?>[] aParameterTypes) {
             PerformerHolder<?> performerHolder = dynamicClassExtension.operationsMap.get(new OperationKey(anObjectClass, extensionClass,
-                    dynamicClassExtension.operationName(operationName, aParameterTypes)));
+                    operationName(operationName, aParameterTypes)));
             return new Builder<>(extensionClass, operationName, dynamicClassExtension, performerHolder);
         }
 
@@ -1052,11 +1071,10 @@ public class DynamicClassExtension extends AbstractClassExtension {
          * Specifies a code which must be performed before running current operation (previously defined by calling {@code op()}
          * or {@code voidOp()}).
          *
-         * @param aBefore a lambda function should be performed before running current operation. It takes an object the operation
-         *                should be performed for and an array of arguments.
+         * @param aBefore a lambda function should be performed before running current operation
          * @return a copy of this {@code Builder}
          */
-        public Builder<E> before(BiConsumer<? super Object, Object[]> aBefore) {
+        public Builder<E> before(BeforeAdvice aBefore) {
             checkPerformerHolder();
 
             performerHolder.setBefore(aBefore);
@@ -1067,13 +1085,27 @@ public class DynamicClassExtension extends AbstractClassExtension {
          * Specifies a code which must be performed before running current operation (previously defined by calling {@code op()}
          * or {@code voidOp()}).
          *
-         * @param anAfter a lambda function should be performed after running current operation. It takes a result of the operation
+         * @param anAfter a lambda function should be performed after running current operation
          * @return a copy of this {@code Builder}
          */
-        public Builder<E> after(Consumer<? super Object> anAfter) {
+        public Builder<E> after(AfterAdvice anAfter) {
             checkPerformerHolder();
 
             performerHolder.setAfter(anAfter);
+            return new Builder<>(extensionClass, operationName, dynamicClassExtension, performerHolder);
+        }
+
+        /**
+         * Specifies a code which must be performed instead of current operation (previously defined by calling {@code op()}
+         * or {@code voidOp()}). Use the {@code applyDefault} method inside a lambda function to perform standard handling.
+         *
+         * @param anAround a lambda function should be performed instead of current operation
+         * @return a copy of this {@code Builder}
+         */
+        public Builder<E> around(AroundAdvice anAround) {
+            checkPerformerHolder();
+
+            performerHolder.setAround(anAround);
             return new Builder<>(extensionClass, operationName, dynamicClassExtension, performerHolder);
         }
 

@@ -130,14 +130,14 @@ DynamicClassExtension dynamicClassExtension = new DynamicClassExtension().builde
 Book book = new Book("The Mythical Man-Month");
 dynamicClassExtension.extension(book, ItemShippable.class).ship();
 ```
-#### Limited Support of AOP Aspects
-The `DynamicClassExtension` provides limited support of Aspects by allowing to specify lambda functions which should be applied before and after performing of operations. It can be done via use of the `Builder.before()` and the `Builder.after()` methods.
+#### Support of AOP Aspects
+The `DynamicClassExtension` provides support of Aspects by allowing to specify lambda functions which explicitly should be applied before, after or around operations. It can be done via use of the `Builder.before()`, `Builder.after()` and `Builder.around` methods respectively.
 ```java
 DynamicClassExtension dynamicClassExtension = new DynamicClassExtension().builder(Item_Shippable.class).
         opName("ship").
             op(Book.class, shipBook(book)).
-                before((object, args) -> LOGGER.info("BEFORE: " + object + "-> ship()")).
-                after(result -> LOGGER.info("AFTER: result - " + result)).
+                before((operation object, args) -> LOGGER.info("BEFORE: " + object + "-> ship()")).
+                after((result, operation, object, args) -> LOGGER.info("AFTER: result - " + result)).
         build();
 
 Book book = new Book("The Mythical Man-Month");
@@ -152,8 +152,8 @@ Aspects are only supported for defined operations only. So if there is a need to
 DynamicClassExtension dynamicClassExtension = new DynamicClassExtension().builder(Item_Shippable.class).
         opName("toString").
             op(Object.class, Object::toString).
-                before((object, args) -> LOGGER.info("BEFORE: " + object + "-> ship()")).
-                after(result -> LOGGER.info("AFTER: result - " + result)).
+                before((operation, object, args) -> LOGGER.info("BEFORE: " + object + "-> ship()")).
+                after((result, operation, object, args) -> LOGGER.info("AFTER: result - " + result)).
         build();
 
 Book book = new Book("The Mythical Man-Month");
@@ -196,3 +196,5 @@ This feature is especially useful for testing, as it simplifies the process of d
 The following are limitations of `DynamicClassExtension`:
 1. Overloaded operations are not supported yet. So for example, it is not possible to define both `log(boolean)` and `log(String)` operations
 2. Operations having more than one parameter are not supported yet.
+
+Next >> [Aspects](aspects.md)

@@ -12,6 +12,7 @@ import static com.gl.classext.Aspects.AroundAdvice.applyDefault;
 import static com.gl.classext.DynamicClassExtension.lambdaWithDescription;
 import static java.lang.System.out;
 import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 @SuppressWarnings("unused")
 public class DynamicClassExtensionTest {
@@ -788,16 +789,39 @@ public class DynamicClassExtensionTest {
 
     @Test
     void testAspect() {
+        List<String> out = new ArrayList<>();
         DynamicClassExtension dynamicClassExtension = new DynamicClassExtension().builder(Item_Shippable.class).
                 opName("toString").
                     op(Object.class, Object::toString).
-                        before((object, args) -> out.println("BEFORE: " + object + "-> toString()")).
-                        after(result -> out.println("AFTER: result - " + result)).
+                        before((operation, object, args) -> out.add("BEFORE: " + object + "-> toString()")).
+                        after((result, operation, object, args) -> out.add("AFTER: result - " + result)).
                 build();
 
         Book book = new Book("The Mythical Man-Month");
         Item_Shippable extension = dynamicClassExtension.extension(book, Item_Shippable.class);
-        out.println("RESULT: " + extension.toString());
+        System.out.println(extension.toString());
+        String result = String.join("\n", out);
+        System.out.println(result);
+        assertEquals("""
+                     BEFORE: Book["The Mythical Man-Month"]-> toString()
+                     AFTER: result - Book["The Mythical Man-Month"]""", result);
+    }
+
+    @Test
+    void testAroundAspect() {
+        DynamicClassExtension dynamicClassExtension = new DynamicClassExtension().builder(Item_Shippable.class).
+                opName("toString").
+                    op(Object.class, Object::toString).
+                        before((operation, object, args) -> out.println("BEFORE: " + object + "-> toString()")).
+                        after((result, operation, object, args) -> out.println("AFTER: result - " + result)).
+                        around((performer, operation, object, args) -> "AROUND " + applyDefault(performer, operation, object, args)).
+                build();
+
+        Book book = new Book("The Mythical Man-Month");
+        Item_Shippable extension = dynamicClassExtension.extension(book, Item_Shippable.class);
+        String result =  extension.toString();
+        out.println("RESULT: " + result);
+        assertEquals("AROUND Book[\"The Mythical Man-Month\"]", result);
     }
 
     @Test
@@ -806,8 +830,8 @@ public class DynamicClassExtensionTest {
                 opName("toString").
                 op(Object.class, Object::toString).
                     async().
-                    before((object, args) -> out.println("BEFORE: " + object + "-> toString()")).
-                    after(result -> out.println("AFTER: result - " + result)).
+                    before((operation, object, args) -> out.println("BEFORE: " + object + "-> toString()")).
+                    after((result, operation, object, args) -> out.println("AFTER: result - " + result)).
                 build();
 
         Book book = new Book("The Mythical Man-Month");
@@ -831,8 +855,8 @@ public class DynamicClassExtensionTest {
         dynamicClassExtension.builder(Item_Shippable.class).
                 opName("toString").
                     alterOp(Object.class,new Class<?>[0]).
-                        before((object, args) -> stringBuilder.append("BEFORE: ").append(object).append("-> toString()\n")).
-                        after(result -> stringBuilder.append("AFTER: result - ").append(result).append("\n")).
+                        before((operation, object, args) -> stringBuilder.append("BEFORE: ").append(object).append("-> toString()\n")).
+                        after((result, operation, object, args) -> stringBuilder.append("AFTER: result - ").append(result).append("\n")).
                 build();
         extension = dynamicClassExtension.extension(book, Item_Shippable.class);
         stringBuilder.append("RESULT: " + extension.toString());
@@ -999,7 +1023,7 @@ public class DynamicClassExtensionTest {
         };
 
         for (Item item : items) {
-            Item_Shippable extension = Aspects.logPerformTimeExtension(item, Item_Shippable.class);
+            Item_Shippable extension = Aspects.logPerformanceExtension(item, Item_Shippable.class);
             System.out.println(extension.toString());
         }
     }
@@ -1007,7 +1031,6 @@ public class DynamicClassExtensionTest {
     @Test
     void propertyChangeAdviceTest() {
         DynamicClassExtension dynamicClassExtension = new DynamicClassExtension();
-
         dynamicClassExtension.aspectBuilder().
                 extensionInterface(ItemInterface.class).
                 objectClass(Item.class).
@@ -1019,7 +1042,17 @@ public class DynamicClassExtensionTest {
         out.println(extension.getName());
         extension.setName("Shining");
         out.println(extension.getName());
+        assertEquals("Shining", extension.getName());
+    }
+
+    @Test
+    void propertyChangeUtilityTest() {
+        Book book = new Book("The Mythical Man-Month");
+        Item_Shippable extension = Aspects.propertyChangeExtension(book, Item_Shippable.class, evt -> out.println(evt.toString()));
+        out.println(extension.getName());
         extension.setName("Shining");
+        out.println(extension.getName());
+        assertEquals("Shining", extension.getName());
     }
 
 
@@ -1050,8 +1083,7 @@ public class DynamicClassExtensionTest {
     @Test
     void extensionWithDescriptionTest() {
         final String description = "Some description for Runnable";
-        Runnable runnable = () -> {};
-        Runnable extension = lambdaWithDescription(runnable, Runnable.class, description);
+        Runnable extension = lambdaWithDescription((Runnable) () -> {}, Runnable.class, description);
         out.println(extension.toString());
         assertEquals(description, extension.toString());
     }
