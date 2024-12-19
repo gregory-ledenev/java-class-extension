@@ -8,6 +8,7 @@ import java.util.Arrays;
 import java.util.Objects;
 import java.util.function.BiPredicate;
 import java.util.function.Predicate;
+import java.util.function.Supplier;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.regex.Pattern;
@@ -714,5 +715,76 @@ public class Aspects {
                 build();
         dynamicClassExtension.setCacheEnabled(false);
         return dynamicClassExtension.extension(anObject, anExtensionInterface);
+    }
+
+    /**
+     * A record that holds all the operation perform arguments. This record should be used by underlying cache implementation
+     * to compose actual keys for cached values.
+     *
+     * @param operation operation
+     * @param object    an object to perform the operation for
+     * @param args      arguments
+     */
+    public record OperationPerformKey(String operation, Object object, Object[] args) {
+    }
+
+    /**
+     * An interface a cache implementation should implement to allow it works with {@code CachedValueAdvice}. Or it can
+     * be used as a lambda function to adopt existing cache implementation without the need to subclass
+     */
+    @FunctionalInterface
+    public interface CachedValueProvider {
+        /**
+         * Gets a cached value or creates the value via the {@code aValueSupplier}, caches and returns it
+         *
+         * @param key            a key should be used by underlying cache implementation to compose actual keys for
+         *                       cached values
+         * @param aValueSupplier a supplier that will be called tu supply a value to be cached and returned
+         * @return a value
+         */
+        Object getOrCreate(OperationPerformKey key, Supplier<?> aValueSupplier);
+    }
+
+    /**
+     * Advice (around) that allows caching of operation results
+     */
+    public static class CachedValueAdvice implements AroundAdvice {
+        private final Logger logger;
+        private final CachedValueProvider cachedValueProvider;
+
+        /**
+         * Creates a new instance of {@code CachedValueAdvice}
+         *
+         * @param aCachedValueProvider a cached value provider that allows getting cached values or cache them if
+         *                             needed
+         */
+        public CachedValueAdvice(CachedValueProvider aCachedValueProvider) {
+            this(aCachedValueProvider, null);
+        }
+
+        /**
+         * Creates a new instance of {@code CachedValueAdvice}
+         *
+         * @param aCachedValueProvider a value provider that allows getting cached values or cache them if needed
+         * @param aLogger              logger
+         */
+        public CachedValueAdvice(CachedValueProvider aCachedValueProvider, Logger aLogger) {
+            cachedValueProvider = aCachedValueProvider;
+            logger = aLogger;
+        }
+
+        /**
+         * {@inheritDoc}
+         */
+        @Override
+        public Object apply(Object performer, String operation, Object object, Object[] args) {
+            return cachedValueProvider.getOrCreate(new OperationPerformKey(operation, object, args), () -> {
+                if (logger != null)
+                    logger.info(format("Not cached; getting value: {0} -> {1}({2})",
+                            object,
+                            operation, args != null ? Arrays.toString(args) : ""));
+                return AroundAdvice.applyDefault(performer, operation, object, args);
+            });
+        }
     }
 }
