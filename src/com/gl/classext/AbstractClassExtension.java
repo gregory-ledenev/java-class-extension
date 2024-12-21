@@ -117,12 +117,28 @@ public abstract class AbstractClassExtension implements ClassExtension {
         pointcuts.add(aPointcut);
     }
 
+    protected boolean removePointcut(Pointcut aPointcut) {
+        boolean result = pointcuts.remove(aPointcut);
+        if (! result && isVerbose())
+            logger.info("No pointcut to remove: " + aPointcut.toString());
+        return result;
+    }
+
+    protected void setPointcutEnabled(Pointcut aPointcut, boolean isEnabled) {
+        List<Pointcut> copyPointcuts = new ArrayList<>(pointcuts);
+        int index = copyPointcuts.indexOf(aPointcut);
+        if (index != -1)
+            copyPointcuts.get(index).setEnabled(isEnabled);
+        else if (isVerbose())
+            logger.info("No pointcut to toggle enabled: " + aPointcut.toString());
+    }
+
     protected Pointcut getPointcut(Class<?> anExtensionInterface, Class<?> anObjectClass,
                                          String anOperation, Class<?>[] anOperationParameterTypes,
                                          AdviceType anAdviceType) {
         Pointcut result = null;
         for (Pointcut pointcut : new ArrayList<>(pointcuts)) {
-            if (! pointcut.accept(anOperation, anOperationParameterTypes, anAdviceType))
+            if (! pointcut.isEnabled() || ! pointcut.accept(anOperation, anOperationParameterTypes, anAdviceType))
                 continue;
 
             if (pointcut.accept(anExtensionInterface, anObjectClass, anOperation, anOperationParameterTypes, anAdviceType)) {

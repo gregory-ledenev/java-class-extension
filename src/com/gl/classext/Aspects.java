@@ -95,32 +95,36 @@ public class Aspects {
         }
     }
 
-    protected record Pointcut(Predicate<Class<?>> extensionInterface,
-                           Predicate<Class<?>> objectClass,
-                           BiPredicate<String, Class<?>[]> operation,
-                           AdviceType adviceType, Object advice) {
+    protected static class Pointcut {
+        private final Predicate<Class<?>> extensionInterface;
+        private final Predicate<Class<?>> objectClass;
+        private final BiPredicate<String, Class<?>[]> operation;
+        private final AdviceType adviceType;
+        private final Object advice;
+        private boolean enabled = true;
 
         public Pointcut(Predicate<Class<?>> extensionInterface, Predicate<Class<?>> objectClass, BiPredicate<String, Class<?>[]> operation, AdviceType adviceType, Object advice) {
             this.extensionInterface = extensionInterface;
             this.objectClass = objectClass;
             this.operation = operation;
             this.adviceType = adviceType;
-            switch (this.adviceType) {
-                case BEFORE:
-                    if (!(advice instanceof BeforeAdvice))
-                        throw new IllegalArgumentException("Advice(BEFORE) is not a BeforeAdvice");
-                    break;
-                case AFTER:
-                    if (!(advice instanceof AfterAdvice))
-                        throw new IllegalArgumentException("Advice(AFTER) is not a AfterAdvice");
-                    break;
-                case AROUND:
-                    if (!(advice instanceof AroundAdvice))
-                        throw new IllegalArgumentException("Advice(AROUND) is not a AroundAdvice");
-                    break;
-                default:
-                    throw new IllegalStateException("Unexpected value: " + this.adviceType);
-            }
+            if (advice != null) // can be null for matching purposes
+                switch (this.adviceType) {
+                    case BEFORE:
+                        if (!(advice instanceof BeforeAdvice))
+                            throw new IllegalArgumentException("Advice(BEFORE) is not a BeforeAdvice");
+                        break;
+                    case AFTER:
+                        if (!(advice instanceof AfterAdvice))
+                            throw new IllegalArgumentException("Advice(AFTER) is not a AfterAdvice");
+                        break;
+                    case AROUND:
+                        if (!(advice instanceof AroundAdvice))
+                            throw new IllegalArgumentException("Advice(AROUND) is not a AroundAdvice");
+                        break;
+                    default:
+                        throw new IllegalStateException("Unexpected value: " + this.adviceType);
+                }
             this.advice = advice;
         }
 
@@ -154,6 +158,41 @@ public class Aspects {
         public Object around(Object aPerformer, String operation, Object anObject, Object[] anArguments) {
             return ((AroundAdvice) advice).apply(aPerformer, operation, anObject, anArguments);
         }
+
+        @Override
+        public boolean equals(Object aO) {
+            if (aO == null || getClass() != aO.getClass()) return false;
+
+            Pointcut pointcut = (Pointcut) aO;
+            return adviceType == pointcut.adviceType && objectClass.equals(pointcut.objectClass) && extensionInterface.equals(pointcut.extensionInterface) && operation.equals(pointcut.operation);
+        }
+
+        @Override
+        public int hashCode() {
+            int result = extensionInterface.hashCode();
+            result = 31 * result + objectClass.hashCode();
+            result = 31 * result + operation.hashCode();
+            result = 31 * result + adviceType.hashCode();
+            return result;
+        }
+
+        public boolean isEnabled() {
+            return enabled;
+        }
+
+        public void setEnabled(boolean aEnabled) {
+            enabled = aEnabled;
+        }
+
+        @Override
+        public String toString() {
+            return "Pointcut{" +
+                    "extensionInterface=" + extensionInterface +
+                    ", objectClass=" + objectClass +
+                    ", operation=" + operation +
+                    ", adviceType=" + adviceType +
+                    '}';
+        }
     }
 
     /**
@@ -161,10 +200,107 @@ public class Aspects {
      * @param <T>
      */
     public static class AspectBuilder<T extends AbstractClassExtension> {
+
+        static class OperationPredicate implements BiPredicate<String, Class<?>[]> {
+            private final String operation;
+
+            public OperationPredicate(String aOperation) {
+                operation = aOperation;
+            }
+
+            @Override
+            public boolean test(String operation, Class<?>[] parameterTypes) {
+                return operationNameMatches(operation, this.operation) &&
+                        operationParameterTypesMatch(this.operation, parameterTypes);
+            }
+
+            @Override
+            public String toString() {
+                return format("OperationPredicate(\"{0}\")", this.operation);
+            }
+
+            @Override
+            public boolean equals(Object aO) {
+                if (aO == null || getClass() != aO.getClass()) return false;
+
+                OperationPredicate that = (OperationPredicate) aO;
+                return operation.equals(that.operation);
+            }
+
+            @Override
+            public int hashCode() {
+                return operation.hashCode();
+            }
+        }
+
+        static class ClassNamePredicate implements Predicate<Class<?>> {
+            private final String className;
+
+            public ClassNamePredicate(String aClassName) {
+                className = aClassName;
+            }
+
+            @Override
+            public boolean test(Class<?> aClass) {
+                return matches(
+                        className,
+                        className.contains(".") ? aClass.getName() : aClass.getSimpleName());
+            }
+
+            @Override
+            public String toString() {
+                return format("ClassNamePredicate(\"{0}\")", className);
+            }
+
+            @Override
+            public boolean equals(Object aO) {
+                if (aO == null || getClass() != aO.getClass()) return false;
+
+                ClassNamePredicate that = (ClassNamePredicate) aO;
+                return className.equals(that.className);
+            }
+
+            @Override
+            public int hashCode() {
+                return className.hashCode();
+            }
+        }
+
+        static class ClassPredicate implements Predicate<Class<?>> {
+            private final Class<?>[] classes;
+
+            public ClassPredicate(Class<?>... aClasses) {
+                classes = aClasses;
+            }
+
+            @Override
+            public boolean test(Class<?> aClass) {
+                return Arrays.asList(classes).contains(aClass);
+            }
+
+            @Override
+            public String toString() {
+                return format("ClassPredicate(\"{0}\")", Arrays.toString(classes));
+            }
+
+            @Override
+            public boolean equals(Object aO) {
+                if (aO == null || getClass() != aO.getClass()) return false;
+
+                ClassPredicate that = (ClassPredicate) aO;
+                return Arrays.equals(classes, that.classes);
+            }
+
+            @Override
+            public int hashCode() {
+                return Arrays.hashCode(classes);
+            }
+        }
+
         private final T classExtension;
         private Predicate<Class<?>> extensionInterface;
         private Predicate<Class<?>> objectClass;
-        private BiPredicate<String, Class<?>[]> operation;
+        private OperationPredicate operation;
 
         /**
          * Creates a new instance of {@code AspectBuilder} and supplies a {@code ClassExtension} to build Aspects for
@@ -192,19 +328,7 @@ public class Aspects {
         public AspectBuilder<T> extensionInterface(String anInterfaceName) {
             Objects.requireNonNull(anInterfaceName);
 
-            extensionInterface = getClassPredicate(anInterfaceName);
-            return this;
-        }
-
-        /**
-         * Specifies an extension interface the Aspects should be added fpr
-         * @param anExtensionInterface an extension interface
-         * @return this Builder
-         */
-        public AspectBuilder<T> extensionInterface(Class<?> anExtensionInterface) {
-            Objects.requireNonNull(anExtensionInterface);
-
-            extensionInterface = getClassPredicate(anExtensionInterface);
+            extensionInterface = new ClassNamePredicate(anInterfaceName);
             return this;
         }
 
@@ -213,10 +337,10 @@ public class Aspects {
          * @param anExtensionInterfaces extension interfaces
          * @return this Builder
          */
-        public AspectBuilder<T> extensionInterface(Class<?>[] anExtensionInterfaces) {
+        public AspectBuilder<T> extensionInterface(Class<?>... anExtensionInterfaces) {
             Objects.requireNonNull(anExtensionInterfaces);
 
-            extensionInterface = getClassPredicate(anExtensionInterfaces);
+            extensionInterface = new ClassPredicate(anExtensionInterfaces);
             return this;
         }
 
@@ -230,20 +354,7 @@ public class Aspects {
         public AspectBuilder<T> objectClass(String anObjectClassName) {
             Objects.requireNonNull(anObjectClassName);
 
-            objectClass = getClassPredicate(anObjectClassName);
-            return this;
-        }
-
-        /**
-         * Specifies an object class the Aspects should be added fpr
-         *
-         * @param anObjectClass an object class
-         * @return this Builder
-         */
-        public AspectBuilder<T> objectClass(Class<?> anObjectClass) {
-            Objects.requireNonNull(anObjectClass);
-
-            objectClass = getClassPredicate(anObjectClass);
+            objectClass = new ClassNamePredicate(anObjectClassName);
             return this;
         }
 
@@ -253,10 +364,10 @@ public class Aspects {
          * @param anObjectClasses an object classes
          * @return this Builder
          */
-        public AspectBuilder<T> objectClass(Class<?>[] anObjectClasses) {
+        public AspectBuilder<T> objectClass(Class<?>... anObjectClasses) {
             Objects.requireNonNull(anObjectClasses);
 
-            objectClass = getClassPredicate(anObjectClasses);
+            objectClass = new ClassPredicate(anObjectClasses);
             return this;
         }
 
@@ -270,22 +381,11 @@ public class Aspects {
         public AspectBuilder<T> operation(String anOperation) {
             Objects.requireNonNull(anOperation);
 
-            operation = new BiPredicate<>() {
-                @Override
-                public boolean test(String operation, Class<?>[] parameterTypes) {
-                    return AspectBuilder.this.operationNameMatches(operation, anOperation) &&
-                            AspectBuilder.this.operationParameterTypesMatch(anOperation, parameterTypes);
-                }
-
-                @Override
-                public String toString() {
-                    return format("OperationPredicate(\"{0}\")", anOperation);
-                }
-            };
+            operation = new OperationPredicate(anOperation);
             return this;
         }
 
-        private boolean operationParameterTypesMatch(String anOperation, Class<?>[] aParameterTypes) {
+        private static boolean operationParameterTypesMatch(String anOperation, Class<?>[] aParameterTypes) {
             String[] operationParameters = getOperationParameters(anOperation);
             boolean result = false;
             if (operationParameters.length == aParameterTypes.length) {
@@ -298,18 +398,18 @@ public class Aspects {
             return result;
         }
 
-        private boolean operationNameMatches(String anOperation, String anOperationPattern) {
+        private static boolean operationNameMatches(String anOperation, String anOperationPattern) {
             return matches(getOperationName(anOperationPattern), getOperationName(anOperation));
         }
 
-        private String getOperationName(String anOperation) {
+        private static String getOperationName(String anOperation) {
             int index = anOperation.indexOf("(");
             return index > 0 ? anOperation.substring(0, index) : anOperation;
         }
 
         static final String[] EMPTY_PARAMETERS = new String[0];
 
-        private String[] getOperationParameters(String anOperation) {
+        private static String[] getOperationParameters(String anOperation) {
             String[] result = EMPTY_PARAMETERS;
             if (anOperation.contains("(")) {
                 String params = anOperation.replaceAll(".*\\((.*)\\).*", "$1");
@@ -359,54 +459,37 @@ public class Aspects {
             return this;
         }
 
+        /**
+         * Removes advice(s) for a previously specified combination of extension interface(s), object
+         * class(es) and operation(s)
+         * @param anAdvices advices to be removed
+         * @return this Builder
+         */
+        public AspectBuilder<T> remove(AdviceType... anAdvices) {
+            checkPrerequisites();
+            for (AdviceType advice : anAdvices)
+                classExtension.removePointcut(new Pointcut(extensionInterface, objectClass, operation, advice, null));
+            return this;
+        }
+
+        /**
+         * Enables advice(s) for a previously specified combination of extension interface(s), object
+         * class(es) and operation(s)
+         * @param isEnabled enabled value
+         * @param anAdvices advices to be enabled
+         * @return this Builder
+         */
+        public AspectBuilder<T> enabled(boolean isEnabled, AdviceType... anAdvices) {
+            checkPrerequisites();
+            for (AdviceType advice : anAdvices)
+                classExtension.setPointcutEnabled(new Pointcut(extensionInterface, objectClass, operation, advice, null), isEnabled);
+            return this;
+        }
+
         private void checkPrerequisites() {
             Objects.requireNonNull(objectClass, "Object class is not specified");
             Objects.requireNonNull(extensionInterface, "Extension interface is not specified");
             Objects.requireNonNull(operation, "Operation name is not specified");
-        }
-
-        private static Predicate<Class<?>> getClassPredicate(String aClassName) {
-            return new Predicate<>() {
-                @Override
-                public boolean test(Class<?> aClass) {
-                    return matches(
-                            aClassName,
-                            aClassName.contains(".") ? aClass.getName() : aClass.getSimpleName());
-                }
-
-                @Override
-                public String toString() {
-                    return format("ClassPredicate(\"{0}\")", aClassName);
-                }
-            };
-        }
-
-        private static Predicate<Class<?>> getClassPredicate(Class<?> anExtensionClass) {
-            return new Predicate<>() {
-                @Override
-                public boolean test(Class<?> obj) {
-                    return anExtensionClass.equals(obj);
-                }
-
-                @Override
-                public String toString() {
-                    return format("ClassPredicate(\"{0}\")", anExtensionClass);
-                }
-            };
-        }
-
-        private static Predicate<Class<?>> getClassPredicate(Class<?>[] anExtensionClasses) {
-            return new Predicate<>() {
-                @Override
-                public boolean test(Class<?> aClass) {
-                    return Arrays.asList(anExtensionClasses).contains(aClass);
-                }
-
-                @Override
-                public String toString() {
-                    return format("ClassPredicate(\"{0}\")", Arrays.toString(anExtensionClasses));
-                }
-            };
         }
 
         private static boolean matches(String aPattern, String aString) {

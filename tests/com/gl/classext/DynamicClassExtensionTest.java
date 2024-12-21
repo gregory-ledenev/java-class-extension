@@ -5,8 +5,11 @@ import org.junit.jupiter.api.Test;
 
 import java.text.MessageFormat;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
-import java.util.logging.Logger;
+import java.util.Map;
+import java.util.function.Supplier;
+import java.util.logging.*;
 
 import static com.gl.classext.Aspects.*;
 import static com.gl.classext.Aspects.AroundAdvice.applyDefault;
@@ -1031,11 +1034,12 @@ public class DynamicClassExtensionTest {
 
     @Test
     void propertyChangeAdviceTest() {
+
         DynamicClassExtension dynamicClassExtension = new DynamicClassExtension();
         dynamicClassExtension.aspectBuilder().
                 extensionInterface(ItemInterface.class).
                 objectClass(Item.class).
-                    operation("setName(*)").
+                    operation("set*(*)").
                         around(new PropertyChangeAdvice(evt -> out.println(evt.toString())));
 
         Book book = new Book("The Mythical Man-Month");
@@ -1044,6 +1048,7 @@ public class DynamicClassExtensionTest {
         extension.setName("Shining");
         out.println(extension.getName());
         assertEquals("Shining", extension.getName());
+
     }
 
     @Test
@@ -1131,12 +1136,205 @@ public class DynamicClassExtensionTest {
         }
     }
 
+    @Test
+    void cachedValueAdviceTest() {
+        System.setProperty("java.util.logging.SimpleFormatter.format", "%4$s: %5$s%n");
+
+        CachedValueProvider cache = new CachedValueProvider() {
+            private final Map<Object, Object> cache =new HashMap<>();
+            @Override
+            public Object getOrCreate(OperationPerformKey key, Supplier<?> aValueSupplier) {
+                Object result = cache.get(key.object());
+                if (result == null) {
+                    result = aValueSupplier.get();
+                    cache.put(key.object(), result);
+                }
+                return result;
+            }
+        };
+
+        StringBuilderHandler stringBuilderHandler = new StringBuilderHandler();
+        Logger logger = Logger.getLogger(getClass().getName());
+        logger.addHandler(stringBuilderHandler);
+
+        DynamicClassExtension dynamicClassExtension = new DynamicClassExtension().
+                aspectBuilder().
+                    extensionInterface(ItemInterface.class).
+                        objectClass(Item.class).
+                            operation("*").
+                                around(new CachedValueAdvice(cache, logger)).
+                build();
+
+        Item[] items = {
+                new Book("The Mythical Man-Month"),
+                new Furniture("Sofa"),
+                new ElectronicItem("Soundbar"),
+                new AutoPart("Tire"),
+        };
+
+        for (Item item : items) {
+            Item_Shippable extension = dynamicClassExtension.extension(item, Item_Shippable.class);
+            System.out.println(extension.toString());
+        }
+
+        for (Item item : items) {
+            Item_Shippable extension = dynamicClassExtension.extension(item, Item_Shippable.class);
+            System.out.println(extension.toString());
+        }
+
+        out.println(stringBuilderHandler.getStringBuilder().toString());
+        assertEquals("""
+                    INFO: Not cached; getting value: Book["The Mythical Man-Month"] -> toString()
+                    INFO: Not cached; getting value: Furniture["Sofa"] -> toString()
+                    INFO: Not cached; getting value: ElectronicItem["Soundbar"] -> toString()
+                    INFO: Not cached; getting value: AutoPart["Tire"] -> toString()
+                    """, stringBuilderHandler.getStringBuilder().toString());
+    }
+
+    @Test
+    void removeAspectTest() {
+        System.setProperty("java.util.logging.SimpleFormatter.format", "%4$s: %5$s%n");
+
+        StringBuilderHandler stringBuilderHandler = new StringBuilderHandler();
+        Logger logger = Logger.getLogger(getClass().getName());
+        logger.addHandler(stringBuilderHandler);
+        DynamicClassExtension dynamicClassExtension = new DynamicClassExtension().
+                aspectBuilder().
+                    extensionInterface(ItemInterface.class).
+                        objectClass(Item.class).
+                            operation("*").
+                                before(new LogBeforeAdvice(logger)).
+                                after(new LogAfterAdvice(logger)).
+                build();
+
+        Item[] items = {
+                new Book("The Mythical Man-Month"),
+                new Furniture("Sofa"),
+                new ElectronicItem("Soundbar"),
+                new AutoPart("Tire"),
+        };
+
+        for (Item item : items) {
+            Item_Shippable extension = dynamicClassExtension.extension(item, Item_Shippable.class);
+            System.out.println(extension.toString());
+        }
+
+        assertEquals("""
+                     INFO: BEFORE: Book["The Mythical Man-Month"] -> toString()
+                     INFO: AFTER: Book["The Mythical Man-Month"] -> toString() = Book["The Mythical Man-Month"]
+                     INFO: BEFORE: Furniture["Sofa"] -> toString()
+                     INFO: AFTER: Furniture["Sofa"] -> toString() = Furniture["Sofa"]
+                     INFO: BEFORE: ElectronicItem["Soundbar"] -> toString()
+                     INFO: AFTER: ElectronicItem["Soundbar"] -> toString() = ElectronicItem["Soundbar"]
+                     INFO: BEFORE: AutoPart["Tire"] -> toString()
+                     INFO: AFTER: AutoPart["Tire"] -> toString() = AutoPart["Tire"]
+                     """, stringBuilderHandler.getStringBuilder().toString());
+
+        // test removal
+        dynamicClassExtension.setVerbose(true);
+        stringBuilderHandler.getStringBuilder().setLength(0);
+        dynamicClassExtension.aspectBuilder().
+                    extensionInterface(ItemInterface.class).
+                        objectClass(Item.class).
+                            operation("*").
+                                remove(AdviceType.BEFORE).
+                build();
+        for (Item item : items) {
+            Item_Shippable extension = dynamicClassExtension.extension(item, Item_Shippable.class);
+            System.out.println(extension.toString());
+        }
+        assertEquals("""
+                    INFO: AFTER: Book["The Mythical Man-Month"] -> toString() = Book["The Mythical Man-Month"]
+                    INFO: AFTER: Furniture["Sofa"] -> toString() = Furniture["Sofa"]
+                    INFO: AFTER: ElectronicItem["Soundbar"] -> toString() = ElectronicItem["Soundbar"]
+                    INFO: AFTER: AutoPart["Tire"] -> toString() = AutoPart["Tire"]
+                    """, stringBuilderHandler.getStringBuilder().toString());
+    }
+
+    @Test
+    void enableAspectTest() {
+        System.setProperty("java.util.logging.SimpleFormatter.format", "%4$s: %5$s%n");
+
+        StringBuilderHandler stringBuilderHandler = new StringBuilderHandler();
+        Logger logger = Logger.getLogger(getClass().getName());
+        logger.addHandler(stringBuilderHandler);
+        DynamicClassExtension dynamicClassExtension = new DynamicClassExtension().
+                aspectBuilder().
+                extensionInterface(ItemInterface.class).
+                objectClass(Item.class).
+                operation("*").
+                before(new LogBeforeAdvice(logger)).
+                after(new LogAfterAdvice(logger)).
+                build();
+
+        Item[] items = {
+                new Book("The Mythical Man-Month"),
+                new Furniture("Sofa"),
+                new ElectronicItem("Soundbar"),
+                new AutoPart("Tire"),
+        };
+
+        for (Item item : items) {
+            Item_Shippable extension = dynamicClassExtension.extension(item, Item_Shippable.class);
+            System.out.println(extension.toString());
+        }
+
+        assertEquals("""
+                     INFO: BEFORE: Book["The Mythical Man-Month"] -> toString()
+                     INFO: AFTER: Book["The Mythical Man-Month"] -> toString() = Book["The Mythical Man-Month"]
+                     INFO: BEFORE: Furniture["Sofa"] -> toString()
+                     INFO: AFTER: Furniture["Sofa"] -> toString() = Furniture["Sofa"]
+                     INFO: BEFORE: ElectronicItem["Soundbar"] -> toString()
+                     INFO: AFTER: ElectronicItem["Soundbar"] -> toString() = ElectronicItem["Soundbar"]
+                     INFO: BEFORE: AutoPart["Tire"] -> toString()
+                     INFO: AFTER: AutoPart["Tire"] -> toString() = AutoPart["Tire"]
+                     """, stringBuilderHandler.getStringBuilder().toString());
+
+        // test enabled
+        dynamicClassExtension.setVerbose(true);
+        stringBuilderHandler.getStringBuilder().setLength(0);
+        dynamicClassExtension.aspectBuilder().
+                extensionInterface(ItemInterface.class).
+                    objectClass(Item.class).
+                        operation("*").
+                            enabled(false, AdviceType.BEFORE, AdviceType.AFTER).
+                build();
+        for (Item item : items) {
+            Item_Shippable extension = dynamicClassExtension.extension(item, Item_Shippable.class);
+            System.out.println(extension.toString());
+        }
+        assertEquals("", stringBuilderHandler.getStringBuilder().toString());
+    }
+
     private static void sleep() {
         try {
             Thread.sleep(1000);
         } catch (InterruptedException ex) {
             ex.printStackTrace();
         }
+    }
+
+    private static class StringBuilderHandler extends Handler {
+        public StringBuilder getStringBuilder() {
+            return stringBuilder;
+        }
+
+        private final StringBuilder stringBuilder = new StringBuilder();
+
+        public StringBuilderHandler() {
+            setFormatter(new SimpleFormatter());
+        }
+
+        @Override
+        public void publish(LogRecord record) {
+            stringBuilder.append(getFormatter().format(record));
+        }
+
+        @Override
+        public void flush() {}
+
+        @Override
+        public void close() throws SecurityException {}
     }
 }
 
