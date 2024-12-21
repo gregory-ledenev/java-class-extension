@@ -1103,13 +1103,19 @@ public class DynamicClassExtensionTest {
                     extensionInterface(ItemInterface.class).
                         objectClass(Item.class).
                             operation("ship()").
-                                around(new RetryAdvice(2, 1000, Logger.getLogger(getClass().getName()))).
+                                around(new RetryAdvice(3, 1000, Logger.getLogger(getClass().getName()), (result, ex) -> {
+                                    if (result instanceof ShippingInfo shippingInfo) {
+                                        return ! shippingInfo.result.contains("Ship");
+                                    } else {
+                                        return ! (ex instanceof IllegalStateException);
+                                    }
+                                })).
                 build().
                 builder(Item_Shippable.class).
                     opName("ship").
                         op(Book.class, (book) -> {
                             if (retryTestCount > 0)
-                                return new com.gl.classext.ShippingInfo("Shipped: " + book);
+                                return new ShippingInfo("Shipped: " + book);
                             else {
                                 retryTestCount++;
                                 throw new IllegalStateException("Failed to ship: " + book);

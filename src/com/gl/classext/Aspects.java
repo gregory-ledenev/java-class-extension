@@ -13,6 +13,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.regex.Pattern;
 
+import static java.text.MessageFormat.*;
 import static java.text.MessageFormat.format;
 
 /**
@@ -594,7 +595,7 @@ public class Aspects {
             long startTime = System.currentTimeMillis();
 
             Object result = AroundAdvice.applyDefault(performer, operation, object, args);
-            logger.info(MessageFormat.format("Perform time for \"{0}\" is {1} ms.", operation, System.currentTimeMillis()-startTime));
+            logger.info(format("Perform time for \"{0}\" is {1} ms.", operation, System.currentTimeMillis()-startTime));
             return result;
         }
     }
@@ -674,34 +675,53 @@ public class Aspects {
     }
 
     /**
-     * Advice (around) that automatically retries failed operations. Executes the operation multiple times upon exception,
-     * up to a specified retry limit, before propagating the final failure.
+     * Advice (around) that automatically retries failed operations. Executes the operation multiple times upon
+     * exception, up to a specified retry limit, before propagating the final failure. Default policy is "retry after
+     * any exception" but it is possible to fine tune that behaviour to provide {@code resultChecker} that allows
+     * checking whether results ot exceptions are errors that can be recovered by retrying the operation.
      */
     public static class RetryAdvice implements AroundAdvice {
         private final int retryCount;
         private final long sleepTime;
         private final Logger logger;
+        private final BiPredicate<Object, Throwable> resultChecker;
 
         /**
-         * Creates a new advice
+         * Creates new advice with 500ms sleep time, no logger and no result checker
          *
          * @param aRetryCount retry count
          */
         public RetryAdvice(int aRetryCount) {
-            this(aRetryCount, 0, null);
+            this(aRetryCount, 500, null, null);
+        }
+
+        /**
+         * Creates new advice with 500ms sleep time and no logger
+         *
+         * @param aRetryCount    retry count
+         * @param aResultChecker result checking lambda function
+         */
+        public RetryAdvice(int aRetryCount, BiPredicate<Object, Throwable> aResultChecker) {
+            this(aRetryCount, 500, null, aResultChecker);
         }
 
         /**
          * Creates a new advice
          *
-         * @param aRetryCount retry count
-         * @param aSleepTime  sleep before the next try
-         * @param aLogger     logger
+         * @param aRetryCount    retry count
+         * @param aSleepTime     sleep before the next try
+         * @param aLogger        logger
+         * @param aResultChecker result checking lambda function that allows checking whether operation results or
+         *                       exceptions are errors that can be recovered by retrying the operation. The
+         *                       {@code aResultChecker} must return {@code true} if operation is completed and should
+         *                       not be retried. If no {@code aResultChecker} is specified - default "retry after any
+         *                       exception" policy will be applied.
          */
-        public RetryAdvice(int aRetryCount, long aSleepTime, Logger aLogger) {
+        public RetryAdvice(int aRetryCount, long aSleepTime, Logger aLogger, BiPredicate<Object, Throwable> aResultChecker) {
             retryCount = aRetryCount;
-            sleepTime = aSleepTime;
+            sleepTime = Math.max(0, aSleepTime);
             logger = aLogger;
+            resultChecker = aResultChecker;
         }
 
         /**
@@ -715,10 +735,17 @@ public class Aspects {
                 try {
                     result = AroundAdvice.applyDefault(performer, operation, object, args);
                     resultEx = null;
+                    if (resultChecker != null && resultChecker.test(result, null))
+                        break; // result is not an error - return
+                    else if (logger != null) {
+                        logger.severe(format("Failed to perform operation: {0} with result: {1}", operation, result));
+                    }
                 } catch (Throwable ex) {
                     resultEx = new RuntimeException(ex);
                     if (logger != null)
                         logger.log(Level.SEVERE, "Failed to perform operation: " + operation,  ex);
+                    if (resultChecker != null && resultChecker.test(null, ex))
+                        break; // exception is not recoverable - return
                 }
                 if (i < retryCount -1 && sleepTime > 0) {
                     try {
