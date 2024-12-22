@@ -136,13 +136,14 @@ While the Java Class Extension Library requires slightly more code and efforts t
    * Dynamic resolution of extension methods
    * Enables complex hierarchies and method overriding
    * Dynamic methods overriding in Dynamic Class Extensions
+   * Dynamic interfaces composition in Dynamic Class Extensions
 2. _Static_ Extensions are fully functional classes
    * Can add and manage new state
    * Support for additional helper methods
    * Flexibility to implement complex logic
 3. Conflict-Free Integration
    * No clashes with third-party libraries
-   * Multiple extensions with identical names can coexist in different packages
+   * Multiple extensions with identical names can coexist in different places or packages
 4. AOP Aspects Support
    * Ability to specify some actions should be applied before, after or around some operations.
    * Good for logging and tracing, security, caching, retrying etc.

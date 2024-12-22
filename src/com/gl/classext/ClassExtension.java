@@ -92,6 +92,20 @@ public interface ClassExtension {
     <T> T extension(Object anObject, Class<T> anExtensionInterface);
 
     /**
+     * Finds and returns an extension object according to a supplied interface. NOTE: It is an optional interface so not all
+     * implementation may support it. It uses cache to avoid redundant objects creation. If no cache should be used -
+     * turn it OFF via the {@code setCacheEnabled(false)} call
+     *
+     * @param anObject                 object to return an extension object for
+     * @param anExtensionInterface     interface of extension object to be returned
+     * @param aSupplementaryInterfaces supplementary interfaces of extension object to be returned
+     * @return an extension object
+     */
+    default <T> T extension(Object anObject, Class<T> anExtensionInterface, Class<?>... aSupplementaryInterfaces) {
+        throw new UnsupportedOperationException("Extensions with supplementary interfaces are not supported");
+    }
+
+    /**
      * Checks that an extension represents particular object. So for example,
      * {@code equals(book, StaticClassExtension.sharedExtension(book, Shippable.class))} is {@code true}
      *
@@ -177,4 +191,15 @@ public interface ClassExtension {
      * @return true if cache is empty; false otherwise
      */
     boolean cacheIsEmpty();
+
+    /**
+     * An interface for objects holding an identity
+     */
+    interface IdentityHolder {
+        /**
+         * Returns an identity
+         * @return identity
+         */
+        Object getID();
+    }
 }

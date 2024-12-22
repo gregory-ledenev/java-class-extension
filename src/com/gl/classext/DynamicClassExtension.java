@@ -403,14 +403,20 @@ public class DynamicClassExtension extends AbstractClassExtension {
      * @return an extension object
      */
     @SuppressWarnings({"unchecked"})
-    public <T> T extensionNoCache(Object anObject, Class<T> anExtensionInterface) {
+    public <T> T extensionNoCache(Object anObject, Class<T> anExtensionInterface, Class<?>... aSupplementaryInterfaces) {
         Objects.requireNonNull(anObject);
         Objects.requireNonNull(anExtensionInterface);
 
         try {
+            List<Class<?>> extensionInterfaces = new ArrayList<>();
+            extensionInterfaces.add(anExtensionInterface);
+            if (aSupplementaryInterfaces != null)
+                extensionInterfaces.addAll(Arrays.asList(aSupplementaryInterfaces));
+            extensionInterfaces.add(PrivateDelegateHolder.class);
+
             return (T) Proxy.newProxyInstance(getClass().getClassLoader(),
-                    new Class<?>[]{anExtensionInterface, PrivateDelegateHolder.class},
-                    (proxy, method, args) -> performOperation(this, anObject, anExtensionInterface, method, args));
+                    extensionInterfaces.toArray(new Class[0]),
+                    (proxy, method, args) -> performOperation(this, anObject, anExtensionInterface, aSupplementaryInterfaces, method, args));
         } catch (Exception ex) {
             throw new RuntimeException(ex);
         }
@@ -436,16 +442,32 @@ public class DynamicClassExtension extends AbstractClassExtension {
      * Otherwise, an empty dynamic extension having no operations will be returned. It uses cache to avoid redundant
      * objects creation.
      *
-     * @param anObject         object to return an extension object for
+     * @param anObject             object to return an extension object for
      * @param anExtensionInterface class of extension object to be returned
      * @return an extension object
      */
-    @SuppressWarnings({"unchecked"})
     public <T> T extension(Object anObject, Class<T> anExtensionInterface) {
+        return extension(anObject, anExtensionInterface, (Class<?>[]) null);
+    }
+
+    /**
+     * Finds and returns an extension object according to a supplied class. You should use calls of
+     * {@code addExtensionOperation()} to compose dynamic extensions before calling the {@code dynamicExtension} method.
+     * Otherwise, an empty dynamic extension having no operations will be returned. It uses cache to avoid redundant
+     * objects creation.
+     *
+     * @param anObject                 object to return an extension object for
+     * @param anExtensionInterface     class of extension object to be returned
+     * @param aSupplementaryInterfaces supplementary interfaces of extension object to be returned
+     * @return an extension object
+     */
+    @SuppressWarnings("unchecked")
+    public <T> T extension(Object anObject, Class<T> anExtensionInterface, Class<?>... aSupplementaryInterfaces) {
         Objects.requireNonNull(anObject);
         Objects.requireNonNull(anExtensionInterface);
 
-        return (T) extensionCache.getOrCreate(new ClassExtensionKey(anObject, anExtensionInterface), () -> extensionNoCache(anObject, anExtensionInterface));
+        return (T) extensionCache.getOrCreate(new ClassExtensionKey(anObject, anExtensionInterface), () ->
+                extensionNoCache(anObject, anExtensionInterface, aSupplementaryInterfaces));
     }
 
     /**
@@ -489,14 +511,23 @@ public class DynamicClassExtension extends AbstractClassExtension {
         return result;
     }
 
-    <T> Object performOperation(DynamicClassExtension aClassExtension, Object anObject, Class<T> anExtensionClass, Method method, Object[] args) throws InvocationTargetException, IllegalAccessException {
+    <T> Object performOperation(DynamicClassExtension aClassExtension, Object anObject, Class<T> anExtensionInterface,
+                                Class<?>[] aSupplementaryInterfaces, Method method, Object[] args) throws InvocationTargetException, IllegalAccessException {
         Object result;
 
-        ExtensionOperationResult extensionOperation = findExtensionOperation(anObject, anExtensionClass, method, args);
+        ExtensionOperationResult extensionOperation = findExtensionOperation(anObject, anExtensionInterface, method, args);
+        if (extensionOperation.operation() == null && aSupplementaryInterfaces != null) {
+            for (Class<?> supplementaryInterface : aSupplementaryInterfaces) {
+                extensionOperation = findExtensionOperation(anObject, supplementaryInterface, method, args);
+                if (extensionOperation.operation != null)
+                    break;
+            }
+        }
+
         PerformerHolder<?> performerHolder = extensionOperation.operation();
         result = performerHolder != null ?
-                performDynamicOperation(aClassExtension, anObject, anExtensionClass, method, args, performerHolder) :
-                performStaticOperation(aClassExtension, anObject, anExtensionClass, method, args);
+                performDynamicOperation(aClassExtension, anObject, anExtensionInterface, method, args, performerHolder) :
+                performStaticOperation(aClassExtension, anObject, anExtensionInterface, method, args);
 
         return result;
     }
@@ -1140,16 +1171,52 @@ public class DynamicClassExtension extends AbstractClassExtension {
      * @param aLambdaFunction      lambda function
      * @param aFunctionalInterface functional interface of lambda function
      * @param aDescription         description to be returned by {@code toString()}
-     * @return description associated with the lambda function
+     * @return lambda function associated with the description
      */
     public static <T> T lambdaWithDescription(Object aLambdaFunction, Class<T> aFunctionalInterface, String aDescription) {
         DynamicClassExtension dynamicClassExtension = new DynamicClassExtension().
                 builder(aFunctionalInterface).
-                opName("toString").
-                op(Object.class, o -> aDescription).
+                    opName("toString").
+                        op(Object.class, o -> aDescription).
                 build();
         dynamicClassExtension.setCacheEnabled(false);
         return dynamicClassExtension.extension(aLambdaFunction, aFunctionalInterface);
+    }
+
+    /**
+     * Returns an extension (wrapper) for a lambda function that associates a custom description and in identity with
+     * it. Lambda functions in Java cannot customize their {@code toString()}, {@code hashCode} or {@code equals}
+     * methods, which can be inconvenient for some implementations and for debugging. This method allows specifying:
+     * <ul>
+     *     <li>a textual description that will be returned by the {@code toString()} method</li>
+     *     <li>an identity that will be used to calculate {@code hashCode} and to determine equality using the {@code equals} method</li>
+     * </ul>
+     *
+     * @param aLambdaFunction      lambda function
+     * @param aFunctionalInterface functional interface of lambda function
+     * @param aDescription         description to be returned by {@code toString()}
+     * @param anID                 an identity that will be used to calculate {@code hashCode} and to determine equality using the {@code equals} method
+     * @return lambda function associated with the description snd the identity
+     */
+
+    public static <T> T lambdaWithDescriptionAndID(Object aLambdaFunction, Class<T> aFunctionalInterface, String aDescription, Object anID) {
+        final DynamicClassExtension dynamicClassExtension = new DynamicClassExtension();
+        dynamicClassExtension.
+                builder(aFunctionalInterface).
+                opName("toString").
+                    op(Object.class, o -> aDescription).
+                opName("hashCode").
+                    op(Object.class, o -> anID.hashCode()).
+                opName("equals").
+                    op(Object.class, (Object o1, Object o2) -> dynamicClassExtension.extension(o1, aFunctionalInterface, IdentityHolder.class) instanceof IdentityHolder id1 &&
+                            o2 instanceof IdentityHolder id2 &&
+                            Objects.equals(id1.getID(), id2.getID())).
+                build().builder(IdentityHolder.class).
+                    opName("getID").
+                        op(Object.class, o -> anID).
+                build();
+        dynamicClassExtension.setCacheEnabled(false);
+        return dynamicClassExtension.extension(aLambdaFunction, aFunctionalInterface, IdentityHolder.class);
     }
 }
 

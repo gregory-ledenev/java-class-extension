@@ -122,7 +122,7 @@ public class StaticClassExtension extends AbstractClassExtension {
         Objects.requireNonNull(anObject);
         Objects.requireNonNull(anExtensionInterface);
 
-        return extension(anObject, anExtensionInterface, null);
+        return extension(anObject, anExtensionInterface, (List<String>) null);
     }
 
     /**
@@ -259,8 +259,7 @@ public class StaticClassExtension extends AbstractClassExtension {
 
     private static <T> Object performOperation(StaticClassExtension aClassExtension,
                                                T anExtension,
-                                               Object anObject, Method aMethod, Object[] anArgs)
-            throws InvocationTargetException, IllegalAccessException {
+                                               Object anObject, Method aMethod, Object[] anArgs) {
         Object result;
         Aspects.Pointcut aroundPointcut = null;
         Aspects.Pointcut beforePointcut = null;
@@ -313,7 +312,7 @@ public class StaticClassExtension extends AbstractClassExtension {
         return result;
     }
 
-    private static Object performOperation(StaticClassExtension aClassExtension, Object anObject, Method aMethod, Object[] anArgs, Aspects.Pointcut aroundPointcut) throws IllegalAccessException, InvocationTargetException {
+    private static Object performOperation(StaticClassExtension aClassExtension, Object anObject, Method aMethod, Object[] anArgs, Aspects.Pointcut aroundPointcut) {
         return performOperation(aClassExtension, anObject, aMethod, anArgs, aroundPointcut, (operation, anObject1, anArgs1) -> {
             try {
                 return aMethod.invoke(anObject1, anArgs1);

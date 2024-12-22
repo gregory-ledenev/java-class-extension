@@ -4,10 +4,7 @@ package com.gl.classext;
 import org.junit.jupiter.api.Test;
 
 import java.text.MessageFormat;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.function.Supplier;
 import java.util.logging.*;
 
@@ -77,10 +74,14 @@ public class DynamicClassExtensionTest {
     record TrackingInfo(String result) {
     }
 
-    interface Item_Shippable extends ItemInterface {
+    interface Shippable {
         ShippingInfo ship();
         TrackingInfo track(boolean isVerbose);
         TrackingInfo track();
+    }
+
+    interface Item_Shippable extends ItemInterface, Shippable {
+
         void log(boolean isVerbose);
         void log();
 
@@ -1239,12 +1240,14 @@ public class DynamicClassExtensionTest {
         // test removal
         dynamicClassExtension.setVerbose(true);
         stringBuilderHandler.getStringBuilder().setLength(0);
+
         dynamicClassExtension.aspectBuilder().
                     extensionInterface(ItemInterface.class).
                         objectClass(Item.class).
                             operation("*").
                                 remove(AdviceType.BEFORE).
                 build();
+
         for (Item item : items) {
             Item_Shippable extension = dynamicClassExtension.extension(item, Item_Shippable.class);
             System.out.println(extension.toString());
@@ -1266,11 +1269,11 @@ public class DynamicClassExtensionTest {
         logger.addHandler(stringBuilderHandler);
         DynamicClassExtension dynamicClassExtension = new DynamicClassExtension().
                 aspectBuilder().
-                extensionInterface(ItemInterface.class).
-                objectClass(Item.class).
-                operation("*").
-                before(new LogBeforeAdvice(logger)).
-                after(new LogAfterAdvice(logger)).
+                    extensionInterface(ItemInterface.class).
+                        objectClass(Item.class).
+                        operation("*").
+                            before(new LogBeforeAdvice(logger)).
+                            after(new LogAfterAdvice(logger)).
                 build();
 
         Item[] items = {
@@ -1310,6 +1313,64 @@ public class DynamicClassExtensionTest {
             System.out.println(extension.toString());
         }
         assertEquals("", stringBuilderHandler.getStringBuilder().toString());
+    }
+
+    @Test
+    void multipleInterfacesTest() {
+        DynamicClassExtension dynamicClassExtension = new DynamicClassExtension().
+                builder(Shippable.class).
+                    opName("ship").
+                        op(Item.class, o -> new ShippingInfo("SHIPPED: " + o.toString())).
+                build().
+                builder(ClassExtension.IdentityHolder.class).
+                    opName("getID").
+                        op(Object.class, aO -> "ID: " + aO.toString()).
+                build();
+        Item[] items = {
+                new Book("The Mythical Man-Month"),
+                new Furniture("Sofa"),
+                new ElectronicItem("Soundbar"),
+                new AutoPart("Tire"),
+        };
+
+        List<String> out = new ArrayList<>();
+        for (Item item : items) {
+            Shippable extension = dynamicClassExtension.extension(item, Shippable.class, ItemInterface.class, ClassExtension.IdentityHolder.class);
+            out.add(extension.ship().toString());
+            out.add(((ClassExtension.IdentityHolder) extension).getID().toString());
+            out.add(((ItemInterface) extension).getName());
+        }
+        String result = String.join("\n", out);
+        System.out.println(result);
+        assertEquals("""
+                                ShippingInfo[result=SHIPPED: Book["The Mythical Man-Month"]]
+                                ID: Book["The Mythical Man-Month"]
+                                The Mythical Man-Month
+                                ShippingInfo[result=SHIPPED: Furniture["Sofa"]]
+                                ID: Furniture["Sofa"]
+                                Sofa
+                                ShippingInfo[result=SHIPPED: ElectronicItem["Soundbar"]]
+                                ID: ElectronicItem["Soundbar"]
+                                Soundbar
+                                ShippingInfo[result=SHIPPED: AutoPart["Tire"]]
+                                ID: AutoPart["Tire"]
+                                Tire""", result);
+    }
+
+    @Test
+    void lambdaWithDescriptionAndIDTest() {
+        Runnable r1 = DynamicClassExtension.lambdaWithDescriptionAndID((Runnable) () -> out.println("R"), Runnable.class, "R1", "r1");
+        assertEquals("r1", r1 instanceof DynamicClassExtension.IdentityHolder id2 ? id2.getID() : null);
+        Runnable r2 = DynamicClassExtension.lambdaWithDescriptionAndID((Runnable) () -> out.println("R"), Runnable.class, "R1", "r1");
+        assertEquals("r1", r1 instanceof DynamicClassExtension.IdentityHolder id2 ? id2.getID() : null);
+        Runnable r3 = DynamicClassExtension.lambdaWithDescriptionAndID((Runnable) () -> out.println("R3"), Runnable.class, "R3", "r3");
+        assertEquals("r3", r3 instanceof DynamicClassExtension.IdentityHolder id3 ? id3.getID() : null);
+
+        assertEquals(r1, r2);
+        assertEquals(r2, r1);
+
+        assertNotEquals(r1, r3);
+        assertNotEquals(r3, r1);
     }
 
     private static void sleep() {

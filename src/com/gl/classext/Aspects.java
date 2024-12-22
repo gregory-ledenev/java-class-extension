@@ -3,7 +3,6 @@ package com.gl.classext;
 import java.beans.PropertyChangeEvent;
 import java.beans.PropertyChangeListener;
 import java.lang.reflect.Method;
-import java.text.MessageFormat;
 import java.util.Arrays;
 import java.util.Objects;
 import java.util.function.BiPredicate;
@@ -13,7 +12,6 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.regex.Pattern;
 
-import static java.text.MessageFormat.*;
 import static java.text.MessageFormat.format;
 
 /**
@@ -738,12 +736,12 @@ public class Aspects {
                     if (resultChecker != null && resultChecker.test(result, null))
                         break; // result is not an error - return
                     else if (logger != null) {
-                        logger.severe(format("Failed to perform operation: {0} with result: {1}", operation, result));
+                        logger.severe(format("Failed operation: {0} with result: {1}", operation, result));
                     }
                 } catch (Throwable ex) {
                     resultEx = new RuntimeException(ex);
                     if (logger != null)
-                        logger.log(Level.SEVERE, "Failed to perform operation: " + operation,  ex);
+                        logger.log(Level.SEVERE, "Failed operation: " + operation,  ex);
                     if (resultChecker != null && resultChecker.test(null, ex))
                         break; // exception is not recoverable - return
                 }

@@ -9,28 +9,30 @@ Class `DynamicClassExtension` provides a way to emulate class extensions (catego
 
 For example, the following code creates `Shippable` extensions for `Item classes`. There are explicit `ship()` method implementations for all the `Item` classes. Though, the `log()` method is implemented for the `Item` class only so extensions for all the `Item` descendants will utilize the same `log()` method.
 ```java
-  class Item {...}
-  class Book extends Item {...}
-  class Furniture extends Item {...}
-  class ElectronicItem extends Item {...}
-  class AutoPart extends Item {...}
+interface ItemInterface {...}
 
-  interface Shippable {
-      ShippingInfo ship();
-      void log(boolean isVerbose);
-  }
-  
-  static {
-      DynamicClassExtension.sharedBuilder(Shippable.class).
-      nameOp("ship").
-            op(Item.class, item -> ...).
-            op(Book.class, book -> ...).
-            op(Furniture.class, furniture -> ...).
-            op(ElectronicItem.class, electronicItem -> ...).
-      nameOp("log").
-            voidOp(Item.class, (Item item, Boolean isVerbose) -> {...}).
-      build();
-  }
+class Item implements ItemInterface {...}
+class Book extends Item {...}
+class Furniture extends Item {...}
+class ElectronicItem extends Item {...}
+class AutoPart extends Item {...}
+
+interface Shippable {
+  ShippingInfo ship();
+  void log(boolean isVerbose);
+}
+
+static {
+  DynamicClassExtension.sharedBuilder(Shippable.class).
+  nameOp("ship").
+        op(Item.class, item -> ...).
+        op(Book.class, book -> ...).
+        op(Furniture.class, furniture -> ...).
+        op(ElectronicItem.class, electronicItem -> ...).
+  nameOp("log").
+        voidOp(Item.class, (Item item, Boolean isVerbose) -> {...}).
+  build();
+}
 ```
 
 Finding an extension and calling its methods is simple and straightforward:
@@ -100,7 +102,23 @@ Book book = new Book("The Mythical Man-Month");
 System.out.println(book.getName());
 System.out.println(DynamicClassExtension.sharedExtension(book, ItemShippable.class).getName());
 ```
+#### Composition Support
+`DynamicClassExtension` enables dynamic composition of multiple interfaces, complementing static inheritance. Key features:
+* Combines several interfaces at runtime
+* Useful when static composition is impractical or impossible
+* Implemented via the `extension(...)` method with a list of supplemental interfaces
+* Allows flexible usage of the extensions
 
+For example: you can get an extension for a composition of `Shippable` and `ItemInterface` and use it primarily for shipping activities and secondary as an `ItemInterface` object itself (e.g. a `Book`) via type casting.
+
+This approach offers greater flexibility in object composition and usage compared to static inheritance alone.
+```java
+Book book = new Book("The Mythical Man-Month");
+Shippable shippable = DynamicClassExtension.sharedExtension(book, Shippable.class, ItemInterface.class);
+shippable.ship(); // use it for shipping
+out.println(((ItemInterface) shippable).getName()); // use it as a Book itself
+
+```
 #### Asynchronous Operations
 It is possible to use `Builder.async()` to declaratively define asynchronous operations. Such operations are running in background, and they are non-blocking therefore caller threads continue immediately.
 
