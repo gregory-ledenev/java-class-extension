@@ -1211,6 +1211,7 @@ public class DynamicClassExtensionTest {
                         objectClass(Item.class).
                             operation("*").
                                 before(new LogBeforeAdvice(logger)).
+                                before(new LogBeforeAdvice(logger)).
                                 after(new LogAfterAdvice(logger)).
                 build();
 
@@ -1227,15 +1228,19 @@ public class DynamicClassExtensionTest {
         }
 
         assertEquals("""
-                     INFO: BEFORE: Book["The Mythical Man-Month"] -> toString()
-                     INFO: AFTER: Book["The Mythical Man-Month"] -> toString() = Book["The Mythical Man-Month"]
-                     INFO: BEFORE: Furniture["Sofa"] -> toString()
-                     INFO: AFTER: Furniture["Sofa"] -> toString() = Furniture["Sofa"]
-                     INFO: BEFORE: ElectronicItem["Soundbar"] -> toString()
-                     INFO: AFTER: ElectronicItem["Soundbar"] -> toString() = ElectronicItem["Soundbar"]
-                     INFO: BEFORE: AutoPart["Tire"] -> toString()
-                     INFO: AFTER: AutoPart["Tire"] -> toString() = AutoPart["Tire"]
-                     """, stringBuilderHandler.getStringBuilder().toString());
+                    INFO: BEFORE: Book["The Mythical Man-Month"] -> toString()
+                    INFO: BEFORE: Book["The Mythical Man-Month"] -> toString()
+                    INFO: AFTER: Book["The Mythical Man-Month"] -> toString() = Book["The Mythical Man-Month"]
+                    INFO: BEFORE: Furniture["Sofa"] -> toString()
+                    INFO: BEFORE: Furniture["Sofa"] -> toString()
+                    INFO: AFTER: Furniture["Sofa"] -> toString() = Furniture["Sofa"]
+                    INFO: BEFORE: ElectronicItem["Soundbar"] -> toString()
+                    INFO: BEFORE: ElectronicItem["Soundbar"] -> toString()
+                    INFO: AFTER: ElectronicItem["Soundbar"] -> toString() = ElectronicItem["Soundbar"]
+                    INFO: BEFORE: AutoPart["Tire"] -> toString()
+                    INFO: BEFORE: AutoPart["Tire"] -> toString()
+                    INFO: AFTER: AutoPart["Tire"] -> toString() = AutoPart["Tire"]
+                    """, stringBuilderHandler.getStringBuilder().toString());
 
         // test removal
         dynamicClassExtension.setVerbose(true);
@@ -1273,6 +1278,7 @@ public class DynamicClassExtensionTest {
                         objectClass(Item.class).
                         operation("*").
                             before(new LogBeforeAdvice(logger)).
+                            before(new LogBeforeAdvice(logger)).
                             after(new LogAfterAdvice(logger)).
                 build();
 
@@ -1290,16 +1296,20 @@ public class DynamicClassExtensionTest {
 
         assertEquals("""
                      INFO: BEFORE: Book["The Mythical Man-Month"] -> toString()
+                     INFO: BEFORE: Book["The Mythical Man-Month"] -> toString()
                      INFO: AFTER: Book["The Mythical Man-Month"] -> toString() = Book["The Mythical Man-Month"]
+                     INFO: BEFORE: Furniture["Sofa"] -> toString()
                      INFO: BEFORE: Furniture["Sofa"] -> toString()
                      INFO: AFTER: Furniture["Sofa"] -> toString() = Furniture["Sofa"]
                      INFO: BEFORE: ElectronicItem["Soundbar"] -> toString()
+                     INFO: BEFORE: ElectronicItem["Soundbar"] -> toString()
                      INFO: AFTER: ElectronicItem["Soundbar"] -> toString() = ElectronicItem["Soundbar"]
+                     INFO: BEFORE: AutoPart["Tire"] -> toString()
                      INFO: BEFORE: AutoPart["Tire"] -> toString()
                      INFO: AFTER: AutoPart["Tire"] -> toString() = AutoPart["Tire"]
                      """, stringBuilderHandler.getStringBuilder().toString());
 
-        // test enabled
+        // test disabled
         dynamicClassExtension.setVerbose(true);
         stringBuilderHandler.getStringBuilder().setLength(0);
         dynamicClassExtension.aspectBuilder().
@@ -1371,6 +1381,70 @@ public class DynamicClassExtensionTest {
 
         assertNotEquals(r1, r3);
         assertNotEquals(r3, r1);
+    }
+
+    @Test
+    void multipleAroundAdviceTest() {
+        System.setProperty("java.util.logging.SimpleFormatter.format", "%4$s: %5$s%n");
+
+        CachedValueProvider cache = new CachedValueProvider() {
+            private final Map<Object, Object> cache =new HashMap<>();
+            @Override
+            public Object getOrCreate(OperationPerformKey key, Supplier<?> aValueSupplier) {
+                Object result = cache.get(key.object());
+                if (result == null) {
+                    result = aValueSupplier.get();
+                    cache.put(key.object(), result);
+                }
+                return result;
+            }
+        };
+
+        StringBuilderHandler stringBuilderHandler = new StringBuilderHandler();
+        Logger logger = Logger.getLogger(getClass().getName());
+        logger.addHandler(stringBuilderHandler);
+
+        DynamicClassExtension dynamicClassExtension = new DynamicClassExtension().
+                aspectBuilder().
+                    extensionInterface(ItemInterface.class).
+                        objectClass(Item.class).
+                            operation("*").
+                                around(new LogPerformTimeAdvice(logger)).
+                                around(new CachedValueAdvice(cache, logger)).
+                build();
+
+        Item[] items = {
+                new Book("The Mythical Man-Month"),
+                new Furniture("Sofa"),
+                new ElectronicItem("Soundbar"),
+                new AutoPart("Tire"),
+        };
+
+        for (Item item : items) {
+            Item_Shippable extension = dynamicClassExtension.extension(item, Item_Shippable.class);
+            System.out.println(extension.toString());
+        }
+
+        for (Item item : items) {
+            Item_Shippable extension = dynamicClassExtension.extension(item, Item_Shippable.class);
+            System.out.println(extension.toString());
+        }
+
+        out.println(stringBuilderHandler.getStringBuilder().toString());
+        assertEquals("""
+                    INFO: Perform time for "toString" is 2 ms.
+                    INFO: Not cached; getting value: Book["The Mythical Man-Month"] -> toString()
+                    INFO: Perform time for "toString" is 0 ms.
+                    INFO: Not cached; getting value: Furniture["Sofa"] -> toString()
+                    INFO: Perform time for "toString" is 0 ms.
+                    INFO: Not cached; getting value: ElectronicItem["Soundbar"] -> toString()
+                    INFO: Perform time for "toString" is 0 ms.
+                    INFO: Not cached; getting value: AutoPart["Tire"] -> toString()
+                    INFO: Perform time for "toString" is 0 ms.
+                    INFO: Perform time for "toString" is 0 ms.
+                    INFO: Perform time for "toString" is 0 ms.
+                    INFO: Perform time for "toString" is 0 ms.
+                     """, stringBuilderHandler.getStringBuilder().toString());
     }
 
     private static void sleep() {

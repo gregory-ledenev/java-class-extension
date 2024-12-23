@@ -46,6 +46,7 @@ public class ThreadSafeWeakCache<K, V> {
         this.cleanupExecutor = Executors.newSingleThreadScheduledExecutor();
     }
 
+    @SuppressWarnings("unused")
     public void setMaxSize(int aMaxSize) {
         if (aMaxSize < 100)
             throw new IllegalArgumentException(MessageFormat.format("Invalid max cache size value: {0}. It must be >= 100", aMaxSize));
@@ -53,6 +54,7 @@ public class ThreadSafeWeakCache<K, V> {
         maxSize = aMaxSize;
     }
 
+    @SuppressWarnings("unused")
     public int getMaxSize() {
         return maxSize;
     }

@@ -3,7 +3,9 @@ package com.gl.classext;
 import java.beans.PropertyChangeEvent;
 import java.beans.PropertyChangeListener;
 import java.lang.reflect.Method;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 import java.util.Objects;
 import java.util.function.BiPredicate;
 import java.util.function.Predicate;
@@ -87,14 +89,58 @@ public class Aspects {
             Objects.requireNonNull(performer);
             Objects.requireNonNull(object);
 
-            if (performer instanceof AbstractClassExtension.Performer)
-                return ((AbstractClassExtension.Performer) performer).perform(operation, object, args);
+            if (performer instanceof Performer)
+                return ((Performer) performer).perform(operation, object, args);
             else
                 throw new IllegalStateException("Unsupported performer for around advice: " + performer);
         }
     }
 
-    protected static class Pointcut {
+    public interface Pointcut {
+        void before(String anOperation, Object anObject, Object[] anArguments);
+        void after(Object aResult, String anOperation, Object anObject, Object[] anArguments);
+        Object around(Object aPerformer, String anOperation, Object anObject, Object[] anArguments);
+    }
+
+    protected static class Pointcuts implements Pointcut {
+        private final List<Pointcut> pointcuts = new ArrayList<>();
+
+        public boolean isEmpty() {
+            return pointcuts.isEmpty();
+        }
+
+        public void addPointcut(Pointcut aPointcut) {
+            pointcuts.add(aPointcut);
+        }
+
+        @Override
+        public void before(String anOperation, Object anObject, Object[] anArguments) {
+            for (Pointcut pointcut : pointcuts)
+                pointcut.before(anOperation, anObject, anArguments);
+        }
+
+        @Override
+        public void after(Object aResult, String anOperation, Object anObject, Object[] anArguments) {
+            for (Pointcut pointcut : pointcuts)
+                pointcut.after(aResult, anOperation, anObject, anArguments);
+        }
+
+        @Override
+        public Object around(Object aPerformer, String anOperation, Object anObject, Object[] anArguments) {
+            Object result = null;
+            for (int i = 0; i < pointcuts.size(); i++) {
+                if (i == 0) {
+                    result = pointcuts.get(i).around(aPerformer, anOperation, anObject, anArguments);
+                } else {
+                    Object finalResult = result;
+                    result = pointcuts.get(i).around((Performer<Object>) (operation, anObject1, anArgs) -> finalResult,
+                            anOperation, anObject, anArguments);
+                }
+            }
+            return result;
+        }
+    }
+    protected static class SinglePointcut implements Pointcut {
         private final Predicate<Class<?>> extensionInterface;
         private final Predicate<Class<?>> objectClass;
         private final BiPredicate<String, Class<?>[]> operation;
@@ -102,7 +148,7 @@ public class Aspects {
         private final Object advice;
         private boolean enabled = true;
 
-        public Pointcut(Predicate<Class<?>> extensionInterface, Predicate<Class<?>> objectClass, BiPredicate<String, Class<?>[]> operation, AdviceType adviceType, Object advice) {
+        public SinglePointcut(Predicate<Class<?>> extensionInterface, Predicate<Class<?>> objectClass, BiPredicate<String, Class<?>[]> operation, AdviceType adviceType, Object advice) {
             this.extensionInterface = extensionInterface;
             this.objectClass = objectClass;
             this.operation = operation;
@@ -146,23 +192,26 @@ public class Aspects {
                     objectClass.test(anObjectClass);
         }
 
+        @Override
         public void before(String anOperation, Object anObject, Object[] anArguments) {
             ((BeforeAdvice) advice).accept(anOperation, anObject, anArguments);
         }
 
+        @Override
         public void after(Object aResult, String anOperation, Object anObject, Object[] anArguments) {
             ((AfterAdvice) advice).accept(aResult, anOperation, anObject, anArguments);
         }
 
-        public Object around(Object aPerformer, String operation, Object anObject, Object[] anArguments) {
-            return ((AroundAdvice) advice).apply(aPerformer, operation, anObject, anArguments);
+        @Override
+        public Object around(Object aPerformer, String anOperation, Object anObject, Object[] anArguments) {
+            return ((AroundAdvice) advice).apply(aPerformer, anOperation, anObject, anArguments);
         }
 
         @Override
         public boolean equals(Object aO) {
             if (aO == null || getClass() != aO.getClass()) return false;
 
-            Pointcut pointcut = (Pointcut) aO;
+            SinglePointcut pointcut = (SinglePointcut) aO;
             return adviceType == pointcut.adviceType && objectClass.equals(pointcut.objectClass) && extensionInterface.equals(pointcut.extensionInterface) && operation.equals(pointcut.operation);
         }
 
@@ -428,7 +477,7 @@ public class Aspects {
         public AspectBuilder<T> before(BeforeAdvice aBefore) {
             Objects.requireNonNull(aBefore);
             checkPrerequisites();
-            classExtension.addPointcut(new Pointcut(extensionInterface, objectClass, operation, AdviceType.BEFORE, aBefore));
+            classExtension.addPointcut(new SinglePointcut(extensionInterface, objectClass, operation, AdviceType.BEFORE, aBefore));
             return this;
         }
 
@@ -441,7 +490,7 @@ public class Aspects {
         public AspectBuilder<T> after(AfterAdvice anAfter) {
             Objects.requireNonNull(anAfter);
             checkPrerequisites();
-            classExtension.addPointcut(new Pointcut(extensionInterface, objectClass, operation, AdviceType.AFTER, anAfter));
+            classExtension.addPointcut(new SinglePointcut(extensionInterface, objectClass, operation, AdviceType.AFTER, anAfter));
             return this;
         }
 
@@ -454,7 +503,7 @@ public class Aspects {
         public AspectBuilder<T> around(AroundAdvice anAround) {
             Objects.requireNonNull(anAround);
             checkPrerequisites();
-            classExtension.addPointcut(new Pointcut(extensionInterface, objectClass, operation, AdviceType.AROUND, anAround));
+            classExtension.addPointcut(new SinglePointcut(extensionInterface, objectClass, operation, AdviceType.AROUND, anAround));
             return this;
         }
 
@@ -467,7 +516,7 @@ public class Aspects {
         public AspectBuilder<T> remove(AdviceType... anAdvices) {
             checkPrerequisites();
             for (AdviceType advice : anAdvices)
-                classExtension.removePointcut(new Pointcut(extensionInterface, objectClass, operation, advice, null));
+                classExtension.removePointcut(new SinglePointcut(extensionInterface, objectClass, operation, advice, null));
             return this;
         }
 
@@ -481,7 +530,7 @@ public class Aspects {
         public AspectBuilder<T> enabled(boolean isEnabled, AdviceType... anAdvices) {
             checkPrerequisites();
             for (AdviceType advice : anAdvices)
-                classExtension.setPointcutEnabled(new Pointcut(extensionInterface, objectClass, operation, advice, null), isEnabled);
+                classExtension.setPointcutEnabled(new SinglePointcut(extensionInterface, objectClass, operation, advice, null), isEnabled);
             return this;
         }
 
@@ -866,6 +915,7 @@ public class Aspects {
          * @param aCachedValueProvider a cached value provider that allows getting cached values or cache them if
          *                             needed
          */
+        @SuppressWarnings("unused")
         public CachedValueAdvice(CachedValueProvider aCachedValueProvider) {
             this(aCachedValueProvider, null);
         }

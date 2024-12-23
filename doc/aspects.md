@@ -47,6 +47,8 @@ for (Item item : items) {
 ```
 If Aspects are used for debugging and testing purposes only - they can be turned OFF using the `aspectsEnabled` property of `ClassExtension`.
 
+Multiple advices can be applied to a single pointcut, enabling chaining. Chaining `before` and `after` advices is straightforward and has no side effects. However, chaining multiple `around` advices is more complex, as only the first `around` advice in the chain can perform the underlying operation; all subsequent advices will operate on the results of the previous ones. Therefore, it's important to consider the implications of your chaining to avoid meaningless combinations. For example, chaining a performance tracking advice right after a caching advice would be counterproductive, as it would always report zero execution time. Proper chaining enhances modularity and reusability but requires thoughtful design to maintain effectiveness and accuracy.
+
 ### Explicitly Defined Aspects in DynamicLCassExtension
 The `DynamicClassExtension` provides an ability to define Aspects for certain operations. If defined, such aspects will supersede any aspects defined via `AspectBuilder`. It can be done via use of the `Builder.before()`, `Builder.after()` and `Builder.around` methods respectively.
 ```java

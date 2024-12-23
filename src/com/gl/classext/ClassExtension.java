@@ -145,6 +145,7 @@ public interface ClassExtension {
      * Checks if verbose mode it turned ON
      * @return {@code true} if verbose mode it turned ON; {@code false} otherwise.
      */
+    @SuppressWarnings("unused")
     boolean isVerbose();
 
     /**

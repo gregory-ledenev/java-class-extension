@@ -162,6 +162,7 @@ public class DynamicClassExtension extends AbstractClassExtension {
             around = aAround;
         }
 
+        @SuppressWarnings("unused")
         public String getOperationKey() {
             return operationKey;
         }

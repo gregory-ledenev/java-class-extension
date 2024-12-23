@@ -101,7 +101,7 @@ public abstract class AbstractClassExtension implements ClassExtension {
     }
 //endregion}
 
-    protected final List<Pointcut> pointcuts = Collections.synchronizedList(new ArrayList<>());
+    protected final List<SinglePointcut> pointcuts = Collections.synchronizedList(new ArrayList<>());
 
     public boolean isAspectsEnabled() {
         return aspectsEnabled;
@@ -113,52 +113,57 @@ public abstract class AbstractClassExtension implements ClassExtension {
 
     private boolean aspectsEnabled = true;
 
-    protected void addPointcut(Pointcut aPointcut) {
+    protected void addPointcut(SinglePointcut aPointcut) {
         pointcuts.add(aPointcut);
     }
 
-    protected boolean removePointcut(Pointcut aPointcut) {
-        boolean result = pointcuts.remove(aPointcut);
-        if (! result && isVerbose())
+    @SuppressWarnings("UnusedReturnValue")
+    protected boolean removePointcut(SinglePointcut aPointcut) {
+        int size = pointcuts.size();
+        //noinspection StatementWithEmptyBody
+        while (pointcuts.remove(aPointcut)) {}
+
+        if (size == pointcuts.size() && isVerbose())
             logger.info("No pointcut to remove: " + aPointcut.toString());
-        return result;
+        return size > pointcuts.size();
     }
 
     protected void setPointcutEnabled(Pointcut aPointcut, boolean isEnabled) {
-        List<Pointcut> copyPointcuts = new ArrayList<>(pointcuts);
-        int index = copyPointcuts.indexOf(aPointcut);
-        if (index != -1)
-            copyPointcuts.get(index).setEnabled(isEnabled);
-        else if (isVerbose())
-            logger.info("No pointcut to toggle enabled: " + aPointcut.toString());
+        boolean completed = false;
+        for (SinglePointcut pointcut : new ArrayList<>(pointcuts)) {
+            if (pointcut.equals(aPointcut)) {
+                pointcut.setEnabled(isEnabled);
+                completed = true;
+            }
+        }
+        if (! completed && isVerbose())
+            logger.info("No pointcut(s) to toggle enabled: " + aPointcut.toString());
     }
 
     protected Pointcut getPointcut(Class<?> anExtensionInterface, Class<?> anObjectClass,
                                          String anOperation, Class<?>[] anOperationParameterTypes,
                                          AdviceType anAdviceType) {
-        Pointcut result = null;
-        for (Pointcut pointcut : new ArrayList<>(pointcuts)) {
+        Pointcuts result = new Pointcuts();
+        for (SinglePointcut pointcut : new ArrayList<>(pointcuts)) {
             if (! pointcut.isEnabled() || ! pointcut.accept(anOperation, anOperationParameterTypes, anAdviceType))
                 continue;
 
             if (pointcut.accept(anExtensionInterface, anObjectClass, anOperation, anOperationParameterTypes, anAdviceType)) {
-                result = pointcut;
-                break;
+                result.addPointcut(pointcut);
             } else {
                 List<Class<?>> objectClasses = new ArrayList<>(collectSuperClasses(anObjectClass));
                 objectClasses.addAll(Arrays.asList(anObjectClass.getInterfaces()));
 
-                all: for (Class<?> extensionInterface : collectSuperInterfaces(anExtensionInterface)) {
+                for (Class<?> extensionInterface : collectSuperInterfaces(anExtensionInterface)) {
                     for (Class<?> objectClass : objectClasses) {
                         if (pointcut.accept(extensionInterface, objectClass)) {
-                            result = pointcut;
-                            break all;
+                            result.addPointcut(pointcut);
                         }
                     }
                 }
             }
         }
-        return result;
+        return ! result.isEmpty() ? result : null;
     }
 
     protected static List<Class<?>> collectSuperInterfaces(Class<?> anObjectClass) {
@@ -171,18 +176,5 @@ public abstract class AbstractClassExtension implements ClassExtension {
     protected static List<Class<?>> collectSuperClasses(Class<?> anObjectClass) {
         return Stream.iterate(anObjectClass.getSuperclass(), Objects::nonNull, (Class<?> aClass) -> aClass.getSuperclass()).
                 toList();
-    }
-
-   @FunctionalInterface
-    interface Performer<R> {
-       /**
-        * Represents an operation explicitly defined by its arguments that returns some result.
-        *
-        * @param operation operation name
-        * @param anObject  an object to perform the operation for
-        * @param anArgs    arguments
-        * @return operation result
-        */
-       R perform(String operation, Object anObject, Object[] anArgs);
     }
 }
