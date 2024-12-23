@@ -147,30 +147,44 @@ public class Aspects {
         private final AdviceType adviceType;
         private final Object advice;
         private boolean enabled = true;
+        private Object id;
 
-        public SinglePointcut(Predicate<Class<?>> extensionInterface, Predicate<Class<?>> objectClass, BiPredicate<String, Class<?>[]> operation, AdviceType adviceType, Object advice) {
-            this.extensionInterface = extensionInterface;
-            this.objectClass = objectClass;
-            this.operation = operation;
-            this.adviceType = adviceType;
-            if (advice != null) // can be null for matching purposes
+        public SinglePointcut(Predicate<Class<?>> anExtensionInterface,
+                              Predicate<Class<?>> anObjectClass,
+                              BiPredicate<String, Class<?>[]> anOperation,
+                              AdviceType anAdviceType, Object anAdvice,
+                              Object anID) {
+            this.extensionInterface = anExtensionInterface;
+            this.objectClass = anObjectClass;
+            this.operation = anOperation;
+            this.adviceType = anAdviceType;
+            if (anAdvice != null) // can be null for matching purposes
                 switch (this.adviceType) {
                     case BEFORE:
-                        if (!(advice instanceof BeforeAdvice))
+                        if (!(anAdvice instanceof BeforeAdvice))
                             throw new IllegalArgumentException("Advice(BEFORE) is not a BeforeAdvice");
                         break;
                     case AFTER:
-                        if (!(advice instanceof AfterAdvice))
+                        if (!(anAdvice instanceof AfterAdvice))
                             throw new IllegalArgumentException("Advice(AFTER) is not a AfterAdvice");
                         break;
                     case AROUND:
-                        if (!(advice instanceof AroundAdvice))
+                        if (!(anAdvice instanceof AroundAdvice))
                             throw new IllegalArgumentException("Advice(AROUND) is not a AroundAdvice");
                         break;
                     default:
                         throw new IllegalStateException("Unexpected value: " + this.adviceType);
                 }
-            this.advice = advice;
+            this.advice = anAdvice;
+            this.id = anID;
+        }
+
+        public Object getID() {
+            return id;
+        }
+
+        public void setID(Object anID) {
+            id = anID;
         }
 
         public boolean accept(Class<?> anExtensionInterface, Class<?> anObjectClass,
@@ -212,7 +226,11 @@ public class Aspects {
             if (aO == null || getClass() != aO.getClass()) return false;
 
             SinglePointcut pointcut = (SinglePointcut) aO;
-            return adviceType == pointcut.adviceType && objectClass.equals(pointcut.objectClass) && extensionInterface.equals(pointcut.extensionInterface) && operation.equals(pointcut.operation);
+            return adviceType == pointcut.adviceType &&
+                    objectClass.equals(pointcut.objectClass) &&
+                    extensionInterface.equals(pointcut.extensionInterface) &&
+                    operation.equals(pointcut.operation) &&
+                    Objects.equals(id, pointcut.getID());
         }
 
         @Override
@@ -475,9 +493,21 @@ public class Aspects {
          * @return this Builder
          */
         public AspectBuilder<T> before(BeforeAdvice aBefore) {
+            return before(aBefore, null);
+        }
+
+        /**
+         * Adds a {@code AspectType.BEFORE} advice for a previously specified combination of extension interface(s),
+         * object class(es) and operation(s)
+         *
+         * @param aBefore advice to be added
+         * @param anID    identifier
+         * @return this Builder
+         */
+        public AspectBuilder<T> before(BeforeAdvice aBefore, Object anID) {
             Objects.requireNonNull(aBefore);
             checkPrerequisites();
-            classExtension.addPointcut(new SinglePointcut(extensionInterface, objectClass, operation, AdviceType.BEFORE, aBefore));
+            classExtension.addPointcut(new SinglePointcut(extensionInterface, objectClass, operation, AdviceType.BEFORE, aBefore, anID));
             return this;
         }
 
@@ -488,9 +518,21 @@ public class Aspects {
          * @return this Builder
          */
         public AspectBuilder<T> after(AfterAdvice anAfter) {
+            return after(anAfter, null);
+        }
+
+        /**
+         * Adds a {@code AspectType.AFTER} advice for a previously specified combination of extension interface(s),
+         * object class(es) and operation(s)
+         *
+         * @param anAfter advice to be added
+         * @param anID    identifier
+         * @return this Builder
+         */
+        public AspectBuilder<T> after(AfterAdvice anAfter, Object anID) {
             Objects.requireNonNull(anAfter);
             checkPrerequisites();
-            classExtension.addPointcut(new SinglePointcut(extensionInterface, objectClass, operation, AdviceType.AFTER, anAfter));
+            classExtension.addPointcut(new SinglePointcut(extensionInterface, objectClass, operation, AdviceType.AFTER, anAfter, anID));
             return this;
         }
 
@@ -501,9 +543,21 @@ public class Aspects {
          * @return this Builder
          */
         public AspectBuilder<T> around(AroundAdvice anAround) {
+            return around(anAround, null);
+        }
+
+        /**
+         * Adds a {@code AspectType.AROUND} advice for a previously specified combination of extension interface(s),
+         * object class(es) and operation(s)
+         *
+         * @param anAround advice to be added
+         * @param anID     identifier
+         * @return this Builder
+         */
+        public AspectBuilder<T> around(AroundAdvice anAround, Object anID) {
             Objects.requireNonNull(anAround);
             checkPrerequisites();
-            classExtension.addPointcut(new SinglePointcut(extensionInterface, objectClass, operation, AdviceType.AROUND, anAround));
+            classExtension.addPointcut(new SinglePointcut(extensionInterface, objectClass, operation, AdviceType.AROUND, anAround, anID));
             return this;
         }
 
@@ -514,9 +568,21 @@ public class Aspects {
          * @return this Builder
          */
         public AspectBuilder<T> remove(AdviceType... anAdvices) {
+            return remove(null, anAdvices);
+        }
+
+        /**
+         * Removes advice(s) for a previously specified combination of extension interface(s), object class(es) and
+         * operation(s)
+         *
+         * @param anID      identifier
+         * @param anAdvices advices to be removed
+         * @return this Builder
+         */
+        public AspectBuilder<T> remove(Object anID, AdviceType... anAdvices) {
             checkPrerequisites();
             for (AdviceType advice : anAdvices)
-                classExtension.removePointcut(new SinglePointcut(extensionInterface, objectClass, operation, advice, null));
+                classExtension.removePointcut(new SinglePointcut(extensionInterface, objectClass, operation, advice, null, anID));
             return this;
         }
 
@@ -528,9 +594,22 @@ public class Aspects {
          * @return this Builder
          */
         public AspectBuilder<T> enabled(boolean isEnabled, AdviceType... anAdvices) {
+            return enabled(null, isEnabled, anAdvices);
+        }
+
+        /**
+         * Enables advice(s) for a previously specified combination of extension interface(s), object class(es) and
+         * operation(s)
+         *
+         * @param anID      identifier
+         * @param isEnabled enabled value
+         * @param anAdvices advices to be enabled
+         * @return this Builder
+         */
+        public AspectBuilder<T> enabled(Object anID, boolean isEnabled, AdviceType... anAdvices) {
             checkPrerequisites();
             for (AdviceType advice : anAdvices)
-                classExtension.setPointcutEnabled(new SinglePointcut(extensionInterface, objectClass, operation, advice, null), isEnabled);
+                classExtension.setPointcutEnabled(new SinglePointcut(extensionInterface, objectClass, operation, advice, null, anID), isEnabled);
             return this;
         }
 

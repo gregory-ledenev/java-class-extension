@@ -45,8 +45,32 @@ for (Item item : items) {
     out.println(extension.toString());
 }
 ```
-If Aspects are used for debugging and testing purposes only - they can be turned OFF using the `aspectsEnabled` property of `ClassExtension`.
 
+#### Altering
+It is possible to remove already defined aspects using the `remove()` method specifying which types of advices should be removed. To remove specific advices only - specify them with identifiers and then use that identifiers in `remove()` methods.
+
+```java
+dynamicClassExtension.aspectBuilder().
+            extensionInterface(ItemInterface.class).
+                objectClass(Item.class).
+                    operation("*").
+                        remove(AdviceType.BEFORE).
+        build();
+```
+
+It is possible to enable/disable already defined aspects using the `enabled()` method specifying which types of advices should be enabled/disabled. To enable/disable specific advices only - specify them with identifiers and then use that identifiers in `enabled()` methods.
+```java
+dynamicClassExtension.aspectBuilder().
+            extensionInterface(ItemInterface.class).
+                objectClass(Item.class).
+                    operation("*").
+                        enabled(false, AdviceType.BEFORE, AdviceType.AFTER).
+        build();
+```
+
+If Aspects are used for debugging and testing purposes only - all of them can be turned OFF using the `aspectsEnabled` property of `ClassExtension`.
+
+#### Multiple Advices
 Multiple advices can be applied to a single pointcut, enabling chaining. Chaining `before` and `after` advices is straightforward and has no side effects. However, chaining multiple `around` advices is more complex, as only the first `around` advice in the chain can perform the underlying operation; all subsequent advices will operate on the results of the previous ones. Therefore, it's important to consider the implications of your chaining to avoid meaningless combinations. For example, chaining a performance tracking advice right after a caching advice would be counterproductive, as it would always report zero execution time. Proper chaining enhances modularity and reusability but requires thoughtful design to maintain effectiveness and accuracy.
 
 ### Explicitly Defined Aspects in DynamicLCassExtension

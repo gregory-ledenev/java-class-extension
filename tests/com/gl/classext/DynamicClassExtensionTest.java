@@ -17,6 +17,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 
 @SuppressWarnings("unused")
 public class DynamicClassExtensionTest {
+
     interface ItemInterface {
         String getName();
         void setName(String name);
@@ -1201,6 +1202,7 @@ public class DynamicClassExtensionTest {
     @Test
     void removeAspectTest() {
         System.setProperty("java.util.logging.SimpleFormatter.format", "%4$s: %5$s%n");
+        final String LOG_BEFORE = "logBefore";
 
         StringBuilderHandler stringBuilderHandler = new StringBuilderHandler();
         Logger logger = Logger.getLogger(getClass().getName());
@@ -1211,7 +1213,7 @@ public class DynamicClassExtensionTest {
                         objectClass(Item.class).
                             operation("*").
                                 before(new LogBeforeAdvice(logger)).
-                                before(new LogBeforeAdvice(logger)).
+                                before(new LogBeforeAdvice(logger), LOG_BEFORE).
                                 after(new LogAfterAdvice(logger)).
                 build();
 
@@ -1242,7 +1244,7 @@ public class DynamicClassExtensionTest {
                     INFO: AFTER: AutoPart["Tire"] -> toString() = AutoPart["Tire"]
                     """, stringBuilderHandler.getStringBuilder().toString());
 
-        // test removal
+        // test removal before advices with no ID
         dynamicClassExtension.setVerbose(true);
         stringBuilderHandler.getStringBuilder().setLength(0);
 
@@ -1251,6 +1253,56 @@ public class DynamicClassExtensionTest {
                         objectClass(Item.class).
                             operation("*").
                                 remove(AdviceType.BEFORE).
+                build();
+
+        for (Item item : items) {
+            Item_Shippable extension = dynamicClassExtension.extension(item, Item_Shippable.class);
+            System.out.println(extension.toString());
+        }
+        assertEquals("""
+                    INFO: BEFORE: Book["The Mythical Man-Month"] -> toString()
+                    INFO: AFTER: Book["The Mythical Man-Month"] -> toString() = Book["The Mythical Man-Month"]
+                    INFO: BEFORE: Furniture["Sofa"] -> toString()
+                    INFO: AFTER: Furniture["Sofa"] -> toString() = Furniture["Sofa"]
+                    INFO: BEFORE: ElectronicItem["Soundbar"] -> toString()
+                    INFO: AFTER: ElectronicItem["Soundbar"] -> toString() = ElectronicItem["Soundbar"]
+                    INFO: BEFORE: AutoPart["Tire"] -> toString()
+                    INFO: AFTER: AutoPart["Tire"] -> toString() = AutoPart["Tire"]
+                    """, stringBuilderHandler.getStringBuilder().toString());
+
+        // test removal before advices with non-existent ID
+        stringBuilderHandler.getStringBuilder().setLength(0);
+
+        dynamicClassExtension.aspectBuilder().
+                extensionInterface(ItemInterface.class).
+                    objectClass(Item.class).
+                        operation("*").
+                            remove("fakeID", AdviceType.BEFORE).
+                build();
+
+        for (Item item : items) {
+            Item_Shippable extension = dynamicClassExtension.extension(item, Item_Shippable.class);
+            System.out.println(extension.toString());
+        }
+        assertEquals("""
+                    INFO: BEFORE: Book["The Mythical Man-Month"] -> toString()
+                    INFO: AFTER: Book["The Mythical Man-Month"] -> toString() = Book["The Mythical Man-Month"]
+                    INFO: BEFORE: Furniture["Sofa"] -> toString()
+                    INFO: AFTER: Furniture["Sofa"] -> toString() = Furniture["Sofa"]
+                    INFO: BEFORE: ElectronicItem["Soundbar"] -> toString()
+                    INFO: AFTER: ElectronicItem["Soundbar"] -> toString() = ElectronicItem["Soundbar"]
+                    INFO: BEFORE: AutoPart["Tire"] -> toString()
+                    INFO: AFTER: AutoPart["Tire"] -> toString() = AutoPart["Tire"]
+                    """, stringBuilderHandler.getStringBuilder().toString());
+
+        // test removal before advices with ID
+        stringBuilderHandler.getStringBuilder().setLength(0);
+
+        dynamicClassExtension.aspectBuilder().
+                extensionInterface(ItemInterface.class).
+                    objectClass(Item.class).
+                        operation("*").
+                            remove(LOG_BEFORE, AdviceType.BEFORE).
                 build();
 
         for (Item item : items) {
