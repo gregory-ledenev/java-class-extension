@@ -122,7 +122,7 @@ public class Aspects {
          * next around advice in the chain. Generally, this method should be called only once inside an around lambda
          * function to avoid side effects. Though some advice implementation like {@code RetryAdvice} may call the
          * {@code applyDefault()} several times in attempts to recover after some failure.
-         * <code><pre>
+         * <pre><code>
          * DynamicClassExtension dynamicClassExtension = new DynamicClassExtension().
          *     aspectBuilder().
          *         extensionInterface(ItemInterface.class).
@@ -132,7 +132,7 @@ public class Aspects {
          *                         builder.around((performer, operation, object, args) -> "BEFORE " + AroundAdvice.applyDefault(performer, operation, object, args) + " AFTER").
          *                     }).
          *     build();
-         * </pre></code>
+         * </code></pre>
          *
          * @param performer performer object that is responsible for underlying operation performing.
          * @param operation the operation to be performed
