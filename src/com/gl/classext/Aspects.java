@@ -125,19 +125,16 @@ public class Aspects {
                 pointcut.after(aResult, anOperation, anObject, anArguments);
         }
 
+        private Object getChainedPerformer(int anIndex, Object aPerformer, String anOperation, Object anObject, Object[] anArguments) {
+            return anIndex == pointcuts.size() - 1 ?
+                    aPerformer :
+                    (Performer<Object>) (operation1, object1, args1) ->
+                            pointcuts.get(anIndex + 1).around(getChainedPerformer(anIndex+1, aPerformer, anOperation, anObject, anArguments), operation1, object1, args1);
+        }
+
         @Override
         public Object around(Object aPerformer, String anOperation, Object anObject, Object[] anArguments) {
-            Object result = null;
-            for (int i = 0; i < pointcuts.size(); i++) {
-                if (i == 0) {
-                    result = pointcuts.get(i).around(aPerformer, anOperation, anObject, anArguments);
-                } else {
-                    Object finalResult = result;
-                    result = pointcuts.get(i).around((Performer<Object>) (operation, anObject1, anArgs) -> finalResult,
-                            anOperation, anObject, anArguments);
-                }
-            }
-            return result;
+            return pointcuts.getFirst().around(getChainedPerformer(0, aPerformer, anOperation, anObject, anArguments), anOperation, anObject, anArguments);
         }
     }
     protected static class SinglePointcut implements Pointcut {

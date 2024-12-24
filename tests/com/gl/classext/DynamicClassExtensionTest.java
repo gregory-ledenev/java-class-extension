@@ -1171,6 +1171,7 @@ public class DynamicClassExtensionTest {
                         objectClass(Item.class).
                             operation("*").
                                 around(new CachedValueAdvice(cache, logger)).
+                                around((performer, operation, object, args) -> "AROUND: " + AroundAdvice.applyDefault(performer, operation, object, args)).
                 build();
 
         Item[] items = {
@@ -1197,6 +1198,39 @@ public class DynamicClassExtensionTest {
                     INFO: Not cached; getting value: ElectronicItem["Soundbar"] -> toString()
                     INFO: Not cached; getting value: AutoPart["Tire"] -> toString()
                     """, stringBuilderHandler.getStringBuilder().toString());
+    }
+
+    @Test
+    void chainedAroundAdviceTest() {
+        System.setProperty("java.util.logging.SimpleFormatter.format", "%4$s: %5$s%n");
+
+        StringBuilderHandler stringBuilderHandler = new StringBuilderHandler();
+        Logger logger = Logger.getLogger(getClass().getName());
+        logger.addHandler(stringBuilderHandler);
+
+        DynamicClassExtension dynamicClassExtension = new DynamicClassExtension().
+                aspectBuilder().
+                    extensionInterface(ItemInterface.class).
+                        objectClass(Item.class).
+                            operation("*").
+                                around((performer, operation, object, args) -> "AROUND 1: " + AroundAdvice.applyDefault(performer, operation, object, args)).
+                                around((performer, operation, object, args) -> "AROUND 2: " + AroundAdvice.applyDefault(performer, operation, object, args)).
+                                around((performer, operation, object, args) -> "AROUND 3: " + AroundAdvice.applyDefault(performer, operation, object, args)).
+                                around((performer, operation, object, args) -> "AROUND 4: " + AroundAdvice.applyDefault(performer, operation, object, args)).
+                                around((performer, operation, object, args) -> "AROUND 5: " + AroundAdvice.applyDefault(performer, operation, object, args)).
+                build();
+
+        Item[] items = {
+                new Book("The Mythical Man-Month"),
+                new Furniture("Sofa"),
+                new ElectronicItem("Soundbar"),
+                new AutoPart("Tire"),
+        };
+
+        for (Item item : items) {
+            Item_Shippable extension = dynamicClassExtension.extension(item, Item_Shippable.class);
+            System.out.println(extension.toString());
+        }
     }
 
     @Test
@@ -1397,7 +1431,9 @@ public class DynamicClassExtensionTest {
 
         List<String> out = new ArrayList<>();
         for (Item item : items) {
-            Shippable extension = dynamicClassExtension.extension(item, Shippable.class, ItemInterface.class, ClassExtension.IdentityHolder.class);
+            Shippable extension = dynamicClassExtension.extension(item,
+                    Shippable.class,
+                    ItemInterface.class, ClassExtension.IdentityHolder.class);
             out.add(extension.ship().toString());
             out.add(((ClassExtension.IdentityHolder) extension).getID().toString());
             out.add(((ItemInterface) extension).getName());
@@ -1461,8 +1497,8 @@ public class DynamicClassExtensionTest {
                     extensionInterface(ItemInterface.class).
                         objectClass(Item.class).
                             operation("*").
-                                around(new LogPerformTimeAdvice(logger)).
                                 around(new CachedValueAdvice(cache, logger)).
+                                around(new LogPerformTimeAdvice(logger)).
                 build();
 
         Item[] items = {
@@ -1484,19 +1520,15 @@ public class DynamicClassExtensionTest {
 
         out.println(stringBuilderHandler.getStringBuilder().toString());
         assertEquals("""
-                    INFO: Perform time for "toString" is 2 ms.
-                    INFO: Not cached; getting value: Book["The Mythical Man-Month"] -> toString()
-                    INFO: Perform time for "toString" is 0 ms.
-                    INFO: Not cached; getting value: Furniture["Sofa"] -> toString()
-                    INFO: Perform time for "toString" is 0 ms.
-                    INFO: Not cached; getting value: ElectronicItem["Soundbar"] -> toString()
-                    INFO: Perform time for "toString" is 0 ms.
-                    INFO: Not cached; getting value: AutoPart["Tire"] -> toString()
-                    INFO: Perform time for "toString" is 0 ms.
-                    INFO: Perform time for "toString" is 0 ms.
-                    INFO: Perform time for "toString" is 0 ms.
-                    INFO: Perform time for "toString" is 0 ms.
-                     """, stringBuilderHandler.getStringBuilder().toString());
+                            INFO: Not cached; getting value: Book["The Mythical Man-Month"] -> toString()
+                            INFO: Perform time for "toString" is 0 ms.
+                            INFO: Not cached; getting value: Furniture["Sofa"] -> toString()
+                            INFO: Perform time for "toString" is 0 ms.
+                            INFO: Not cached; getting value: ElectronicItem["Soundbar"] -> toString()
+                            INFO: Perform time for "toString" is 0 ms.
+                            INFO: Not cached; getting value: AutoPart["Tire"] -> toString()
+                            INFO: Perform time for "toString" is 0 ms.
+                            """, stringBuilderHandler.getStringBuilder().toString());
     }
 
     private static void sleep() {
