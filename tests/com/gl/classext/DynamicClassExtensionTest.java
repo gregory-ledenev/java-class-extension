@@ -1202,22 +1202,18 @@ public class DynamicClassExtensionTest {
 
     @Test
     void chainedAroundAdviceTest() {
-        System.setProperty("java.util.logging.SimpleFormatter.format", "%4$s: %5$s%n");
-
-        StringBuilderHandler stringBuilderHandler = new StringBuilderHandler();
-        Logger logger = Logger.getLogger(getClass().getName());
-        logger.addHandler(stringBuilderHandler);
-
         DynamicClassExtension dynamicClassExtension = new DynamicClassExtension().
                 aspectBuilder().
                     extensionInterface(ItemInterface.class).
                         objectClass(Item.class).
                             operation("*").
-                                around((performer, operation, object, args) -> "AROUND 1: " + AroundAdvice.applyDefault(performer, operation, object, args)).
-                                around((performer, operation, object, args) -> "AROUND 2: " + AroundAdvice.applyDefault(performer, operation, object, args)).
-                                around((performer, operation, object, args) -> "AROUND 3: " + AroundAdvice.applyDefault(performer, operation, object, args)).
-                                around((performer, operation, object, args) -> "AROUND 4: " + AroundAdvice.applyDefault(performer, operation, object, args)).
-                                around((performer, operation, object, args) -> "AROUND 5: " + AroundAdvice.applyDefault(performer, operation, object, args)).
+                                advices(builder -> {
+                                    builder.around((performer, operation, object, args) -> "AROUND 1: " + AroundAdvice.applyDefault(performer, operation, object, args)).
+                                            around((performer, operation, object, args) -> "AROUND 2: " + AroundAdvice.applyDefault(performer, operation, object, args)).
+                                            around((performer, operation, object, args) -> "AROUND 3: " + AroundAdvice.applyDefault(performer, operation, object, args)).
+                                            around((performer, operation, object, args) -> "AROUND 4: " + AroundAdvice.applyDefault(performer, operation, object, args)).
+                                            around((performer, operation, object, args) -> "AROUND 5: " + AroundAdvice.applyDefault(performer, operation, object, args));
+                                }).
                 build();
 
         Item[] items = {
@@ -1227,10 +1223,19 @@ public class DynamicClassExtensionTest {
                 new AutoPart("Tire"),
         };
 
+
+        List<String> out = new ArrayList<>();
         for (Item item : items) {
             Item_Shippable extension = dynamicClassExtension.extension(item, Item_Shippable.class);
-            System.out.println(extension.toString());
+            out.add(extension.toString());
         }
+        String outStr = String.join("\n", out);
+        System.out.println(outStr);
+        assertEquals("""
+                     AROUND 1: AROUND 2: AROUND 3: AROUND 4: AROUND 5: Book["The Mythical Man-Month"]
+                     AROUND 1: AROUND 2: AROUND 3: AROUND 4: AROUND 5: Furniture["Sofa"]
+                     AROUND 1: AROUND 2: AROUND 3: AROUND 4: AROUND 5: ElectronicItem["Soundbar"]
+                     AROUND 1: AROUND 2: AROUND 3: AROUND 4: AROUND 5: AutoPart["Tire"]""", outStr);
     }
 
     @Test
@@ -1472,7 +1477,7 @@ public class DynamicClassExtensionTest {
     }
 
     @Test
-    void multipleAroundAdviceTest() {
+    void cachedAndLogPerformAroundAdviceTest() {
         System.setProperty("java.util.logging.SimpleFormatter.format", "%4$s: %5$s%n");
 
         CachedValueProvider cache = new CachedValueProvider() {
@@ -1494,11 +1499,13 @@ public class DynamicClassExtensionTest {
 
         DynamicClassExtension dynamicClassExtension = new DynamicClassExtension().
                 aspectBuilder().
-                    extensionInterface(ItemInterface.class).
-                        objectClass(Item.class).
-                            operation("*").
-                                around(new CachedValueAdvice(cache, logger)).
-                                around(new LogPerformTimeAdvice(logger)).
+                extensionInterface(ItemInterface.class).
+                objectClass(Item.class).
+                operation("*").
+                    advices(new Advice[] {
+                            new CachedValueAdvice(cache, logger),
+                            new LogPerformTimeAdvice(logger, "Perform time for \"{0}\" is 0 ms.") // ignoring actual times for a test
+                    }).
                 build();
 
         Item[] items = {

@@ -8,11 +8,13 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 import java.util.function.BiPredicate;
+import java.util.function.Consumer;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 import static java.text.MessageFormat.format;
 
@@ -26,14 +28,27 @@ public class Aspects {
     public enum AdviceType {
         BEFORE,
         AFTER,
-        AROUND
+        AROUND;
+    }
+
+    /**
+     * Markup interface for all the advices
+     */
+    public interface Advice {
+        /**
+         * Returns {@code AdviceType} for this advice
+         * @return an {@code AdviceType}
+         */
+        default AdviceType getAdviceType() {
+            throw new UnsupportedOperationException("getAdviceType()");
+        }
     }
 
     /**
      * Functional interface for {@code AdviceType.BEFORE} advices.
      */
     @FunctionalInterface
-    public interface BeforeAdvice {
+    public interface BeforeAdvice extends Advice {
         /**
          * Applies this function to the given arguments
          *
@@ -42,13 +57,20 @@ public class Aspects {
          * @param args      arguments for the operation
          */
         void accept(String operation, Object object, Object[] args);
+
+        /**
+         * {@inheritDoc}
+         */
+        default AdviceType getAdviceType() {
+            return AdviceType.BEFORE;
+        }
     }
 
     /**
      * Functional interface for {@code AdviceType.AFTER} advices.
      */
     @FunctionalInterface
-    public interface AfterAdvice {
+    public interface AfterAdvice extends Advice {
         /**
          * Applies this function to the given arguments
          *
@@ -58,18 +80,28 @@ public class Aspects {
          * @param args      arguments for the operation
          */
         void accept(Object result, String operation, Object object, Object[] args);
+
+        /**
+         * {@inheritDoc}
+         */
+        @Override
+        default AdviceType getAdviceType() {
+            return AdviceType.AFTER;
+        }
     }
 
     /**
      * Functional interface for {@code AdviceType.AROUND} advices.
      */
     @FunctionalInterface
-    public interface AroundAdvice {
+    public interface AroundAdvice extends Advice {
         /**
          * Applies this function to the given arguments. This function essentially replaces standard handling of the
          * operation. Use the {@code applyDefault} method to perform standard handling.
          *
-         * @param performer performer object that is responsible for actual operation performing
+         * @param performer performer object that is responsible for actual operation performing.  It is intentionally
+         *                  passed as an {@code Object} to avoid its altering or hacking somehow because it must be passed
+         *                  further to the {@code applyDefault} "as is".
          * @param operation the operation to be performed
          * @param object    object to perform the operation for
          * @param args      arguments for the operation
@@ -77,9 +109,32 @@ public class Aspects {
         Object apply(Object performer, String operation, Object object, Object[] args);
 
         /**
-         * Performs default handling of an operation.
+         * {@inheritDoc}
+         */
+        @Override
+        default AdviceType getAdviceType() {
+            return AdviceType.AROUND;
+        }
+
+        /**
+         * Performs default handling of an operation. An around lambda function should call this method to allow default
+         * handling of an operation e.g. calling an underlying method, performing a dynamic operation or transferring control to the
+         * next around advice in the chain. Generally, this method should be called only once inside an around lambda
+         * function to avoid side effects. Though some advice implementation like {@code RetryAdvice} may call the
+         * {@code applyDefault()} several times in attempts to recover after some failure.
+         * <code><pre>
+         * DynamicClassExtension dynamicClassExtension = new DynamicClassExtension().
+         *     aspectBuilder().
+         *         extensionInterface(ItemInterface.class).
+         *             objectClass(Item.class).
+         *                 operation("toString()").
+         *                     advices(builder -> {
+         *                         builder.around((performer, operation, object, args) -> "BEFORE " + AroundAdvice.applyDefault(performer, operation, object, args) + " AFTER").
+         *                     }).
+         *     build();
+         * </pre></code>
          *
-         * @param performer performer object that is responsible for actual operation performing
+         * @param performer performer object that is responsible for underlying operation performing.
          * @param operation the operation to be performed
          * @param object    object to perform the operation for
          * @param args      arguments for the operation
@@ -96,21 +151,34 @@ public class Aspects {
         }
     }
 
-    public interface Pointcut {
+    protected interface Pointcut {
         void before(String anOperation, Object anObject, Object[] anArguments);
         void after(Object aResult, String anOperation, Object anObject, Object[] anArguments);
         Object around(Object aPerformer, String anOperation, Object anObject, Object[] anArguments);
+
+        default Predicate<Class<?>> getObjectClass() {
+            return null;
+        }
     }
 
     protected static class Pointcuts implements Pointcut {
-        private final List<Pointcut> pointcuts = new ArrayList<>();
+        private List<Pointcut> pointcuts = new ArrayList<>();
 
         public boolean isEmpty() {
             return pointcuts.isEmpty();
         }
 
         public void addPointcut(Pointcut aPointcut) {
-            pointcuts.add(aPointcut);
+            boolean canAdd = true;
+            // walk though manually as Pointcut.equals() ignores advice
+            for (Pointcut pointcut : pointcuts) {
+                if (pointcut == aPointcut) {
+                    canAdd = false;
+                    break;
+                }
+            }
+            if (canAdd)
+                pointcuts.add(aPointcut);
         }
 
         @Override
@@ -136,16 +204,26 @@ public class Aspects {
         public Object around(Object aPerformer, String anOperation, Object anObject, Object[] anArguments) {
             return pointcuts.getFirst().around(getChainedPerformer(0, aPerformer, anOperation, anObject, anArguments), anOperation, anObject, anArguments);
         }
+
+        public void filterOutDuplicates() {
+            List<Predicate<Class<?>>> objectClasses = new ArrayList<>();
+            for (Pointcut pointcut : pointcuts) {
+                if (! objectClasses.contains(pointcut.getObjectClass()))
+                    objectClasses.add(pointcut.getObjectClass());
+            }
+            pointcuts = pointcuts.stream().filter(pointcut -> pointcut.getObjectClass().equals(objectClasses.getLast())).collect(Collectors.toList());
+        }
     }
     protected static class SinglePointcut implements Pointcut {
         private final Predicate<Class<?>> extensionInterface;
+
         private final Predicate<Class<?>> objectClass;
+
         private final BiPredicate<String, Class<?>[]> operation;
         private final AdviceType adviceType;
         private final Object advice;
         private boolean enabled = true;
         private Object id;
-
         public SinglePointcut(Predicate<Class<?>> anExtensionInterface,
                               Predicate<Class<?>> anObjectClass,
                               BiPredicate<String, Class<?>[]> anOperation,
@@ -174,6 +252,11 @@ public class Aspects {
                 }
             this.advice = anAdvice;
             this.id = anID;
+        }
+
+        @Override
+        public Predicate<Class<?>> getObjectClass() {
+            return objectClass;
         }
 
         public Object getID() {
@@ -438,7 +521,7 @@ public class Aspects {
          * Specifies an operation the Aspects should be added fpr
          *
          * @param anOperation name of an operation. It is possible to use * and ? wildcards to define a * pattern all
-         *                    operations should match.
+         *                    operations should match. Tip: specify * to accept any operations.
          * @return this Builder
          */
         public AspectBuilder<T> operation(String anOperation) {
@@ -451,7 +534,7 @@ public class Aspects {
         private static boolean operationParameterTypesMatch(String anOperation, Class<?>[] aParameterTypes) {
             String[] operationParameters = getOperationParameters(anOperation);
             boolean result = false;
-            if (operationParameters.length == aParameterTypes.length) {
+            if ("*".equals(anOperation) || operationParameters.length == aParameterTypes.length) {
                 result = operationParameters.length == 0;
                 for (int i = 0; i < operationParameters.length && ! result; i++)
                     result = matches(operationParameters[i], aParameterTypes[i].getName()) ||
@@ -555,6 +638,38 @@ public class Aspects {
             Objects.requireNonNull(anAround);
             checkPrerequisites();
             classExtension.addPointcut(new SinglePointcut(extensionInterface, objectClass, operation, AdviceType.AROUND, anAround, anID));
+            return this;
+        }
+
+        /**
+         * Adds several advices for a previously specified combination of extension interface(s),
+         * object class(es) and operation(s)
+         *
+         * @param anAdvicesSupplier a supplier function called to add several advices at once
+         * @return this Builder
+         */
+        public AspectBuilder<T> advices(Consumer<AspectBuilder<T>> anAdvicesSupplier) {
+            Objects.requireNonNull(anAdvicesSupplier);
+            checkPrerequisites();
+            anAdvicesSupplier.accept(this);
+            return this;
+        }
+
+        /**
+         * Adds several advices for a previously specified combination of extension interface(s),
+         * object class(es) and operation(s)
+         *
+         * @param anAdvices advices to add
+         * @return this Builder
+         */
+        public AspectBuilder<T> advices(Advice[] anAdvices) {
+            Objects.requireNonNull(anAdvices);
+            checkPrerequisites();
+
+            for (Advice advice : anAdvices)
+                classExtension.addPointcut(new SinglePointcut(extensionInterface, objectClass, operation,
+                        advice.getAdviceType(), advice, null));
+
             return this;
         }
 
@@ -694,12 +809,13 @@ public class Aspects {
      */
     public static class LogPerformTimeAdvice implements AroundAdvice {
         final Logger logger;
+        final String loggerInfoPattern;
 
         /**
          * Creates a new instance of {@code LogPerformTimeAdvice}
          */
         public LogPerformTimeAdvice() {
-            logger = Logger.getLogger(getClass().getName());
+            this(null, null);
         }
 
         /**
@@ -707,7 +823,19 @@ public class Aspects {
          * @param aLogger logger
          */
         public LogPerformTimeAdvice(Logger aLogger) {
-            logger = aLogger;
+            this(aLogger, null);
+        }
+
+        /**
+         * Creates a new instance of {@code LogPerformTimeAdvice}
+         *
+         * @param aLogger            logger
+         * @param aLoggerInfoPattern pattern to format log messages in the {@code MessageFormat} format, where
+         *                           {@code {0}} - operation and {@code {1}} - perform time
+         */
+        public LogPerformTimeAdvice(Logger aLogger, String aLoggerInfoPattern) {
+            logger = aLogger != null ? aLogger : Logger.getLogger(getClass().getName());
+            loggerInfoPattern = aLoggerInfoPattern != null ? aLoggerInfoPattern : "Perform time for \"{0}\" is {1} ms.";
         }
 
         /**
@@ -718,7 +846,7 @@ public class Aspects {
             long startTime = System.currentTimeMillis();
 
             Object result = AroundAdvice.applyDefault(performer, operation, object, args);
-            logger.info(format("Perform time for \"{0}\" is {1} ms.", operation, System.currentTimeMillis()-startTime));
+            logger.info(format(loggerInfoPattern, operation, System.currentTimeMillis()-startTime));
             return result;
         }
     }

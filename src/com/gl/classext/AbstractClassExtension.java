@@ -163,6 +163,8 @@ public abstract class AbstractClassExtension implements ClassExtension {
                 }
             }
         }
+
+        result.filterOutDuplicates();
         return ! result.isEmpty() ? result : null;
     }
 
