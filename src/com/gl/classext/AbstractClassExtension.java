@@ -119,13 +119,14 @@ public abstract class AbstractClassExtension implements ClassExtension {
 
     @SuppressWarnings("UnusedReturnValue")
     protected boolean removePointcut(SinglePointcut aPointcut) {
-        int size = pointcuts.size();
-        //noinspection StatementWithEmptyBody
-        while (pointcuts.remove(aPointcut)) {}
+        int removedCount = 0;
+        while (pointcuts.remove(aPointcut))
+            removedCount++;
 
-        if (size == pointcuts.size() && isVerbose())
-            logger.info("No pointcut to remove: " + aPointcut.toString());
-        return size > pointcuts.size();
+        if (removedCount == 0 && isVerbose())
+            logger.info("No pointcut to remove: " + aPointcut);
+
+        return removedCount > 0;
     }
 
     protected void setPointcutEnabled(Pointcut aPointcut, boolean isEnabled) {
@@ -143,29 +144,33 @@ public abstract class AbstractClassExtension implements ClassExtension {
     protected Pointcut getPointcut(Class<?> anExtensionInterface, Class<?> anObjectClass,
                                          String anOperation, Class<?>[] anOperationParameterTypes,
                                          AdviceType anAdviceType) {
-        Pointcuts result = new Pointcuts();
-        for (SinglePointcut pointcut : new ArrayList<>(pointcuts)) {
-            if (! pointcut.isEnabled() || ! pointcut.accept(anOperation, anOperationParameterTypes, anAdviceType))
-                continue;
+        if (!pointcuts.isEmpty()) {
+            Pointcuts result = new Pointcuts();
+            for (SinglePointcut pointcut : new ArrayList<>(pointcuts)) {
+                if (!pointcut.isEnabled() || !pointcut.accept(anOperation, anOperationParameterTypes, anAdviceType))
+                    continue;
 
-            if (pointcut.accept(anExtensionInterface, anObjectClass, anOperation, anOperationParameterTypes, anAdviceType)) {
-                result.addPointcut(pointcut);
-            } else {
-                List<Class<?>> objectClasses = new ArrayList<>(collectSuperClasses(anObjectClass));
-                objectClasses.addAll(Arrays.asList(anObjectClass.getInterfaces()));
+                if (pointcut.accept(anExtensionInterface, anObjectClass, anOperation, anOperationParameterTypes, anAdviceType)) {
+                    result.addPointcut(pointcut);
+                } else {
+                    List<Class<?>> objectClasses = new ArrayList<>(collectSuperClasses(anObjectClass));
+                    objectClasses.addAll(Arrays.asList(anObjectClass.getInterfaces()));
 
-                for (Class<?> extensionInterface : collectSuperInterfaces(anExtensionInterface)) {
-                    for (Class<?> objectClass : objectClasses) {
-                        if (pointcut.accept(extensionInterface, objectClass)) {
-                            result.addPointcut(pointcut);
+                    for (Class<?> extensionInterface : collectSuperInterfaces(anExtensionInterface)) {
+                        for (Class<?> objectClass : objectClasses) {
+                            if (pointcut.accept(extensionInterface, objectClass)) {
+                                result.addPointcut(pointcut);
+                            }
                         }
                     }
                 }
             }
-        }
 
-        result.filterOutDuplicates();
-        return ! result.isEmpty() ? result : null;
+            result.filterOutDuplicates();
+            return !result.isEmpty() ? result : null;
+        } else {
+            return null;
+        }
     }
 
     protected static List<Class<?>> collectSuperInterfaces(Class<?> anObjectClass) {
