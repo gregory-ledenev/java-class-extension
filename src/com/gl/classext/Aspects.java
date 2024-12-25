@@ -3,10 +3,7 @@ package com.gl.classext;
 import java.beans.PropertyChangeEvent;
 import java.beans.PropertyChangeListener;
 import java.lang.reflect.Method;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Objects;
+import java.util.*;
 import java.util.function.BiPredicate;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
@@ -169,15 +166,8 @@ public class Aspects {
         }
 
         public void addPointcut(Pointcut aPointcut) {
-            boolean canAdd = true;
-            // walk though manually as Pointcut.equals() ignores advice
-            for (Pointcut pointcut : pointcuts) {
-                if (pointcut == aPointcut) {
-                    canAdd = false;
-                    break;
-                }
-            }
-            if (canAdd)
+            // keep out same pointcuts; walk though manually as Pointcut.equals() ignores advice lambda
+            if (pointcuts.stream().noneMatch(pointcut -> pointcut == aPointcut))
                 pointcuts.add(aPointcut);
         }
 
@@ -206,12 +196,13 @@ public class Aspects {
         }
 
         public void filterOutDuplicates() {
-            List<Predicate<Class<?>>> objectClasses = new ArrayList<>();
-            for (Pointcut pointcut : pointcuts) {
-                if (! objectClasses.contains(pointcut.getObjectClass()))
+            if (pointcuts.size() > 1) { // speed optimization
+                LinkedHashSet<Predicate<Class<?>>> objectClasses = new LinkedHashSet<>();
+                for (Pointcut pointcut : pointcuts)
                     objectClasses.add(pointcut.getObjectClass());
+
+                pointcuts = pointcuts.stream().filter(pointcut -> pointcut.getObjectClass().equals(objectClasses.getLast())).collect(Collectors.toList());
             }
-            pointcuts = pointcuts.stream().filter(pointcut -> pointcut.getObjectClass().equals(objectClasses.getLast())).collect(Collectors.toList());
         }
     }
     protected static class SinglePointcut implements Pointcut {
@@ -303,6 +294,9 @@ public class Aspects {
 
         @Override
         public boolean equals(Object aO) {
+            if (aO == this)
+                return true;
+
             if (aO == null || getClass() != aO.getClass()) return false;
 
             SinglePointcut pointcut = (SinglePointcut) aO;
