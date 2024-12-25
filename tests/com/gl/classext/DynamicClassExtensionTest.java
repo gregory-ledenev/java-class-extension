@@ -1538,6 +1538,36 @@ public class DynamicClassExtensionTest {
                             """, stringBuilderHandler.getStringBuilder().toString());
     }
 
+    private interface NamesHolder {
+        List<String> getNames();
+    }
+
+    private static class Names implements NamesHolder {
+        private final List<String> names = new ArrayList<>();
+        @Override
+        public List<String> getNames() {
+            return names;
+        }
+    }
+
+    @Test
+    void readOnlyCollectionsAdviceTest() {
+        DynamicClassExtension dynamicClassExtension = new DynamicClassExtension().
+                aspectBuilder().
+                extensionInterface(NamesHolder.class).
+                    objectClass(Names.class).
+                        operation("getNames()").
+                            around(new ReadOnlyCollectionOrMapAdvice()).
+                build();
+        Names names = new Names();
+        try {
+            dynamicClassExtension.extension(names, NamesHolder.class).getNames().add("test");
+            fail("Unexpected success on list modification");
+        } catch (UnsupportedOperationException ex) {
+            // do nothing
+        }
+    }
+
     private static void sleep() {
         try {
             Thread.sleep(1000);

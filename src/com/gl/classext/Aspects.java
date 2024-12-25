@@ -1143,4 +1143,47 @@ public class Aspects {
             });
         }
     }
+
+    /**
+     * Advice (around) that allows turning all the Collection or Map results to their unmodifiable views
+     */
+    public static class ReadOnlyCollectionOrMapAdvice implements AroundAdvice {
+        private final Logger logger;
+
+        /**
+         * Creates a new {@code ReadOnlyCollectionOrMapAdvice} instance
+          */
+        public ReadOnlyCollectionOrMapAdvice() {
+            logger = null;
+        }
+        /**
+         * Creates a new {@code ReadOnlyCollectionOrMapAdvice} instance with a Logger
+         * @param aLogger logger
+         */
+        public ReadOnlyCollectionOrMapAdvice(Logger aLogger) {
+            logger = aLogger;
+        }
+
+        /**
+         * {@inheritDoc}
+         */
+        @Override
+        public Object apply(Object performer, String operation, Object object, Object[] args) {
+            Object result = AroundAdvice.applyDefault(performer, operation, object, args);
+
+            if (result instanceof List<?> list)
+                return Collections.unmodifiableList(list);
+            else if (result instanceof Set<?> set)
+                return Collections.unmodifiableSet(set);
+            else if (result instanceof Map<?, ?> map)
+                return Collections.unmodifiableMap(map);
+            else if (result instanceof Collection<?> c)
+                return Collections.unmodifiableCollection(c);
+
+            if (result != null && logger != null)
+                logger.severe("Result is not a Collection or Map: " + result);
+
+            return result;
+        }
+    }
 }
