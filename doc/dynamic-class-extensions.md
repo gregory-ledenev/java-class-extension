@@ -24,7 +24,7 @@ interface Shippable {
 
 static {
   DynamicClassExtension.sharedBuilder(Shippable.class).
-  operationName"ship").
+  operationName("ship").
         operation(Item.class, item -> ...).
         operation(Book.class, book -> ...).
         operation(Furniture.class, furniture -> ...).
