@@ -25,7 +25,7 @@ SOFTWARE.
 package com.gl.classext;
 
 @FunctionalInterface
-interface Performer<R> {
+public interface Performer<R> {
     /**
      * Represents an operation explicitly defined by its arguments that returns some result.
      *

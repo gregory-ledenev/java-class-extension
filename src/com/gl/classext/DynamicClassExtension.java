@@ -97,14 +97,14 @@ import static java.text.MessageFormat.*;
  * @author Gregory Ledenev
  */
 public class DynamicClassExtension extends AbstractClassExtension {
-    private final ConcurrentHashMap<OperationKey, PerformerHolder<?>> operationsMap = new ConcurrentHashMap<>();
+    protected final ConcurrentHashMap<OperationKey, PerformerHolder<?>> operationsMap = new ConcurrentHashMap<>();
     private static final DynamicClassExtension dynamicClassExtension = new DynamicClassExtension();
 
     public static DynamicClassExtension sharedInstance() {
         return dynamicClassExtension;
     }
 
-    static class PerformerHolder<R> {
+    protected static class PerformerHolder<R> {
         private final Performer<R> performer;
         private boolean async;
         private BiConsumer<?, ? super Throwable> whenComplete;
@@ -845,7 +845,7 @@ public class DynamicClassExtension extends AbstractClassExtension {
     }
 
     @SuppressWarnings({"rawtypes"})
-    record OperationKey(Class objectClass, Class extensionClass, String operationName) implements Comparable<OperationKey> {
+    protected record OperationKey(Class objectClass, Class extensionClass, String operationName) implements Comparable<OperationKey> {
         @Override
         public int compareTo(OperationKey o) {
             return objectClass.getName().compareTo(o.objectClass.getName());
@@ -931,17 +931,30 @@ public class DynamicClassExtension extends AbstractClassExtension {
         return result;
     }
 
+    /**
+     * Returns shared {@code Builder} instance. It is a shortcut for {@code sharedInstance().builder()}
+     * @return shared {@code Builder} instance
+     */
     @SuppressWarnings("unused")
-    public static <E> Builder<E> sharedBuilder(Class<E> aExtensionClass) {
-        return dynamicClassExtension.builder(aExtensionClass);
+    public static <E> Builder<DynamicClassExtension> sharedBuilder() {
+        return sharedInstance().builder();
     }
 
-    public <E> Builder<E> builder(Class<E> anExtensionInterface) {
-        Objects.requireNonNull(anExtensionInterface, "Extension interface is not specified");
-        if (! anExtensionInterface.isInterface())
-            throw new IllegalArgumentException(anExtensionInterface.getName() + " is not an interface");
-
+    /**
+     * Creates new {@code Builder} instance for an extension interface
+     * @param anExtensionInterface extension interface
+     * @return new {@code Builder} instance
+     */
+    public Builder<DynamicClassExtension> builder(Class<?> anExtensionInterface) {
         return new Builder<>(anExtensionInterface, this);
+    }
+
+    /**
+     * Creates new {@code Builder} instance
+     * @return new {@code Builder} instance
+     */
+    public Builder<DynamicClassExtension> builder() {
+        return new Builder<>(null, this);
     }
 
     /**
@@ -950,25 +963,38 @@ public class DynamicClassExtension extends AbstractClassExtension {
      *
      * @param <E> an interface to build an extension for
      */
-    public static class Builder<E> {
-        private final DynamicClassExtension dynamicClassExtension;
-        private final Class<E> extensionClass;
+    public static class Builder<E extends DynamicClassExtension> {
+        private final E dynamicClassExtension;
+        private final Class<?> extensionInterface;
         private final String operationName;
         private final PerformerHolder<?> performerHolder;
 
-        Builder(Class<E> anExtensionClass, DynamicClassExtension aDynamicClassExtension) {
+        Builder(Class<?> anExtensionClass, E aDynamicClassExtension) {
             this(anExtensionClass, null, aDynamicClassExtension, null);
         }
 
-        Builder(Class<E> anExtensionClass, String anOperationName, DynamicClassExtension aDynamicClassExtension) {
-            this(anExtensionClass, anOperationName, aDynamicClassExtension, null);
+        Builder(Class<?> anExtensionInterface, String anOperationName, E aDynamicClassExtension) {
+            this(anExtensionInterface, anOperationName, aDynamicClassExtension, null);
         }
 
-        Builder(Class<E> aExtensionClass, String aOperationName, DynamicClassExtension aDynamicClassExtension, PerformerHolder<?> aPerformerHolder) {
-            extensionClass = aExtensionClass;
+        Builder(Class<?> anExtensionInterface, String aOperationName, E aDynamicClassExtension, PerformerHolder<?> aPerformerHolder) {
+            extensionInterface = anExtensionInterface;
             operationName = aOperationName;
             dynamicClassExtension = aDynamicClassExtension;
             performerHolder = aPerformerHolder;
+        }
+
+        /**
+         * Specifies extension interface
+         * @param anExtensionInterface extension interface
+         * @return a copy of this {@code Builder}
+         */
+        public Builder<E> extensionInterface(Class<?> anExtensionInterface) {
+            Objects.requireNonNull(anExtensionInterface, "Extension interface is not specified");
+            if (! anExtensionInterface.isInterface())
+                throw new IllegalArgumentException(anExtensionInterface.getName() + " is not an interface");
+
+            return new Builder<>(anExtensionInterface, operationName, dynamicClassExtension);
         }
 
         /**
@@ -977,8 +1003,8 @@ public class DynamicClassExtension extends AbstractClassExtension {
          *                        interface
          * @return a copy of this {@code Builder}
          */
-        public Builder<E> opName(String anOperationName) {
-            return new Builder<>(extensionClass, anOperationName, dynamicClassExtension);
+        public Builder<E> operationName(String anOperationName) {
+            return new Builder<>(extensionInterface, anOperationName, dynamicClassExtension);
         }
 
         /**
@@ -989,9 +1015,9 @@ public class DynamicClassExtension extends AbstractClassExtension {
          * @return a copy of this {@code Builder}
          */
         @SuppressWarnings("unused")
-        public <T1> Builder<E> removeOp(Class<T1> anObjectClass, Class<?>[] aParameterTypes) {
-            dynamicClassExtension.removeExtensionOperation(anObjectClass, extensionClass, operationName, aParameterTypes);
-            return new Builder<>(extensionClass, operationName, dynamicClassExtension);
+        public <T1> Builder<E> removeOperation(Class<T1> anObjectClass, Class<?>[] aParameterTypes) {
+            dynamicClassExtension.removeExtensionOperation(anObjectClass, extensionInterface, operationName, aParameterTypes);
+            return new Builder<>(extensionInterface, operationName, dynamicClassExtension);
         }
 
         /**
@@ -1002,10 +1028,10 @@ public class DynamicClassExtension extends AbstractClassExtension {
          * @return a copy of this {@code Builder}
          */
         @SuppressWarnings("unused")
-        public <T1> Builder<E> alterOp(Class<T1> anObjectClass, Class<?>[] aParameterTypes) {
-            PerformerHolder<?> performerHolder = dynamicClassExtension.operationsMap.get(new OperationKey(anObjectClass, extensionClass,
-                    operationName(operationName, aParameterTypes)));
-            return new Builder<>(extensionClass, operationName, dynamicClassExtension, performerHolder);
+        public <T1> Builder<E> alterOperation(Class<T1> anObjectClass, Class<?>[] aParameterTypes) {
+            PerformerHolder<?> performerHolder = dynamicClassExtension.operationsMap.get(new OperationKey(anObjectClass, extensionInterface,
+                    DynamicClassExtension.operationName(operationName, aParameterTypes)));
+            return new Builder<>(extensionInterface, operationName, dynamicClassExtension, performerHolder);
         }
 
         /**
@@ -1014,9 +1040,9 @@ public class DynamicClassExtension extends AbstractClassExtension {
          * @param anOperation lambda that defines an operation
          * @return a copy of this {@code Builder}
          */
-        public <R, T1> Builder<E> op(Class<T1> anObjectClass, FunctionPerformer<T1, R> anOperation) {
-            PerformerHolder<R> performerHolder = dynamicClassExtension.addExtensionOperation(anObjectClass, extensionClass, operationName, anOperation);
-            return new Builder<>(extensionClass, operationName, dynamicClassExtension, performerHolder);
+        public <R, T1> Builder<E> operation(Class<T1> anObjectClass, FunctionPerformer<T1, R> anOperation) {
+            PerformerHolder<R> performerHolder = dynamicClassExtension.addExtensionOperation(anObjectClass, extensionInterface, operationName, anOperation);
+            return new Builder<>(extensionInterface, operationName, dynamicClassExtension, performerHolder);
         }
 
         /**
@@ -1025,9 +1051,9 @@ public class DynamicClassExtension extends AbstractClassExtension {
          * @param anOperation lambda that defines an operation
          * @return a copy of this {@code Builder}
          */
-        public <R, T1, U> Builder<E> op(Class<T1> anObjectClass, BiFunctionPerformer<T1, U, R> anOperation) {
-            PerformerHolder<R> performerHolder = dynamicClassExtension.addExtensionOperation(anObjectClass, extensionClass, operationName, anOperation);
-            return new Builder<>(extensionClass, operationName, dynamicClassExtension, performerHolder);
+        public <R, T1, U> Builder<E> operation(Class<T1> anObjectClass, BiFunctionPerformer<T1, U, R> anOperation) {
+            PerformerHolder<R> performerHolder = dynamicClassExtension.addExtensionOperation(anObjectClass, extensionInterface, operationName, anOperation);
+            return new Builder<>(extensionInterface, operationName, dynamicClassExtension, performerHolder);
         }
 
         /**
@@ -1036,9 +1062,9 @@ public class DynamicClassExtension extends AbstractClassExtension {
          * @param anOperation lambda that defines an operation
          * @return a copy of this {@code Builder}
          */
-        public <T1> Builder<E> voidOp(Class<T1> anObjectClass, ConsumerPerformer<T1> anOperation) {
-            PerformerHolder<Void> performerHolder = dynamicClassExtension.addVoidExtensionOperation(anObjectClass, extensionClass, operationName, anOperation);
-            return new Builder<>(extensionClass, operationName, dynamicClassExtension, performerHolder);
+        public <T1> Builder<E> voidOperation(Class<T1> anObjectClass, ConsumerPerformer<T1> anOperation) {
+            PerformerHolder<Void> performerHolder = dynamicClassExtension.addVoidExtensionOperation(anObjectClass, extensionInterface, operationName, anOperation);
+            return new Builder<>(extensionInterface, operationName, dynamicClassExtension, performerHolder);
         }
 
         /**
@@ -1047,9 +1073,9 @@ public class DynamicClassExtension extends AbstractClassExtension {
          * @param anOperation lambda that defines an operation
          * @return a copy of this {@code Builder}
          */
-        public <T1, U> Builder<E> voidOp(Class<T1> anObjectClass, BiConsumerPerformer<T1, U> anOperation) {
-            PerformerHolder<Void> performerHolder = dynamicClassExtension.addVoidExtensionOperation(anObjectClass, extensionClass, operationName, anOperation);
-            return new Builder<>(extensionClass, operationName, dynamicClassExtension, performerHolder);
+        public <T1, U> Builder<E> voidOperation(Class<T1> anObjectClass, BiConsumerPerformer<T1, U> anOperation) {
+            PerformerHolder<Void> performerHolder = dynamicClassExtension.addVoidExtensionOperation(anObjectClass, extensionInterface, operationName, anOperation);
+            return new Builder<>(extensionInterface, operationName, dynamicClassExtension, performerHolder);
         }
 
         /**
@@ -1079,7 +1105,7 @@ public class DynamicClassExtension extends AbstractClassExtension {
             checkPerformerHolder();
 
             performerHolder.setAsync(isAsync);
-            return new Builder<>(extensionClass, operationName, dynamicClassExtension, performerHolder);
+            return new Builder<>(extensionInterface, operationName, dynamicClassExtension, performerHolder);
         }
 
         /**
@@ -1096,7 +1122,7 @@ public class DynamicClassExtension extends AbstractClassExtension {
 
             performerHolder.setAsync(true);
             performerHolder.setWhenComplete(aWhenComplete);
-            return new Builder<>(extensionClass, operationName, dynamicClassExtension, performerHolder);
+            return new Builder<>(extensionInterface, operationName, dynamicClassExtension, performerHolder);
         }
 
         /**
@@ -1110,7 +1136,7 @@ public class DynamicClassExtension extends AbstractClassExtension {
             checkPerformerHolder();
 
             performerHolder.setBefore(aBefore);
-            return new Builder<>(extensionClass, operationName, dynamicClassExtension, performerHolder);
+            return new Builder<>(extensionInterface, operationName, dynamicClassExtension, performerHolder);
         }
 
         /**
@@ -1124,7 +1150,7 @@ public class DynamicClassExtension extends AbstractClassExtension {
             checkPerformerHolder();
 
             performerHolder.setAfter(anAfter);
-            return new Builder<>(extensionClass, operationName, dynamicClassExtension, performerHolder);
+            return new Builder<>(extensionInterface, operationName, dynamicClassExtension, performerHolder);
         }
 
         /**
@@ -1138,7 +1164,7 @@ public class DynamicClassExtension extends AbstractClassExtension {
             checkPerformerHolder();
 
             performerHolder.setAround(anAround);
-            return new Builder<>(extensionClass, operationName, dynamicClassExtension, performerHolder);
+            return new Builder<>(extensionInterface, operationName, dynamicClassExtension, performerHolder);
         }
 
         private void checkPerformerHolder() {
@@ -1177,8 +1203,8 @@ public class DynamicClassExtension extends AbstractClassExtension {
     public static <T> T lambdaWithDescription(Object aLambdaFunction, Class<T> aFunctionalInterface, String aDescription) {
         DynamicClassExtension dynamicClassExtension = new DynamicClassExtension().
                 builder(aFunctionalInterface).
-                    opName("toString").
-                        op(Object.class, o -> aDescription).
+                operationName("toString").
+                operation(Object.class, o -> aDescription).
                 build();
         dynamicClassExtension.setCacheEnabled(false);
         return dynamicClassExtension.extension(aLambdaFunction, aFunctionalInterface);
@@ -1204,17 +1230,17 @@ public class DynamicClassExtension extends AbstractClassExtension {
         final DynamicClassExtension dynamicClassExtension = new DynamicClassExtension();
         dynamicClassExtension.
                 builder(aFunctionalInterface).
-                opName("toString").
-                    op(Object.class, o -> aDescription).
-                opName("hashCode").
-                    op(Object.class, o -> anID.hashCode()).
-                opName("equals").
-                    op(Object.class, (Object o1, Object o2) -> dynamicClassExtension.extension(o1, aFunctionalInterface, IdentityHolder.class) instanceof IdentityHolder id1 &&
+                operationName("toString").
+                operation(Object.class, o -> aDescription).
+                operationName("hashCode").
+                operation(Object.class, o -> anID.hashCode()).
+                operationName("equals").
+                operation(Object.class, (Object o1, Object o2) -> dynamicClassExtension.extension(o1, aFunctionalInterface, IdentityHolder.class) instanceof IdentityHolder id1 &&
                             o2 instanceof IdentityHolder id2 &&
                             Objects.equals(id1.getID(), id2.getID())).
                 build().builder(IdentityHolder.class).
-                    opName("getID").
-                        op(Object.class, o -> anID).
+                operationName("getID").
+                operation(Object.class, o -> anID).
                 build();
         dynamicClassExtension.setCacheEnabled(false);
         return dynamicClassExtension.extension(aLambdaFunction, aFunctionalInterface, IdentityHolder.class);

@@ -4,7 +4,7 @@ Class `DynamicClassExtension` provides a way to emulate class extensions (catego
 
 1. Create a `Builder` for an interface you want to compose an extension for by using the `DynamicClassExtension.sharedBuilder(...)` method
 2. Specify the name of an operation using `Builder.opName(String)`
-3. List all the method implementations per particular classes with lambdas using `Builder.op(...)` or `Builder.voidOp(...)`
+3. List all the method implementations per particular classes with lambdas using `Builder.operation(...)` or `Builder.voidoperation(...)`
 4. Repeat 2, 3 for all operations
 
 For example, the following code creates `Shippable` extensions for `Item classes`. There are explicit `ship()` method implementations for all the `Item` classes. Though, the `log()` method is implemented for the `Item` class only so extensions for all the `Item` descendants will utilize the same `log()` method.
@@ -24,13 +24,13 @@ interface Shippable {
 
 static {
   DynamicClassExtension.sharedBuilder(Shippable.class).
-  nameOp("ship").
-        op(Item.class, item -> ...).
-        op(Book.class, book -> ...).
-        op(Furniture.class, furniture -> ...).
-        op(ElectronicItem.class, electronicItem -> ...).
-  nameOp("log").
-        voidOp(Item.class, (Item item, Boolean isVerbose) -> {...}).
+  operationName"ship").
+        operation(Item.class, item -> ...).
+        operation(Book.class, book -> ...).
+        operation(Furniture.class, furniture -> ...).
+        operation(ElectronicItem.class, electronicItem -> ...).
+  operationName"log").
+        voidOperation(Item.class, (Item item, Boolean isVerbose) -> {...}).
   build();
 }
 ```
@@ -124,15 +124,15 @@ It is possible to use `Builder.async()` to declaratively define asynchronous ope
 
 ```java
 DynamicClassExtension dynamicClassExtension = new DynamicClassExtension().builder(Item_Shippable.class).
-        opName("ship").
-            op(Book.class, shipBook(book)).async().
+        operationName("ship").
+            operation(Book.class, shipBook(book)).async().
         build();
 
 Book book = new Book("The Mythical Man-Month");
 dynamicClassExtension.extension(book, ItemShippable.class).ship();
 ```
 **Notes:**
-* Operations must be already defined first via the `Builder.op()` or `Builder.voidOp()` methods
+* Operations must be already defined first via the `Builder.operation()` or `Builder.voidoperation()` methods
 * Non-void operations return `0` or `null` instantly depending on the operation return type
 * Extension usage mirrors synchronous operations
 * Ideal for long-running tasks to improve responsiveness
@@ -140,8 +140,8 @@ dynamicClassExtension.extension(book, ItemShippable.class).ship();
 If there is a need to handle results of such asynchronous operations it can be done by specifying a lambda function as an argument for `Builder.async()`.
 ```java
 DynamicClassExtension dynamicClassExtension = new DynamicClassExtension().builder(Item_Shippable.class).
-        opName("ship").
-            op(Book.class, shipBook(book)).
+        operationName("ship").
+            operation(Book.class, shipBook(book)).
                 async((Book book, Throwable ex) -> System.out.println("Book shipped: " + book)).
         build();
 
@@ -152,24 +152,24 @@ dynamicClassExtension.extension(book, ItemShippable.class).ship();
 #### Altering Operations
 
 To alter an operation itself: 
-1. Remove it first using the `Builder.removeOp(...)` method
-2. Add a replacement operation using one of `Builder.op(...)` or `Builder.voidOp(...)` methods
+1. Remove it first using the `Builder.removeoperation(...)` method
+2. Add a replacement operation using one of `Builder.operation(...)` or `Builder.voidoperation(...)` methods
 
 ```java
 DynamicClassExtension dynamicClassExtension = new DynamicClassExtension().builder(Item_Shippable.class).
-        opName("toString").
-            removeOp(Object.class,new Class<?>[0]).
-                op(Object.class, o -> "result: " + o.tostring()).
+        operationName("toString").
+            removeOperation(Object.class,new Class<?>[0]).
+                operation(Object.class, o -> "result: " + o.tostring()).
         build();
 ```
 
 To alter properties of an operation:
-1. Make an alteration intention for the operation using the `Builder.alterOp(...)` method
+1. Make an alteration intention for the operation using the `Builder.alteroperation(...)` method
 2. Specify properties for the operation e.g. by using the `Builder.async(...)` method
 ```java
 DynamicClassExtension dynamicClassExtension = new DynamicClassExtension().builder(Item_Shippable.class).
-        opName("ship").
-            alterOp(Fuurniture.class,new Class<?>[0]).
+        operationName("ship").
+            alterOperation(Fuurniture.class,new Class<?>[0]).
                 async().
         build();
 ```
