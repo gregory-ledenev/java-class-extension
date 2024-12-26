@@ -120,6 +120,6 @@ The Java Class Extension Library offers several ready to use Advices - lambda fu
 * `Aspects.PropertyChangeAdvice` - allows tracking all property changes.
 * `Aspects.RetryAdvice` - automatically retries failed operations.
 * `Aspects.CachedValueAdvice` - allows caching of operation results
-* `Aspects.readOnlyCollectionOrMapAdvice` - allows turning all the `Collection` or `Map` results to their unmodifiable views 
+* `Aspects.ReadOnlyCollectionOrMapAdvice` - allows turning all the `Collection` or `Map` results to their unmodifiable views 
 
 Next >> [Utilities](utilities.md)
