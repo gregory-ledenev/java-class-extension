@@ -30,17 +30,17 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * Optional annotation that allows to mark some interfaces as extension interfaces. Particularly, the
- * {@code StaticClassExtension} utilizes that annotation to find extension interfaces and use them to:
- * <ol>
- * <li>Compose proper extension class names</li>
- * <li>Determine packages to lookup for extension classes via the {@code packages} parameter</li>
- * <li>Determine extension type via the {@code type} parameter</li>
- * </ol>
+ * Annotation to mark methods in extension interfaces for automatic conversion of their results to class extensions.
+ * This annotation enhances modularity by allowing seamless integration of nested extensions. <br><br>
+ * When applied to a method:
+ * <ul>
+ *     <li>The method's return type must be an interface.</li>
+ *     <li>The returned object will be automatically wrapped as a class extension.</li>
+ *     <li>If the return type is not an interface, no class extension conversion occurs.</li>
+ * </ul>
  */
 @Retention(RetentionPolicy.RUNTIME)
-@Target(ElementType.TYPE)
-public @interface ExtensionInterface {
-    ClassExtension.Type type() default ClassExtension.Type.STATIC_PROXY;
-    String[] packages() default {};
+@Target(ElementType.METHOD)
+public @interface ObtainExtension {
+    ClassExtension.Type type() default ClassExtension.Type.UNKNOWN;
 }

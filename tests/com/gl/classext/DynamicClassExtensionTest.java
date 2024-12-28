@@ -75,6 +75,24 @@ public class DynamicClassExtensionTest {
     record TrackingInfo(String result) {
     }
 
+    interface Accountable {
+        int getCost();
+    }
+
+    static class AccountableImpl implements Accountable {
+        private final int cost;
+
+        @Override
+        public int getCost() {
+            return cost;
+        }
+
+        public AccountableImpl(int aCost) {
+            cost = aCost;
+        }
+    }
+
+
     interface Shippable {
         ShippingInfo ship();
         TrackingInfo track(boolean isVerbose);
@@ -82,7 +100,8 @@ public class DynamicClassExtensionTest {
     }
 
     interface Item_Shippable extends ItemInterface, Shippable {
-
+        @ObtainExtension
+        Accountable getAccountable();
         void log(boolean isVerbose);
         void log();
 
@@ -171,6 +190,57 @@ public class DynamicClassExtensionTest {
                      TrackingInfo[result=Soundbar item on its way]
                      ShippingInfo[result=Tire item NOT shipped]
                      TrackingInfo[result=Tire item on its way]""",
+                shippingInfos.toString());
+    }
+
+    @Test
+    void operationUsingBuilderWithDifferentCompositionTest() {
+
+        StringBuilder shippingLog = new StringBuilder();
+
+        DynamicClassExtension dynamicClassExtension = setupDynamicClassExtensionWithDifferentComposition(shippingLog);
+        dynamicClassExtension.setVerbose(true);
+        Item[] items = {
+                new Book("The Mythical Man-Month"),
+                new Furniture("Sofa"),
+                new ElectronicItem("Soundbar"),
+                new AutoPart("Tire"),
+        };
+
+        StringBuilder shippingInfos = new StringBuilder();
+        for (Item item : items) {
+            Item_Shippable extension = dynamicClassExtension.extension(item, Item_Shippable.class);
+            extension.log();
+            if (!shippingInfos.isEmpty())
+                shippingInfos.append("\n");
+            ShippingInfo ship = extension.ship();
+            shippingInfos.append(ship);
+            shippingInfos.append("\n").append(extension.track());
+            shippingInfos.append("\nCOST: ").append(extension.getAccountable().getCost());
+            extension.getName();
+        }
+        out.println(shippingLog);
+        out.println(shippingInfos);
+
+        assertEquals("""
+                     The Mythical Man-Month is about to be shipped
+                     Sofa is about to be shipped
+                     Soundbar is about to be shipped
+                     Tire is about to be shipped""", shippingLog.toString());
+
+        assertEquals("""
+                ShippingInfo[result=The Mythical Man-Month book shipped]
+                TrackingInfo[result=The Mythical Man-Month item on its way]
+                COST: 223
+                ShippingInfo[result=Sofa furniture shipped]
+                TrackingInfo[result=Sofa item on its way]
+                COST: 223
+                ShippingInfo[result=Soundbar electronic item shipped]
+                TrackingInfo[result=Soundbar item on its way]
+                COST: 223
+                ShippingInfo[result=Tire item NOT shipped]
+                TrackingInfo[result=Tire item on its way]
+                COST: 223""",
                 shippingInfos.toString());
     }
 
@@ -518,31 +588,72 @@ public class DynamicClassExtensionTest {
     private static DynamicClassExtension setupDynamicClassExtension(StringBuilder shippingLog) {
         DynamicClassExtension result = new DynamicClassExtension().builder().
                 extensionInterface(Item_Shippable.class).
-                operationName("ship").
-                operation(Item.class, book -> new ShippingInfo(book.getName() + " item NOT shipped")).
-                operation(Book.class, book -> new ShippingInfo(book.getName() + " book shipped")).
-                operation(Furniture.class, furniture -> new ShippingInfo(furniture.getName() + " furniture shipped")).
-                operation(ElectronicItem.class, electronicItem -> new ShippingInfo(electronicItem.getName() + " electronic item shipped")).
-                operationName("log").
-                voidOperation(Item.class, (Item item, Boolean isVerbose) -> {
-                        if (!shippingLog.isEmpty())
-                            shippingLog.append("\n");
-                        shippingLog.append(item.getName()).append(" is about to be shipped in 1 hour");
-                    }).
-                voidOperation(Item.class, item -> {
-                        if (!shippingLog.isEmpty())
-                            shippingLog.append("\n");
-                        shippingLog.append(item.getName()).append(" is about to be shipped");
-                    }).
-                operationName("track").
-                operation(Item.class, item -> new TrackingInfo(item.getName() + " item on its way")).
-                operation(Item.class, (Item item, Boolean isVerbose) -> new TrackingInfo(item.getName() +
-                            " item on its way" + (isVerbose ? "Status: SHIPPED" : ""))).
-                operationName("getName").
-                operation(AutoPart.class, item -> item.getName()  + "[OVERRIDDEN]").
+                    operationName("ship").
+                        operation(Item.class, book -> new ShippingInfo(book.getName() + " item NOT shipped")).
+                        operation(Book.class, book -> new ShippingInfo(book.getName() + " book shipped")).
+                        operation(Furniture.class, furniture -> new ShippingInfo(furniture.getName() + " furniture shipped")).
+                        operation(ElectronicItem.class, electronicItem -> new ShippingInfo(electronicItem.getName() + " electronic item shipped")).
+                    operationName("log").
+                        voidOperation(Item.class, (Item item, Boolean isVerbose) -> {
+                                if (!shippingLog.isEmpty())
+                                    shippingLog.append("\n");
+                                shippingLog.append(item.getName()).append(" is about to be shipped in 1 hour");
+                            }).
+                        voidOperation(Item.class, item -> {
+                                if (!shippingLog.isEmpty())
+                                    shippingLog.append("\n");
+                                shippingLog.append(item.getName()).append(" is about to be shipped");
+                            }).
+                    operationName("track").
+                        operation(Item.class, item -> new TrackingInfo(item.getName() + " item on its way")).
+                        operation(Item.class, (Item item, Boolean isVerbose) -> new TrackingInfo(item.getName() +
+                                    " item on its way" + (isVerbose ? "Status: SHIPPED" : ""))).
+                    operationName("getName").
+                        operation(AutoPart.class, item -> item.getName()  + "[OVERRIDDEN]").
                 build();
 
-        result = result.builder(StaticClassExtension.DelegateHolder.class).
+        result = result.builder(ClassExtension.DelegateHolder.class).
+                operationName("getDelegate").
+                operation(String.class, item -> null).
+                build();
+
+        return result;
+    }
+
+    private static DynamicClassExtension setupDynamicClassExtensionWithDifferentComposition(StringBuilder shippingLog) {
+        DynamicClassExtension result = new DynamicClassExtension().builder().
+                extensionInterface(Item_Shippable.class).
+                    objectClass(Item.class).
+                        operation("getAccountable", (Item item) -> new AccountableImpl(100)).
+                        operation("ship", (Item item) -> new ShippingInfo(item.getName() + " item NOT shipped")).
+                        voidOperation("log", (Item item, Boolean isVerbose) -> {
+                    if (!shippingLog.isEmpty())
+                        shippingLog.append("\n");
+                    shippingLog.append(item.getName()).append(" is about to be shipped in 1 hour");
+                }).
+                        voidOperation("log", (Item item) -> {
+                    if (!shippingLog.isEmpty())
+                        shippingLog.append("\n");
+                    shippingLog.append(item.getName()).append(" is about to be shipped");
+                }).
+                        operation("track", (Item item) -> new TrackingInfo(item.getName() + " item on its way")).
+                        operation("track", (Item item, Boolean isVerbose) -> new TrackingInfo(item.getName() +
+                                " item on its way" + (isVerbose ? "Status: SHIPPED" : ""))).
+                objectClass(Book.class).
+                        operation("ship", (Book book) -> new ShippingInfo(book.getName() + " book shipped")).
+                    objectClass(Furniture.class).
+                        operation("ship", (Furniture furniture) -> new ShippingInfo(furniture.getName() + " furniture shipped")).
+                    objectClass(ElectronicItem.class).
+                        operation("ship", (ElectronicItem electronicItem) -> new ShippingInfo(electronicItem.getName() + " electronic item shipped")).
+                    objectClass(AutoPart.class).
+                        operation("getName", (Item item) -> item.getName()  + "[OVERRIDDEN]").
+                extensionInterface(Accountable.class).
+                    objectClass(AccountableImpl.class).
+                        operation("getCost", (Accountable accountable) -> accountable.getCost() + 123).
+
+                build();
+
+        result = result.builder(ClassExtension.DelegateHolder.class).
                 operationName("getDelegate").
                 operation(String.class, item -> null).
                 build();
@@ -692,7 +803,9 @@ public class DynamicClassExtensionTest {
         DynamicClassExtension dynamicClassExtension = setupDynamicClassExtension(shippingLog);
         String result = String.join("\n", dynamicClassExtension.listUndefinedOperations(ElectronicItem.class, Item_Shippable.class));
         out.println(result);
-        assertEquals("T calculateShippingCost()", result);
+        assertEquals("""
+                     T calculateShippingCost()
+                     T getAccountable()""", result);
     }
 
     @Test

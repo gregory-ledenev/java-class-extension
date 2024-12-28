@@ -125,6 +125,11 @@ public class StaticClassExtension extends AbstractClassExtension {
         return extension(anObject, anExtensionInterface, (List<String>) null);
     }
 
+    @Override
+    public boolean compatible(Type aType) {
+        return aType == Type.STATIC_PROXY || aType == Type.STATIC_DIRECT;
+    }
+
     /**
      * Convenience static method that finds and returns an extension object according to a supplied interface. It is the
      * same as calling {@code sharedInstance().extension(anObject, anExtensionInterface)} It uses cache to avoid
@@ -180,14 +185,14 @@ public class StaticClassExtension extends AbstractClassExtension {
 
         List<String> packageNames = getPackageNames(anExtensionInterface, aPackageNames);
 
-        ClassExtension.InstantiationStrategy instantiationStrategy = InstantiationStrategy.PROXY;
+        Type instantiationStrategy = Type.STATIC_PROXY;
 
         Class<?> extensionInterface = findAnnotatedInterface(anExtensionInterface, ExtensionInterface.class);
         if (extensionInterface == null) {
             extensionInterface = anExtensionInterface;
         } else {
             packageNames = getAnnotatedPackageNames(extensionInterface, packageNames);
-            instantiationStrategy = instantiationStrategy(extensionInterface);
+            instantiationStrategy = classExtensionType(extensionInterface);
         }
         packageNames.addAll(extensionPackages(extensionInterface));
 
@@ -203,7 +208,7 @@ public class StaticClassExtension extends AbstractClassExtension {
 
             Object extension = createExtension(anObject, extensionClass);
 
-            if (instantiationStrategy != InstantiationStrategy.DIRECT) {
+            if (instantiationStrategy != Type.STATIC_DIRECT) {
                 return (T) Proxy.newProxyInstance(extensionInterface.getClassLoader(),
                         new Class<?>[]{anExtensionInterface, PrivateDelegateHolder.class},
                         (proxy, method, args) -> performOperation(this, extension, anObject, method, args));
@@ -240,9 +245,9 @@ public class StaticClassExtension extends AbstractClassExtension {
         return result;
     }
 
-    private static ClassExtension.InstantiationStrategy instantiationStrategy(Class<?> extensionInterface) {
+    private static Type classExtensionType(Class<?> extensionInterface) {
         ExtensionInterface annotation = extensionInterface.getAnnotation(ExtensionInterface.class);
-        return annotation != null ? annotation.instantiationStrategy() : InstantiationStrategy.PROXY;
+        return annotation != null ? annotation.type() : Type.STATIC_PROXY;
     }
 
     private static List<String> getAnnotatedPackageNames(Class<?> extensionInterface, List<String> packageNames) {
@@ -309,7 +314,7 @@ public class StaticClassExtension extends AbstractClassExtension {
             afterPointcut.after(result, methodName, anObject, anArgs);
         }
 
-        return result;
+        return classExtensionForOperationResult(aClassExtension, aMethod, result);
     }
 
     private static Object performOperation(StaticClassExtension aClassExtension, Object anObject, Method aMethod, Object[] anArgs, Aspects.Pointcut aroundPointcut) {

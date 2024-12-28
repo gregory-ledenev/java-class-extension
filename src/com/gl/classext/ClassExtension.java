@@ -32,21 +32,25 @@ package com.gl.classext;
 public interface ClassExtension {
 
     /**
-     * Defines instantiation strategy choices. Currently:
-     * <ul>
-     *    <li>{@link DynamicClassExtension} always uses PROXY.</li>
-     *    <li>{@link StaticClassExtension} supports both PROXY and DIRECT, configurable by use of {@link ExtensionInterface} annotation.</li>
-     * </ul>
+     * Defines type of class extension
      */
-    enum InstantiationStrategy {
+    enum Type {
         /**
-         * Specifies that dynamic proxies should be instantiated with extension instances inside
+         * Unknown type; can be used to instruct using the most suitable type
          */
-        PROXY,
+        UNKNOWN,
         /**
-         * Specifies that extension instances should be instantiated directly
+         * Dynamic extension
          */
-        DIRECT
+        DYNAMIC,
+        /**
+         * Static extension using dynamic proxy access to an extension instance
+         */
+        STATIC_PROXY,
+        /**
+         * Static extension using direct access to an extension instance
+         */
+        STATIC_DIRECT
     }
 
     /**
@@ -92,7 +96,7 @@ public interface ClassExtension {
     <T> T extension(Object anObject, Class<T> anExtensionInterface);
 
     /**
-     * Finds and returns an extension object according to a supplied interface. NOTE: It is an optional interface so not all
+     * Finds and returns an extension object according to a supplied interfaces. NOTE: It is an optional interface so not all
      * implementation may support it. It uses cache to avoid redundant objects creation. If no cache should be used -
      * turn it OFF via the {@code setCacheEnabled(false)} call
      *
@@ -103,6 +107,76 @@ public interface ClassExtension {
      */
     default <T> T extension(Object anObject, Class<T> anExtensionInterface, Class<?>... aSupplementaryInterfaces) {
         throw new UnsupportedOperationException("Extensions with supplementary interfaces are not supported");
+    }
+
+    /**
+     * Check if class extension is compatible with an extension type
+     * @param aType type to check
+     * @return {@code true} if class extension is compatible with an extension type; {@code false} otherwise
+     */
+    boolean compatible(Type aType);
+
+    /**
+     * Finds and returns an extension object according to a supplied interface. It creates either dynamic or static
+     * extensions according to the {@code @ExtensionInterface} annotation for {@code anExtensionInterface} argument
+     *
+     * @param anObject             object to return an extension object for
+     * @param anExtensionInterface interface of extension object to be returned
+     * @return an extension object
+     */
+    static <T> T sharedExtension(Object anObject, Class<T> anExtensionInterface) {
+        ExtensionInterface annotation = anExtensionInterface.getAnnotation(ExtensionInterface.class);
+        if (annotation != null) {
+            return sharedExtension(anObject, anExtensionInterface, annotation.type());
+        } else {
+            throw new IllegalArgumentException("Extension interface is not annotated with @ExtensionInterface");
+        }
+    }
+
+    /**
+     * Finds and returns an extension object according to a supplied type.
+     *
+     * @param anObject             object to return an extension object for
+     * @param anExtensionInterface interface of extension object to be returned
+     * @param type                 class extension type
+     * @return an extension object
+     */
+    static <T> T sharedExtension(Object anObject, Class<T> anExtensionInterface, Type type) {
+        switch (type) {
+            case DYNAMIC:
+                return DynamicClassExtension.sharedExtension(anObject, anExtensionInterface);
+            case STATIC_PROXY:
+            case STATIC_DIRECT:
+                return StaticClassExtension.sharedExtension(anObject, anExtensionInterface);
+            default:
+                throw new IllegalStateException("Unexpected value: " + type);
+        }
+    }
+
+    /**
+     * Finds and returns an extension object according to a supplied interfaces. Note: currently, only dynamic class extensions
+     * support interfaces composition.
+     *
+     * @param anObject                 object to return an extension object for
+     * @param anExtensionInterface     interface of extension object to be returned
+     * @param aSupplementaryInterfaces supplementary interfaces of extension object to be returned
+     * @return an extension object
+     */
+    static <T> T sharedExtension(Object anObject, Class<T> anExtensionInterface, Class<?>... aSupplementaryInterfaces) {
+        ExtensionInterface annotation = anExtensionInterface.getAnnotation(ExtensionInterface.class);
+        if (annotation != null) {
+            switch (annotation.type()) {
+                case DYNAMIC:
+                    return DynamicClassExtension.sharedInstance().extension(anObject, anExtensionInterface, aSupplementaryInterfaces);
+                case STATIC_PROXY:
+                case STATIC_DIRECT:
+                    return StaticClassExtension.sharedInstance().extension(anObject, anExtensionInterface, aSupplementaryInterfaces);
+                default:
+                    throw new IllegalStateException("Unexpected value: " + annotation.type());
+            }
+        } else {
+            throw new IllegalArgumentException("Extension interface is not annotated with @ExtensionInterface");
+        }
     }
 
     /**

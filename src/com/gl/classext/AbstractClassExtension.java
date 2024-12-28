@@ -1,5 +1,6 @@
 package com.gl.classext;
 
+import java.lang.reflect.Method;
 import java.util.*;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -16,6 +17,27 @@ public abstract class AbstractClassExtension implements ClassExtension {
 
     protected static String formatAdvice(Object anObject, Object anAdvice, AdviceType anAdviceType) {
         return format("{0} -> {1} for {2}", anAdviceType, anAdvice, anObject);
+    }
+
+    protected static Object classExtensionForOperationResult(ClassExtension aClassExtension, Method aMethod, Object aResult) {
+        Object result = aResult;
+
+        if (aResult != null) {
+            ObtainExtension annotation = aMethod.getAnnotation(ObtainExtension.class);
+            if (annotation != null) {
+                Type type = annotation.type();
+                Class<?> extensionInterface = aMethod.getReturnType();
+                ExtensionInterface extensionInterfaceAnnotation = extensionInterface.getAnnotation(ExtensionInterface.class);
+                if (extensionInterfaceAnnotation!= null)
+                    type = extensionInterfaceAnnotation .type();
+                if (type == Type.UNKNOWN || aClassExtension.compatible(type))
+                    result = aClassExtension.extension(result, extensionInterface);
+                else
+                    result = ClassExtension.sharedExtension(result, extensionInterface, type);
+            }
+        }
+
+        return result;
     }
 
     /**
