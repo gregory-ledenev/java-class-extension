@@ -104,6 +104,32 @@ public class DynamicClassExtension extends AbstractClassExtension {
         return dynamicClassExtension;
     }
 
+    /**
+     * Performs default parameterless operation using reflection
+     * @param anOperation operation name - method name
+     * @param anObject object
+     * @return result of operation; otherwise {@code RuntimeException} will be thrown
+     */
+    public static Object performOperation(String anOperation, Object anObject) {
+        return performOperation(anOperation, anObject, (Object[]) null);
+    }
+
+    /**
+     * Performs default operation using reflection
+     * @param anOperation operation name - method name
+     * @param anObject object
+     * @param anArgs arguments
+     * @return result of operation; otherwise {@code RuntimeException} will be thrown
+     */
+    public static Object performOperation(String anOperation, Object anObject, Object... anArgs) {
+        try {
+            Method method = anObject.getClass().getMethod(anOperation, parameterTypes(anArgs));
+            return method.invoke(anObject, anArgs);
+        } catch (Exception ex) {
+            throw new RuntimeException(ex);
+        }
+    }
+
     protected static class PerformerHolder<R> {
         private final Performer<R> performer;
         private boolean async;
@@ -1086,6 +1112,20 @@ public class DynamicClassExtension extends AbstractClassExtension {
         public <R, T1, U> Builder<E> operation(Class<T1> anObjectClass, BiFunctionPerformer<T1, U, R> anOperation) {
             PerformerHolder<R> performerHolder = dynamicClassExtension.addExtensionOperation(anObjectClass, extensionInterface, operationName, anOperation);
             return new Builder<>(extensionInterface, anObjectClass, operationName, dynamicClassExtension, performerHolder);
+        }
+
+        /**
+         * Adds a default handler for both parameterless and single argument operations. It uses reflection to perform underlying method(s).
+         * @param anObjectClass object class
+         * @return a copy of this {@code Builder}
+         */
+        @SuppressWarnings("unchecked")
+        public <R, T1, U> Builder<E> defaultOperations(Class<T1> anObjectClass) {
+            dynamicClassExtension.addExtensionOperation(anObjectClass, extensionInterface,
+                    operationName, (object, arg) -> (R) performOperation(operationName, object, arg));
+            dynamicClassExtension.addExtensionOperation(anObjectClass, extensionInterface,
+                    operationName, (object) -> (R) performOperation(operationName, object));
+            return new Builder<>(extensionInterface, anObjectClass, operationName, dynamicClassExtension, null);
         }
 
         /**

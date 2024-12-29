@@ -137,6 +137,7 @@ While the Java Class Extension Library requires slightly more code and efforts t
    * Enables complex hierarchies and method overriding
    * Dynamic methods overriding in Dynamic Class Extensions
    * Dynamic interfaces composition in Dynamic Class Extensions
+   * Dynamic unions by adopting common interfaces in Dynamic Class Extensions
 2. _Static_ Extensions are fully functional classes
    * Can add and manage new state
    * Support for additional helper methods

@@ -119,6 +119,72 @@ shippable.ship(); // use it for shipping
 out.println(((ItemInterface) shippable).getName()); // use it as a Book itself
 
 ```
+
+#### Unions Support
+Dynamic Extensions provide a powerful mechanism to unify objects of different, unrelated types under a common interface. This approach is particularly useful when dealing with objects that lack a shared superclass or interface.
+
+Consider a scenario where we need to add shipping functionality to various item types:
+
+```java
+public record Book(String name) {}
+public record Furniture(String name) {}
+public record ElectronicItem(String name) {}
+public record AutoPart(String name) {}
+```
+We can introduce a Shippable interface to act as a unifying abstraction:
+
+```java
+public record ShippingInfo(String result) {}
+
+public interface Shippable {
+    String name();
+    ShippingInfo ship();
+}
+```
+
+Then we should configure Dynamic Extensions for the Shippable interface.
+
+```java
+static {
+DynamicClassExtension.sharedBuilder().extensionInterface(Shippable.class).
+    operationName("ship").
+        operation(Book.class, book -> shipBook(book)).
+        operation(Furniture.class, furniture -> shipFurniture(furniture)).
+        operation(ElectronicItem.class, electronicItem -> shipElectronicItem(electronicItem)).
+        operation(AutoPart.class, electronicItem -> shipAutoPart(autoPart)).
+    operationName("name").
+        defaultOperations(Object.class).
+    build();
+}
+```
+Shipping a collection of items is straightforward as usual:
+
+```java
+Object[] items = {
+    new Book("The Mythical Man-Month"), 
+    new Furniture("Sofa"), 
+    new ElectronicItem("Soundbar")
+};
+
+for (Object item : items) {
+    Shippable shippable = DynamicClassExtension.sharedExtension(item, Shippable.class);
+    System.out.println("Shipping: " + shippable.name());
+    shippable.ship();
+}
+```
+**Key Benefits**
+* Type Unification: Enables handling of disparate types through a common interface.
+* Flexibility: Easily extend functionality without modifying existing classes.
+* Code Reusability: Implement shared behavior across unrelated types.
+* Maintainability: Centralized configuration of extensions for better management.
+
+**Considerations**
+* Ensure proper error handling for unsupported types.
+* Consider performance implications for large-scale applications.
+* Maintain clear documentation of the extension configurations.
+
+This approach demonstrates the power of Dynamic Extensions in creating flexible, maintainable systems that can adapt to diverse object types without extensive refactoring.
+
 #### Asynchronous Operations
 It is possible to use `Builder.async()` to declaratively define asynchronous operations. Such operations are running in background, and they are non-blocking therefore caller threads continue immediately.
 
