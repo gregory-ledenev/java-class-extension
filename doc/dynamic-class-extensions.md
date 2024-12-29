@@ -146,7 +146,7 @@ Then we should configure Dynamic Extensions for the Shippable interface.
 
 ```java
 static {
-DynamicClassExtension.sharedBuilder().extensionInterface(Shippable.class).
+    DynamicClassExtension.sharedBuilder().extensionInterface(Shippable.class).
     operationName("ship").
         operation(Book.class, book -> shipBook(book)).
         operation(Furniture.class, furniture -> shipFurniture(furniture)).
