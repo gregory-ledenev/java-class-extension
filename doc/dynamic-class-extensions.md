@@ -157,7 +157,7 @@ static {
     build();
 }
 ```
-Note: the `defaultOperations(Object.class)` was used to set up that default handling of the "name" operation should be used. It is done via reelection by invoking the `name()` method for each item. If direct mapping is not possible - use the `DynamicClassExtension.performOperation(String, Object))` an operation lambda function to provide different name for the operation.
+Note: the `defaultOperations(Object.class)` was used to set up that default handling of the "name" operation should be used. It is done via reflection by invoking the `name()` method for each item. If direct mapping is not possible - use the `DynamicClassExtension.performOperation(String, Object))` an operation lambda function to provide different name for the operation.
 
 Shipping a collection of items is straightforward as usual:
 
