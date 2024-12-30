@@ -1120,7 +1120,8 @@ public class DynamicClassExtension extends AbstractClassExtension {
          * @return a copy of this {@code Builder}
          */
         @SuppressWarnings("unchecked")
-        public <R, T1, U> Builder<E> defaultOperations(Class<T1> anObjectClass) {
+        @Deprecated
+        private <R, T1, U> Builder<E> defaultOperations(Class<T1> anObjectClass) {
             dynamicClassExtension.addExtensionOperation(anObjectClass, extensionInterface,
                     operationName, (object, arg) -> (R) performOperation(operationName, object, arg));
             dynamicClassExtension.addExtensionOperation(anObjectClass, extensionInterface,

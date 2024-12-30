@@ -153,11 +153,20 @@ static {
         operation(ElectronicItem.class, electronicItem -> shipElectronicItem(electronicItem)).
         operation(AutoPart.class, electronicItem -> shipAutoPart(autoPart)).
     operationName("name").
-        defaultOperations(Object.class).
+        operation(Object.class, (object) -> DynamicClassExtension.performOperation("name", object)).
     build();
 }
 ```
-Note: the `defaultOperations(Object.class)` was used to set up that default handling of the "name" operation should be used. It is done via reflection by invoking the `name()` method for each item. If direct mapping is not possible - use the `DynamicClassExtension.performOperation(String, Object))` an operation lambda function to provide different name for the operation.
+Use the `DynamicClassExtension.performOperation(String, Object, Object...)` method to handle common operations across different object types using reflection. For example, to manage the "name" operation, specify `Object.class` as a common superclass and retrieve names uniformly:
+```java
+DynamicClassExtension.sharedBuilder().extensionInterface(Shippable.class).
+// ... other operations ...
+    operationName("name").
+        operation(Object.class, (object) -> DynamicClassExtension.performOperation("name", object)).
+build();
+```
+
+This approach promotes code reusability and flexibility, allowing you to handle multiple types with a single operation while ensuring consistent behavior.
 
 Shipping a collection of items is straightforward as usual:
 

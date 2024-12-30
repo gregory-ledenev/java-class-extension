@@ -64,7 +64,8 @@ public class UnionTest {
                         operation(ElectronicItem.class, electronicItem -> new ShippingInfo(electronicItem.name() + " electronic item shipped")).
                         operation(AutoPart.class, electronicItem -> new ShippingInfo(electronicItem.name() + " auto part shipped")).
                     operationName("getName").
-                defaultOperations(Object.class).
+                        operation(Object.class, (object) -> DynamicClassExtension.performOperation("getName", object)).
+                        operation(Object.class, (Object object, String suffix) -> DynamicClassExtension.performOperation("getName", object, suffix)).
                     operationName("name").
                         operation(Object.class, (object) -> DynamicClassExtension.performOperation("name", object)).
                 build();
