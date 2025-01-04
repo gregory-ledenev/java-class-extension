@@ -4,33 +4,35 @@ Class `DynamicClassExtension` provides a way to emulate class extensions (catego
 
 1. Create a `Builder` for an interface you want to compose an extension for by using the `DynamicClassExtension.sharedBuilder(...)` method
 2. Specify the name of an operation using `Builder.opName(String)`
-3. List all the method implementations per particular classes with lambdas using `Builder.op(...)` or `Builder.voidOp(...)`
+3. List all the method implementations per particular classes with lambdas using `Builder.operation(...)` or `Builder.voidoperation(...)`
 4. Repeat 2, 3 for all operations
 
 For example, the following code creates `Shippable` extensions for `Item classes`. There are explicit `ship()` method implementations for all the `Item` classes. Though, the `log()` method is implemented for the `Item` class only so extensions for all the `Item` descendants will utilize the same `log()` method.
 ```java
-  class Item {...}
-  class Book extends Item {...}
-  class Furniture extends Item {...}
-  class ElectronicItem extends Item {...}
-  class AutoPart extends Item {...}
+interface ItemInterface {...}
 
-  interface Shippable {
-      ShippingInfo ship();
-      void log(boolean isVerbose);
-  }
-  
-  static {
-      DynamicClassExtension.sharedBuilder(Shippable.class).
-      nameOp("ship").
-            op(Item.class, item -> ...).
-            op(Book.class, book -> ...).
-            op(Furniture.class, furniture -> ...).
-            op(ElectronicItem.class, electronicItem -> ...).
-      nameOp("log").
-            voidOp(Item.class, (Item item, Boolean isVerbose) -> {...}).
-      build();
-  }
+class Item implements ItemInterface {...}
+class Book extends Item {...}
+class Furniture extends Item {...}
+class ElectronicItem extends Item {...}
+class AutoPart extends Item {...}
+
+interface Shippable {
+  ShippingInfo ship();
+  void log(boolean isVerbose);
+}
+
+static {
+  DynamicClassExtension.sharedBuilder(Shippable.class).
+  operationName("ship").
+        operation(Item.class, item -> ...).
+        operation(Book.class, book -> ...).
+        operation(Furniture.class, furniture -> ...).
+        operation(ElectronicItem.class, electronicItem -> ...).
+  operationName"log").
+        voidOperation(Item.class, (Item item, Boolean isVerbose) -> {...}).
+  build();
+}
 ```
 
 Finding an extension and calling its methods is simple and straightforward:
@@ -100,21 +102,114 @@ Book book = new Book("The Mythical Man-Month");
 System.out.println(book.getName());
 System.out.println(DynamicClassExtension.sharedExtension(book, ItemShippable.class).getName());
 ```
+#### Composition Support
+`DynamicClassExtension` enables dynamic composition of multiple interfaces, complementing static inheritance. Key features:
+* Combines several interfaces at runtime
+* Useful when static composition is impractical or impossible
+* Implemented via the `extension(...)` method with a list of supplemental interfaces
+* Allows flexible usage of the extensions
+
+For example: you can get an extension for a composition of `Shippable` and `ItemInterface` and use it primarily for shipping activities and secondary as an `ItemInterface` object itself (e.g. a `Book`) via type casting.
+
+This approach offers greater flexibility in object composition and usage compared to static inheritance alone.
+```java
+Book book = new Book("The Mythical Man-Month");
+Shippable shippable = DynamicClassExtension.sharedExtension(book, Shippable.class, ItemInterface.class);
+shippable.ship(); // use it for shipping
+out.println(((ItemInterface) shippable).getName()); // use it as a Book itself
+
+```
+
+#### Unions Support
+Dynamic Extensions provide a powerful mechanism to unify objects of different, unrelated types under a common interface. This approach is particularly useful when dealing with objects that lack a shared superclass or interface.
+
+Consider a scenario where we need to add shipping functionality to various item types:
+
+```java
+public record Book(String name) {}
+public record Furniture(String name) {}
+public record ElectronicItem(String name) {}
+public record AutoPart(String name) {}
+```
+We can introduce a Shippable interface to act as a unifying abstraction:
+
+```java
+public record ShippingInfo(String result) {}
+
+public interface Shippable {
+    String name();
+    ShippingInfo ship();
+}
+```
+
+Then we should configure Dynamic Extensions for the Shippable interface.
+
+```java
+static {
+    DynamicClassExtension.sharedBuilder().extensionInterface(Shippable.class).
+    operationName("ship").
+        operation(Book.class, book -> shipBook(book)).
+        operation(Furniture.class, furniture -> shipFurniture(furniture)).
+        operation(ElectronicItem.class, electronicItem -> shipElectronicItem(electronicItem)).
+        operation(AutoPart.class, electronicItem -> shipAutoPart(autoPart)).
+    operationName("name").
+        operation(Object.class, (object) -> DynamicClassExtension.performOperation("name", object)).
+    build();
+}
+```
+Use the `DynamicClassExtension.performOperation(String, Object, Object...)` method to handle common operations across different object types using reflection. For example, to manage the "name" operation, specify `Object.class` as a common superclass and retrieve names uniformly:
+```java
+DynamicClassExtension.sharedBuilder().extensionInterface(Shippable.class).
+// ... other operations ...
+    operationName("name").
+        operation(Object.class, (object) -> DynamicClassExtension.performOperation("name", object)).
+build();
+```
+
+This approach promotes code reusability and flexibility, allowing you to handle multiple types with a single operation while ensuring consistent behavior.
+
+Shipping a collection of items is straightforward as usual:
+
+```java
+Object[] items = {
+    new Book("The Mythical Man-Month"), 
+    new Furniture("Sofa"), 
+    new ElectronicItem("Soundbar")
+};
+
+for (Object item : items) {
+    Shippable shippable = DynamicClassExtension.sharedExtension(item, Shippable.class);
+    System.out.println("Shipping: " + shippable.name());
+    shippable.ship();
+}
+```
+**Key Benefits**
+* Type Unification: Enables handling of disparate types through a common interface.
+* Flexibility: Easily extend functionality without modifying existing classes.
+* Code Reusability: Implement shared behavior across unrelated types.
+* Maintainability: Centralized configuration of extensions for better management.
+
+**Considerations**
+* Ensure proper error handling for unsupported types.
+* Consider performance implications for large-scale applications.
+* Maintain clear documentation of the extension configurations.
+
+This approach demonstrates the power of Dynamic Extensions in creating flexible, maintainable systems that can adapt to diverse object types without extensive refactoring.
 
 #### Asynchronous Operations
 It is possible to use `Builder.async()` to declaratively define asynchronous operations. Such operations are running in background, and they are non-blocking therefore caller threads continue immediately.
 
 ```java
 DynamicClassExtension dynamicClassExtension = new DynamicClassExtension().builder(Item_Shippable.class).
-        opName("ship").
-            op(Book.class, shipBook(book)).async().
+        operationName("ship").
+            operation(Book.class, shipBook(book)).async().
         build();
 
 Book book = new Book("The Mythical Man-Month");
 dynamicClassExtension.extension(book, ItemShippable.class).ship();
 ```
 **Notes:**
-* Operations must be already defined first via the `Builder.op()` or `Builder.voidOp()` methods
+* Operations must be already defined first via the `Builder.operation()` or `Builder.voidoperation()` methods
 * Non-void operations return `0` or `null` instantly depending on the operation return type
 * Extension usage mirrors synchronous operations
 * Ideal for long-running tasks to improve responsiveness
@@ -122,64 +217,36 @@ dynamicClassExtension.extension(book, ItemShippable.class).ship();
 If there is a need to handle results of such asynchronous operations it can be done by specifying a lambda function as an argument for `Builder.async()`.
 ```java
 DynamicClassExtension dynamicClassExtension = new DynamicClassExtension().builder(Item_Shippable.class).
-        opName("ship").
-            op(Book.class, shipBook(book)).
+        operationName("ship").
+            operation(Book.class, shipBook(book)).
                 async((Book book, Throwable ex) -> System.out.println("Book shipped: " + book)).
         build();
 
 Book book = new Book("The Mythical Man-Month");
 dynamicClassExtension.extension(book, ItemShippable.class).ship();
 ```
-#### Limited Support of AOP Aspects
-The `DynamicClassExtension` provides limited support of Aspects by allowing to specify lambda functions which should be applied before and after performing of operations. It can be done via use of the `Builder.before()` and the `Builder.after()` methods.
-```java
-DynamicClassExtension dynamicClassExtension = new DynamicClassExtension().builder(Item_Shippable.class).
-        opName("ship").
-            op(Book.class, shipBook(book)).
-                before((object, args) -> LOGGER.info("BEFORE: " + object + "-> ship()")).
-                after(result -> LOGGER.info("AFTER: result - " + result)).
-        build();
 
-Book book = new Book("The Mythical Man-Month");
-dynamicClassExtension.extension(book, ItemShippable.class).ship();
-```
-**Notes:**
-* Operations must be already defined first via `Builder.op()` or `Builder.voidOp()`
-* Both synchronous and asynchronous operations are supported 
-
-Aspects are only supported for defined operations only. So if there is a need to intercept calls of usual methods - such methods should be dynamically "overridden" by defining operations with the same signature. The following example intersects `Object.toString()` method:
-```java
-DynamicClassExtension dynamicClassExtension = new DynamicClassExtension().builder(Item_Shippable.class).
-        opName("toString").
-            op(Object.class, Object::toString).
-                before((object, args) -> LOGGER.info("BEFORE: " + object + "-> ship()")).
-                after(result -> LOGGER.info("AFTER: result - " + result)).
-        build();
-
-Book book = new Book("The Mythical Man-Month");
-dynamicClassExtension.extension(book, ItemShippable.class).toString();
-```
 #### Altering Operations
 
 To alter an operation itself: 
-1. Remove it first using the `Builder.removeOp(...)` method
-2. Add a replacement operation using one of `Builder.op(...)` or `Builder.voidOp(...)` methods
+1. Remove it first using the `Builder.removeoperation(...)` method
+2. Add a replacement operation using one of `Builder.operation(...)` or `Builder.voidoperation(...)` methods
 
 ```java
 DynamicClassExtension dynamicClassExtension = new DynamicClassExtension().builder(Item_Shippable.class).
-        opName("toString").
-            removeOp(Object.class,new Class<?>[0]).
-                op(Object.class, o -> "result: " + o.tostring()).
+        operationName("toString").
+            removeOperation(Object.class,new Class<?>[0]).
+                operation(Object.class, o -> "result: " + o.tostring()).
         build();
 ```
 
 To alter properties of an operation:
-1. Make an alteration intention for the operation using the `Builder.alterOp(...)` method
+1. Make an alteration intention for the operation using the `Builder.alteroperation(...)` method
 2. Specify properties for the operation e.g. by using the `Builder.async(...)` method
 ```java
 DynamicClassExtension dynamicClassExtension = new DynamicClassExtension().builder(Item_Shippable.class).
-        opName("ship").
-            alterOp(Fuurniture.class,new Class<?>[0]).
+        operationName("ship").
+            alterOperation(Fuurniture.class,new Class<?>[0]).
                 async().
         build();
 ```
@@ -196,3 +263,5 @@ This feature is especially useful for testing, as it simplifies the process of d
 The following are limitations of `DynamicClassExtension`:
 1. Overloaded operations are not supported yet. So for example, it is not possible to define both `log(boolean)` and `log(String)` operations
 2. Operations having more than one parameter are not supported yet.
+
+Next >> [Aspects](aspects.md)

@@ -39,16 +39,16 @@ While this method is simple and direct, it comes with several disadvantages:
   
 ### Class Extensions
 
-A more effective solution involves introducing a `Shippable` class extension (category) that encapsulates the `ship()` method for items. Each `Item` class would then have a corresponding `Shippable` extension:
+A more effective solution involves introducing a `Shippable` class extension (category) that encapsulates the `ship()` method for items. Each `Item` class would then have a corresponding `Shippable` extension something like that:
 ```java
 class Item (Shippable) {
-    public abstract ShippingInfo ship();
+    public ShippingInfo ship() {}
 }
 class Book (Shippable) {
     public ShippingInfo ship() {}
 }
 class Furniture (Shippable) {
-    public ShippingInfo ship();
+    public ShippingInfo ship() {}
 }
 class ElectronicItem (Shippable) {
     public ShippingInfo ship() {}
@@ -136,14 +136,41 @@ While the Java Class Extension Library requires slightly more code and efforts t
    * Dynamic resolution of extension methods
    * Enables complex hierarchies and method overriding
    * Dynamic methods overriding in Dynamic Class Extensions
-2. Extensions are fully functional classes
+   * Dynamic interfaces composition in Dynamic Class Extensions
+   * Dynamic unions by adopting common interfaces in Dynamic Class Extensions
+2. _Static_ Extensions are fully functional classes
    * Can add and manage new state
    * Support for additional helper methods
    * Flexibility to implement complex logic
 3. Conflict-Free Integration
    * No clashes with third-party libraries
-   * Multiple extensions with identical names can coexist in different packages
+   * Multiple extensions with identical names can coexist in different places or packages
+4. AOP Aspects Support
+   * Ability to specify some actions should be applied before, after or around some operations.
+   * Good for logging and tracing, security, caching, retrying etc.
 
 These features provide greater flexibility and power, allowing for more sophisticated and maintainable code structures compared to native class extensions in many other languages.
+
+#### Obtaining Class Extensions
+It is possible to use either shared or dedicated class extensions.
+
+##### Utilizing Shared Extensions
+In most cases, shared extensions should be used for optimal performance, shared cache and consistency:
+1. Via factory methods:
+   * `DynamicClassExtension.sharedExtension()`
+   * `StaticClassExtension.sharedExtension()`
+
+2. Using shared instances:
+   * `DynamicClassExtension.sharedInstance()`
+   * `StaticClassExtension.sharedInstance()`
+
+3. Through the unified `ClassExtension.sharedExtension()` factory method that creates either dynamic or static extensions based on the `@ExtensionInterface` annotation of the extension interface.
+
+#### Custom Instances
+For scenarios requiring more flexibility or context-specific implementations:
+* Explicitly create and use dedicated `ClassExtension` instances.
+* This allows for different sets of implementations and rules across various contexts.
+
+Choose the approach that best fits your application's needs, balancing between shared efficiency and contextual flexibility.
 
 Next >> [Static Class Extensions](static-class-extensions.md)

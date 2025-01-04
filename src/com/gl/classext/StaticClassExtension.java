@@ -122,7 +122,12 @@ public class StaticClassExtension extends AbstractClassExtension {
         Objects.requireNonNull(anObject);
         Objects.requireNonNull(anExtensionInterface);
 
-        return extension(anObject, anExtensionInterface, null);
+        return extension(anObject, anExtensionInterface, (List<String>) null);
+    }
+
+    @Override
+    public boolean compatible(Type aType) {
+        return aType == Type.STATIC_PROXY || aType == Type.STATIC_DIRECT;
     }
 
     /**
@@ -180,14 +185,14 @@ public class StaticClassExtension extends AbstractClassExtension {
 
         List<String> packageNames = getPackageNames(anExtensionInterface, aPackageNames);
 
-        ClassExtension.InstantiationStrategy instantiationStrategy = InstantiationStrategy.PROXY;
+        Type instantiationStrategy = Type.STATIC_PROXY;
 
         Class<?> extensionInterface = findAnnotatedInterface(anExtensionInterface, ExtensionInterface.class);
         if (extensionInterface == null) {
             extensionInterface = anExtensionInterface;
         } else {
             packageNames = getAnnotatedPackageNames(extensionInterface, packageNames);
-            instantiationStrategy = instantiationStrategy(extensionInterface);
+            instantiationStrategy = classExtensionType(extensionInterface);
         }
         packageNames.addAll(extensionPackages(extensionInterface));
 
@@ -203,7 +208,7 @@ public class StaticClassExtension extends AbstractClassExtension {
 
             Object extension = createExtension(anObject, extensionClass);
 
-            if (instantiationStrategy != InstantiationStrategy.DIRECT) {
+            if (instantiationStrategy != Type.STATIC_DIRECT) {
                 return (T) Proxy.newProxyInstance(extensionInterface.getClassLoader(),
                         new Class<?>[]{anExtensionInterface, PrivateDelegateHolder.class},
                         (proxy, method, args) -> performOperation(this, extension, anObject, method, args));
@@ -240,9 +245,9 @@ public class StaticClassExtension extends AbstractClassExtension {
         return result;
     }
 
-    private static ClassExtension.InstantiationStrategy instantiationStrategy(Class<?> extensionInterface) {
+    private static Type classExtensionType(Class<?> extensionInterface) {
         ExtensionInterface annotation = extensionInterface.getAnnotation(ExtensionInterface.class);
-        return annotation != null ? annotation.instantiationStrategy() : InstantiationStrategy.PROXY;
+        return annotation != null ? annotation.type() : Type.STATIC_PROXY;
     }
 
     private static List<String> getAnnotatedPackageNames(Class<?> extensionInterface, List<String> packageNames) {
@@ -257,42 +262,80 @@ public class StaticClassExtension extends AbstractClassExtension {
         return packageNames;
     }
 
-    private static <T> Object performOperation(StaticClassExtension aClassExtension, T anExtension, Object anObject, Method aMethod, Object[] aArgs)
-            throws InvocationTargetException, IllegalAccessException {
+    private static <T> Object performOperation(StaticClassExtension aClassExtension,
+                                               T anExtension,
+                                               Object anObject, Method aMethod, Object[] anArgs) {
         Object result;
+        Aspects.Pointcut aroundPointcut = null;
+        Aspects.Pointcut beforePointcut = null;
+        Aspects.Pointcut afterPointcut = null;
 
         String methodName = aMethod.getName();
+        if (aClassExtension.isAspectsEnabled()) {
+            aroundPointcut = aClassExtension.getPointcut(anExtension.getClass(), anObject.getClass(), methodName, aMethod.getParameterTypes(), Aspects.AdviceType.AROUND);
+            beforePointcut = aroundPointcut == null ? aClassExtension.getPointcut(anExtension.getClass(), anObject.getClass(), methodName, aMethod.getParameterTypes(), Aspects.AdviceType.BEFORE) : null;
+            afterPointcut = aroundPointcut == null ? aClassExtension.getPointcut(anExtension.getClass(), anObject.getClass(), methodName, aMethod.getParameterTypes(), Aspects.AdviceType.AFTER) : null;
+        }
+
+        if (beforePointcut != null) {
+            if (aClassExtension.isVerbose())
+                aClassExtension.logger.info(formatAdvice(anObject, beforePointcut, Aspects.AdviceType.BEFORE));
+            beforePointcut.before(methodName, anObject, anArgs);
+        }
+
         if ("toString".equals(methodName) && aMethod.getParameterCount() == 0) {
-            if (aClassExtension.isVerbose())
-                aClassExtension.logger.info(MessageFormat.format("Performing operation for delegate \"{0}\" -> void toString()", anObject));
-            result = anObject.toString();
+            result = performOperation(aClassExtension, anObject, aMethod, anArgs, aroundPointcut, (operation, object, args) -> object.toString());
         } else if ("hashCode".equals(methodName) && aMethod.getParameterCount() == 0) {
-            if (aClassExtension.isVerbose())
-                aClassExtension.logger.info(MessageFormat.format("Performing operation for delegate \"{0}\" -> int hashCode()", anObject));
-            result = anObject.hashCode();
+            result = performOperation(aClassExtension, anObject, aMethod, anArgs, aroundPointcut, (operation, object, args) -> object.hashCode());
         } else if ("equals".equals(methodName) && aMethod.getParameterCount() == 1 && aMethod.getParameterTypes()[0] == Object.class) {
-            if (aClassExtension.isVerbose())
-                aClassExtension.logger.info(MessageFormat.format("Performing operation for delegate \"{0}\" -> boolean equals({1}))", anObject, aArgs[0]));
-            result = anObject.equals(aArgs[0]);
+            result = performOperation(aClassExtension, anObject, aMethod, anArgs, aroundPointcut, (operation, object, args) -> object.equals(args[0]));
         } else {
             if (aMethod.getDeclaringClass().isAssignableFrom(anExtension.getClass())) {
                 // invoke extension method
                 if (aClassExtension.isVerbose())
                     aClassExtension.logger.info(MessageFormat.format("Performing operation for extension \"{0}\" -> {1}", anExtension, aMethod));
-                result = aMethod.invoke(anExtension, aArgs);
+                result = performOperation(aClassExtension, anExtension, aMethod, anArgs, aroundPointcut);
             } else if (aMethod.getDeclaringClass().isAssignableFrom(anObject.getClass())) {
                 // invoke object method
                 if (aClassExtension.isVerbose())
                     aClassExtension.logger.info(MessageFormat.format("Performing operation for delegate \"{0}\" -> {1}", anObject, aMethod));
-                result = aMethod.invoke(anObject, aArgs);
+                result = performOperation(aClassExtension, anObject, aMethod, anArgs, aroundPointcut);
             } else if (aMethod.getDeclaringClass().isAssignableFrom(PrivateDelegateHolder.class)) {
                 // invoke object method
-                result = aMethod.invoke((PrivateDelegateHolder)() -> anObject, aArgs);
+                result = performOperation(aClassExtension, (PrivateDelegateHolder)() -> anObject, aMethod, anArgs, aroundPointcut);
             } else {
                 throw new IllegalArgumentException("Unexpected method: " + methodName);
             }
         }
 
+        if (afterPointcut != null) {
+            if (aClassExtension.isVerbose())
+                aClassExtension.logger.info(formatAdvice(anObject, afterPointcut, Aspects.AdviceType.AFTER));
+            afterPointcut.after(result, methodName, anObject, anArgs);
+        }
+
+        return classExtensionForOperationResult(aClassExtension, aMethod, result);
+    }
+
+    private static Object performOperation(StaticClassExtension aClassExtension, Object anObject, Method aMethod, Object[] anArgs, Aspects.Pointcut aroundPointcut) {
+        return performOperation(aClassExtension, anObject, aMethod, anArgs, aroundPointcut, (operation, anObject1, anArgs1) -> {
+            try {
+                return aMethod.invoke(anObject1, anArgs1);
+            } catch (Exception ex) {
+                throw new RuntimeException(ex);
+            }
+        });
+    }
+
+    private static Object performOperation(StaticClassExtension aClassExtension, Object anObject, Method aMethod, Object[] anArgs, Aspects.Pointcut aroundPointcut, Performer<Object> objectPerformer) {
+        Object result;
+        if (aroundPointcut != null) {
+            if (aClassExtension.isVerbose())
+                aClassExtension.logger.info(formatAdvice(anObject, aroundPointcut, Aspects.AdviceType.AROUND));
+            result = aroundPointcut.around(objectPerformer, aMethod.getName(), anObject, anArgs);
+        } else {
+            result = objectPerformer.perform(aMethod.getName(), anObject, anArgs);
+        }
         return result;
     }
 
@@ -440,4 +483,12 @@ public class StaticClassExtension extends AbstractClassExtension {
         }
     }
     //endregion
+
+    /**
+     * Returns a new instance of {@code AspectBuilder} used to build aspects for extensions
+     * @return a new instance of {@code AspectBuilder}
+     */
+    public Aspects.AspectBuilder<StaticClassExtension> aspectBuilder() {
+        return new Aspects.AspectBuilder<>(this);
+    }
 }

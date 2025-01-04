@@ -24,23 +24,16 @@ SOFTWARE.
 
 package com.gl.classext;
 
-import java.lang.annotation.ElementType;
-import java.lang.annotation.Retention;
-import java.lang.annotation.RetentionPolicy;
-import java.lang.annotation.Target;
-
-/**
- * Optional annotation that allows to mark some interfaces as extension interfaces. Particularly, the
- * {@code StaticClassExtension} utilizes that annotation to find extension interfaces and use them to:
- * <ol>
- * <li>Compose proper extension class names</li>
- * <li>Determine packages to lookup for extension classes via the {@code packages} parameter</li>
- * <li>Determine extension type via the {@code type} parameter</li>
- * </ol>
- */
-@Retention(RetentionPolicy.RUNTIME)
-@Target(ElementType.TYPE)
-public @interface ExtensionInterface {
-    ClassExtension.Type type() default ClassExtension.Type.STATIC_PROXY;
-    String[] packages() default {};
+@FunctionalInterface
+public interface Performer<R> {
+    /**
+     * Represents an operation explicitly defined by its arguments that returns some result.
+     *
+     * @param operation operation name
+     * @param anObject  an object to perform the operation for
+     * @param anArgs    arguments
+     * @return operation result
+     */
+    @SuppressWarnings("unused") // operation is unused now but can be helpful in the future
+    R perform(String operation, Object anObject, Object[] anArgs);
 }

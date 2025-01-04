@@ -109,7 +109,7 @@ The `@ExtensionInterface` annotation controls the instantiation strategy.
 The optional `@ExtensionInterface` annotation allows developers to mark interfaces as extension interfaces. The `StaticClassExtension` utilizes this annotation to:
 1. Compose Class Names: dynamically generate appropriate extension class names.
 2. Package Discovery: specify packages for searching extension classes using the `packages` parameter.
-3. Instantiation Strategy: decide between using dynamic proxies or direct class extensions via the `instantiationStrategy` parameter.
+3. Instantiation Strategy: decide between using dynamic proxies or direct class extensions via the `type` parameter.
 
 #### Flexible Extension Interface Handling
 When using dynamic proxies, the `StaticClassExtension` enables powerful interface combining (merging), allowing extensions to be treated as their original objects. As result, extensions become transparent, behaving like original objects while providing additional functionality. 

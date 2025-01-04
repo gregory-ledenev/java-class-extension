@@ -43,25 +43,25 @@ public class DynamicClassExtensionRecordsTest {
 
     private static DynamicClassExtension setupDynamicClassExtension() {
         return new DynamicClassExtension().builder(Shippable.class).
-                opName("ship").
-                    op(Item.class, book -> new ShippingInfo(book.name() + " item NOT shipped")).
-                    op(Book.class, book -> new ShippingInfo(book.name() + " book shipped")).
-                    op(Furniture.class, furniture -> new ShippingInfo(furniture.name() + " furniture shipped")).
-                    op(ElectronicItem.class, electronicItem -> new ShippingInfo(electronicItem.name() + " electronic item shipped")).
-                opName("log").
-                    voidOp(Item.class, (Item item, Boolean isVerbose) -> {
+                operationName("ship").
+                operation(Item.class, book -> new ShippingInfo(book.name() + " item NOT shipped")).
+                operation(Book.class, book -> new ShippingInfo(book.name() + " book shipped")).
+                operation(Furniture.class, furniture -> new ShippingInfo(furniture.name() + " furniture shipped")).
+                operation(ElectronicItem.class, electronicItem -> new ShippingInfo(electronicItem.name() + " electronic item shipped")).
+                operationName("log").
+                voidOperation(Item.class, (Item item, Boolean isVerbose) -> {
                         if (!LOG.isEmpty())
                             LOG.append("\n");
                         LOG.append(item.name()).append(" is about to be shipped in 1 hour");
                     }).
-                    voidOp(Item.class, item -> {
+                voidOperation(Item.class, item -> {
                         if (!LOG.isEmpty())
                             LOG.append("\n");
                         LOG.append(item.name()).append(" is about to be shipped");
                     }).
-                opName("track").
-                    op(Item.class, item -> new TrackingInfo(item.name() + " item on its way")).
-                    op(Item.class, (Item item, Boolean isVerbose) -> new TrackingInfo(item.name() +
+                operationName("track").
+                operation(Item.class, item -> new TrackingInfo(item.name() + " item on its way")).
+                operation(Item.class, (Item item, Boolean isVerbose) -> new TrackingInfo(item.name() +
                             " item on its way" + (isVerbose ? "Status: SHIPPED" : ""))).
                 build();
     }
@@ -133,9 +133,9 @@ public class DynamicClassExtensionRecordsTest {
                      Tire""", names.toString());
 
         dynamicClassExtension = dynamicClassExtension.builder(Item.class).
-                opName("name").
-                    op(Item.class, item -> item.name()  + "[OVERRIDDEN]").
-                    op(AutoPart.class, item -> item.name()  + "[OVERRIDDEN for AutoPart]").
+                operationName("name").
+                operation(Item.class, item -> item.name()  + "[OVERRIDDEN]").
+                operation(AutoPart.class, item -> item.name()  + "[OVERRIDDEN for AutoPart]").
                 build();
         names.setLength(0);
         for (Item item : items) {
