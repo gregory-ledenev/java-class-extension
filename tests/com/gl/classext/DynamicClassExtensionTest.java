@@ -1681,6 +1681,30 @@ public class DynamicClassExtensionTest {
         }
     }
 
+    interface MultipleParameters {
+        String[] arrayParameter(String[] anArray);
+        Object[] multipleParameters(int p1, String p2, String p3);
+    }
+
+    @Test
+    void multipleParametersOperationTest() {
+        DynamicClassExtension dynamicClassExtension = new DynamicClassExtension().builder(MultipleParameters.class).
+                operationName("arrayParameter").
+                    operation(Object.class, (Object a1, String[] a2) -> a2).
+                operationName("multipleParameters").
+                    operation(Object.class, (Object a1, Object[] a2) -> a2).
+                build();
+        MultipleParameters extension = dynamicClassExtension.extension(new Object(), MultipleParameters.class);
+
+        String result = Arrays.toString(extension.arrayParameter(new String[]{"1", "2", "3"}));
+        out.println(result);
+        assertEquals("[1, 2, 3]", result);
+
+        result = Arrays.toString(extension.multipleParameters(1, "2", "3"));
+        out.println(result);
+        assertEquals("[1, 2, 3]", result);
+    }
+
     private static void sleep() {
         try {
             Thread.sleep(1000);

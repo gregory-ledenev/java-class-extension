@@ -320,7 +320,7 @@ public class DynamicClassExtension extends AbstractClassExtension {
         default R perform(String operation, Object anObject, Object[] anArgs) {
             return ((anArgs == null) ?
                     apply(null, null) :
-                    apply((T) anObject, anArgs.length > 0 ? (U) anArgs[0] : null));
+                    apply((T) anObject, anArgs.length > 0 ? (anArgs.length == 1 ? (U) anArgs[0] : (U) anArgs) : null));
         }
     }
 
