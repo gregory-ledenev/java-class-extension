@@ -34,6 +34,8 @@ static {
   build();
 }
 ```
+You can pass `null` as an object class to an `operation()` call to specify an operation for `null` objects.
+
 **Note:** `operation()` and `voidOperation()` builder methods support operations having no or single parameters only. So to represent an operation having more than one parameter - declare a lambda taking an array of objects as an argument:
 ```java
 interface MultipleParameters {
