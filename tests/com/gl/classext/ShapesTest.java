@@ -15,12 +15,14 @@ public class ShapesTest {
     }
 
     // define all dynamic operations for Shape interface
-    static DynamicClassExtension classExtension = new DynamicClassExtension().builder(Shape.class).
-            operationName("getDescription").
-                operation(Circle.class, c -> c.radius > 10 ? "Large Circle" : "Small Circle").
-                operation(Rectangle.class, r -> r.width() == r.height ? "Square" : "Rectangle").
-                operation(Object.class, Object::toString).
-            build();
+    static {
+        DynamicClassExtension.sharedBuilder().extensionInterface(Shape.class).
+                operationName("getDescription").
+                    operation(Circle.class, c -> c.radius > 10 ? "Large Circle" : "Small Circle").
+                    operation(Rectangle.class, r -> r.width() == r.height ? "Square" : "Rectangle").
+                    operation(Object.class, Object::toString).
+                build();
+    }
 
     @Test
     void descriptionTest() {
@@ -32,7 +34,7 @@ public class ShapesTest {
                 new Octagon(50));
         for (Object shape : shapes) {
             // obtain an extension and treat all the shapes uniformly
-            Shape extension = classExtension.extension(shape, Shape.class);
+            Shape extension = DynamicClassExtension.sharedExtension(shape, Shape.class);
             System.out.println(extension.getDescription());
         }
     }

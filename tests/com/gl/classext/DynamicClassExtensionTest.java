@@ -314,6 +314,7 @@ public class DynamicClassExtensionTest {
                              com.gl.classext.DynamicClassExtensionTest$Item -> void log(T)
                          }
                          ship {
+                             com.gl.classext.DynamicClassExtension$Null -> T ship()
                              com.gl.classext.DynamicClassExtensionTest$Book -> T ship()
                              com.gl.classext.DynamicClassExtensionTest$ElectronicItem -> T ship()
                              com.gl.classext.DynamicClassExtensionTest$Furniture -> T ship()
@@ -340,6 +341,9 @@ public class DynamicClassExtensionTest {
                          }
                      }
                      interface com.gl.classext.DynamicClassExtensionTest$Item_Shippable {
+                         com.gl.classext.DynamicClassExtension$Null {
+                             T ship()
+                         }
                          com.gl.classext.DynamicClassExtensionTest$AutoPart {
                              T getName()
                          }
@@ -593,6 +597,7 @@ public class DynamicClassExtensionTest {
                         operation(Book.class, book -> new ShippingInfo(book.getName() + " book shipped")).
                         operation(Furniture.class, furniture -> new ShippingInfo(furniture.getName() + " furniture shipped")).
                         operation(ElectronicItem.class, electronicItem -> new ShippingInfo(electronicItem.getName() + " electronic item shipped")).
+                        operation((Class<?>) null, e -> new ShippingInfo("Nothing to ship")).
                     operationName("log").
                         voidOperation(Item.class, (Item item, Boolean isVerbose) -> {
                                 if (!shippingLog.isEmpty())
@@ -1679,6 +1684,39 @@ public class DynamicClassExtensionTest {
         } catch (UnsupportedOperationException ex) {
             // do nothing
         }
+    }
+
+    interface MultipleParameters {
+        String[] arrayParameter(String[] anArray);
+        Object[] multipleParameters(int p1, String p2, String p3);
+    }
+
+    @Test
+    void multipleParametersOperationTest() {
+        DynamicClassExtension dynamicClassExtension = new DynamicClassExtension().builder(MultipleParameters.class).
+                operationName("arrayParameter").
+                    operation(Object.class, (Object a1, String[] a2) -> a2).
+                operationName("multipleParameters").
+                    operation(Object.class, (Object a1, Object[] a2) -> a2).
+                build();
+        MultipleParameters extension = dynamicClassExtension.extension(new Object(), MultipleParameters.class);
+
+        String result = Arrays.toString(extension.arrayParameter(new String[]{"1", "2", "3"}));
+        out.println(result);
+        assertEquals("[1, 2, 3]", result);
+
+        result = Arrays.toString(extension.multipleParameters(1, "2", "3"));
+        out.println(result);
+        assertEquals("[1, 2, 3]", result);
+    }
+
+    @Test
+    void nullTest() {
+        DynamicClassExtension dynamicClassExtension = setupDynamicClassExtension(null);
+        Item_Shippable extension = dynamicClassExtension.extension(null, Item_Shippable.class);
+        ShippingInfo result = extension.ship();
+        out.println(result);
+        assertEquals("ShippingInfo[result=Nothing to ship]", result.toString());
     }
 
     private static void sleep() {

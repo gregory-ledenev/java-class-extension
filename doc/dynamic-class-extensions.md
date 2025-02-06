@@ -4,7 +4,7 @@ Class `DynamicClassExtension` provides a way to emulate class extensions (catego
 
 1. Create a `Builder` for an interface you want to compose an extension for by using the `DynamicClassExtension.sharedBuilder(...)` method
 2. Specify the name of an operation using `Builder.opName(String)`
-3. List all the method implementations per particular classes with lambdas using `Builder.operation(...)` or `Builder.voidoperation(...)`
+3. List all the method implementations per particular classes with lambdas using `Builder.operation(...)` or `Builder.voiOperation(...)`
 4. Repeat 2, 3 for all operations
 
 For example, the following code creates `Shippable` extensions for `Item classes`. There are explicit `ship()` method implementations for all the `Item` classes. Though, the `log()` method is implemented for the `Item` class only so extensions for all the `Item` descendants will utilize the same `log()` method.
@@ -33,6 +33,23 @@ static {
         voidOperation(Item.class, (Item item, Boolean isVerbose) -> {...}).
   build();
 }
+```
+You can pass `null` as an object class to an `operation()` call to specify an operation for `null` objects.
+
+**Note:** `operation()` and `voidOperation()` builder methods support operations having no or single parameters only. So to represent an operation having more than one parameter - declare a lambda taking an array of objects as an argument:
+```java
+interface MultipleParameters {
+    String[] arrayParameter(String[] anArray);
+    Object[] multipleParameters(int p1, String p2, String p3);
+}
+
+static DynamicClassExtension dynamicClassExtension = new DynamicClassExtension().
+        builder(MultipleParameters.class).
+            operationName("arrayParameter").
+                operation(Object.class, (Object a1, String[] a2) -> a2).
+            operationName("multipleParameters").
+                operation(Object.class, (Object a1, Object[] a2) -> a2).
+        build();
 ```
 
 Finding an extension and calling its methods is simple and straightforward:
@@ -262,6 +279,7 @@ This feature is especially useful for testing, as it simplifies the process of d
 #### Limitations
 The following are limitations of `DynamicClassExtension`:
 1. Overloaded operations are not supported yet. So for example, it is not possible to define both `log(boolean)` and `log(String)` operations
-2. Operations having more than one parameter are not supported yet.
+2. Operations having more than one parameter are supported by passing all the arguments as an array of objects.
+3. Dynamic nature of the operations prevents detecting some errors at compile time so be careful during refactoring of extension interfaces and check operations handling after any refactorings. It is recommended to mark any extension interfaces with `@ExtensionInterface` annotation to let developers know that they should check and test dynamic operations after any refactorings.
 
 Next >> [Aspects](aspects.md)
