@@ -698,8 +698,8 @@ public class DynamicClassExtensionTest {
     void nonCacheTest() {
         DynamicClassExtension dynamicClassExtension = setupDynamicClassExtension(new StringBuilder());
         Book book = new Book("The Mythical Man-Month");
-        Item_Shippable extension = dynamicClassExtension.extensionNoCache(book, Item_Shippable.class);
-        assertNotSame(extension, dynamicClassExtension.extensionNoCache(book, Item_Shippable.class));
+        Item_Shippable extension = dynamicClassExtension.extensionNoCache(book, null, Item_Shippable.class);
+        assertNotSame(extension, dynamicClassExtension.extensionNoCache(book, null, Item_Shippable.class));
     }
 
     /**
@@ -789,7 +789,7 @@ public class DynamicClassExtensionTest {
         }
     }
 
-        @Test
+    @Test
     void ensureInvalidTest() {
         StringBuilder shippingLog = new StringBuilder();
         DynamicClassExtension dynamicClassExtension = setupDynamicClassExtension(shippingLog);
@@ -797,6 +797,25 @@ public class DynamicClassExtensionTest {
         try {
             dynamicClassExtension.checkValid(ElectronicItem.class, Item_Shippable.class);
             fail("Unexpectedly valid extension: " + Item_Shippable.class.getName());
+        } catch (IllegalArgumentException ex) {
+            out.println(ex.getMessage());
+        }
+    }
+
+    @Test
+    void callUndefinedOperationTest() {
+        StringBuilder shippingLog = new StringBuilder();
+        DynamicClassExtension dynamicClassExtension = setupDynamicClassExtension(shippingLog);
+
+        Book book = new Book("The Mythical Man-Month");
+        Item_Shippable itemShippable = dynamicClassExtension.extension(book, aMethod -> 100f, Item_Shippable.class);
+        // must succeed as it is annotated with @OptionalMethod
+        assertEquals(100f, itemShippable.calculateShippingCost("asap"));
+
+        try {
+            // must fail as it is not annotated with @OptionalMethod
+            itemShippable.calculateShippingCost();
+            fail("Unexpectedly succeeded call: calculateShippingCost()");
         } catch (IllegalArgumentException ex) {
             out.println(ex.getMessage());
         }

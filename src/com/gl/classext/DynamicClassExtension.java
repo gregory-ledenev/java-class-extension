@@ -432,12 +432,13 @@ public class DynamicClassExtension extends AbstractClassExtension {
      * {@code addExtensionOperation()} to compose dynamic extensions before calling the {@code dynamicExtension} method.
      * Otherwise, an empty dynamic extension having no operations will be returned.
      *
-     * @param anObject         object to return an extension object for
-     * @param anExtensionInterface class of extension object to be returned
+     * @param anObject               object to return an extension object for
+     * @param aMissingMethodsHandler  missing methods handler
+     * @param anExtensionInterface   class of extension object to be returned
      * @return an extension object
      */
     @SuppressWarnings({"unchecked"})
-    public <T> T extensionNoCache(Object anObject, Class<T> anExtensionInterface, Class<?>... aSupplementaryInterfaces) {
+    public <T> T extensionNoCache(Object anObject, Function<Method, Object> aMissingMethodsHandler, Class<T> anExtensionInterface, Class<?>... aSupplementaryInterfaces) {
         Objects.requireNonNull(anExtensionInterface);
 
         try {
@@ -449,7 +450,9 @@ public class DynamicClassExtension extends AbstractClassExtension {
 
             return (T) Proxy.newProxyInstance(getClass().getClassLoader(),
                     extensionInterfaces.toArray(new Class[0]),
-                    (proxy, method, args) -> performOperation(this, anObject, anExtensionInterface, aSupplementaryInterfaces, method, args));
+                    (proxy, method, args) -> performOperation(this, anObject,
+                            aMissingMethodsHandler, anExtensionInterface, aSupplementaryInterfaces,
+                            method, args));
         } catch (Exception ex) {
             throw new RuntimeException(ex);
         }
@@ -466,7 +469,7 @@ public class DynamicClassExtension extends AbstractClassExtension {
      */
     @SuppressWarnings("unused")
     public <T> T sharedExtensionNoCache(Object anObject, Class<T> anExtensionInterface) {
-        return sharedInstance().extensionNoCache(anObject, anExtensionInterface);
+        return sharedInstance().extensionNoCache(anObject, null, anExtensionInterface);
     }
 
     /**
@@ -489,6 +492,21 @@ public class DynamicClassExtension extends AbstractClassExtension {
      * Otherwise, an empty dynamic extension having no operations will be returned. It uses cache to avoid redundant
      * objects creation.
      *
+     * @param anObject             object to return an extension object for
+     * @param aMissingMethodsHandler   missing methods handler
+     * @param anExtensionInterface class of extension object to be returned
+     * @return an extension object
+     */
+    public <T> T extension(Object anObject, Function<Method, Object> aMissingMethodsHandler, Class<T> anExtensionInterface) {
+        return extension(anObject, aMissingMethodsHandler, anExtensionInterface, (Class<?>[]) null);
+    }
+
+    /**
+     * Finds and returns an extension object according to a supplied class. You should use calls of
+     * {@code addExtensionOperation()} to compose dynamic extensions before calling the {@code dynamicExtension} method.
+     * Otherwise, an empty dynamic extension having no operations will be returned. It uses cache to avoid redundant
+     * objects creation.
+     *
      * @param anObject                 object to return an extension object for
      * @param anExtensionInterface     class of extension object to be returned
      * @param aSupplementaryInterfaces supplementary interfaces of extension object to be returned
@@ -496,10 +514,27 @@ public class DynamicClassExtension extends AbstractClassExtension {
      */
     @SuppressWarnings("unchecked")
     public <T> T extension(Object anObject, Class<T> anExtensionInterface, Class<?>... aSupplementaryInterfaces) {
+        return extension(anObject, null, anExtensionInterface, aSupplementaryInterfaces);
+    }
+
+    /**
+     * Finds and returns an extension object according to a supplied class. You should use calls of
+     * {@code addExtensionOperation()} to compose dynamic extensions before calling the {@code dynamicExtension} method.
+     * Otherwise, an empty dynamic extension having no operations will be returned. It uses cache to avoid redundant
+     * objects creation.
+     *
+     * @param anObject                 object to return an extension object for
+     * @param aMissingMethodsHandler   missing methods handler
+     * @param anExtensionInterface     class of extension object to be returned
+     * @param aSupplementaryInterfaces supplementary interfaces of an extension object to be returned
+     * @return an extension object
+     */
+    @SuppressWarnings("unchecked")
+    public <T> T extension(Object anObject, Function<Method, Object> aMissingMethodsHandler, Class<T> anExtensionInterface, Class<?>... aSupplementaryInterfaces) {
         Objects.requireNonNull(anExtensionInterface);
 
         return (T) extensionCache.getOrCreate(new ClassExtensionKey(anObject, anExtensionInterface), () ->
-                extensionNoCache(anObject, anExtensionInterface, aSupplementaryInterfaces));
+                extensionNoCache(anObject, aMissingMethodsHandler, anExtensionInterface, aSupplementaryInterfaces));
     }
 
     @Override
@@ -548,7 +583,7 @@ public class DynamicClassExtension extends AbstractClassExtension {
         return result;
     }
 
-    <T> Object performOperation(DynamicClassExtension aClassExtension, Object anObject, Class<T> anExtensionInterface,
+    <T> Object performOperation(DynamicClassExtension aClassExtension, Object anObject, Function<Method, Object> aMissingMethodsHandler, Class<T> anExtensionInterface,
                                 Class<?>[] aSupplementaryInterfaces, Method method, Object[] args) throws InvocationTargetException, IllegalAccessException {
         Object result;
 
@@ -567,7 +602,7 @@ public class DynamicClassExtension extends AbstractClassExtension {
         } else {
             if (anObject == null)
                 throw new NullPointerException(MessageFormat.format("There''s no ''{0}'' operation registered for ''null'' objects", method.getName()));
-            result = performStaticOperation(aClassExtension, anObject, anExtensionInterface, method, args);
+            result = performStaticOperation(aClassExtension, anObject, anExtensionInterface, aMissingMethodsHandler, method, args);
         }
 
         return result;
@@ -614,7 +649,7 @@ public class DynamicClassExtension extends AbstractClassExtension {
         return result;
     }
 
-    private static <T> Object performStaticOperation(DynamicClassExtension aClassExtension, Object anObject, Class<T> anExtensionClass, Method method, Object[] args) throws IllegalAccessException, InvocationTargetException {
+    private static <T> Object performStaticOperation(DynamicClassExtension aClassExtension, Object anObject, Class<T> anExtensionClass, Function<Method, Object> aMissingMethodsHandler, Method method, Object[] args) throws IllegalAccessException, InvocationTargetException {
         Object result;
 
         Pointcut aroundPointcut = null;
@@ -658,8 +693,11 @@ public class DynamicClassExtension extends AbstractClassExtension {
         } else if (method.getDeclaringClass().isAssignableFrom(PrivateDelegateHolder.class)) {
             result = method.invoke((PrivateDelegateHolder)() -> anObject, args);
         } else {
-            throw new IllegalArgumentException(format("No \"{0}\" operation for \"{1}\"",
-                    displayOperationName(method.getName(), void.class.equals(method.getReturnType()), args), anObject));
+            if (aMissingMethodsHandler != null && method.isAnnotationPresent(OptionalMethod.class))
+                result = aMissingMethodsHandler.apply(method);
+            else
+                throw new IllegalArgumentException(format("No \"{0}\" operation for \"{1}\"",
+                        displayOperationName(method.getName(), void.class.equals(method.getReturnType()), args), anObject));
         }
 
         return classExtensionForOperationResult(aClassExtension, method, result);

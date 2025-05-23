@@ -66,18 +66,21 @@ public class ThreadSafeWeakCache<K, V> {
     @SuppressWarnings("unchecked")
     public void cleanup() {
         WeakReference<V> ref;
-        while ((ref = (WeakReference<V>) queue.poll()) != null) {
-            final WeakReference<V> finalRef = ref;
-            cache.entrySet().removeIf(entry -> entry.getValue() == finalRef);
+        synchronized (cache) {
+            while ((ref = (WeakReference<V>) queue.poll()) != null) {
+                final WeakReference<V> finalRef = ref;
+                cache.entrySet().removeIf(entry -> entry.getValue() == finalRef);
+            }
         }
     }
 
     public void put(K key, V value) {
         // not ideal but sufficient so far
-        while (cache.size() >= maxSize)
-            cache.remove(cache.keySet().iterator().next());
-
-        cache.put(key, new WeakReference<>(value, queue));
+        synchronized (cache) {
+            while (cache.size() >= maxSize)
+                cache.remove(cache.keySet().iterator().next());
+            cache.put(key, new WeakReference<>(value, queue));
+        }
     }
 
     public V get(K key) {
@@ -88,7 +91,7 @@ public class ThreadSafeWeakCache<K, V> {
     public V getOrCreate(K key, Supplier<V> aSupplier) {
         V result = get(key);
         if (result == null) {
-            synchronized (this) {
+            synchronized (cache) {
                 result = get(key);
                 if (result == null) {
                     result = aSupplier.get();

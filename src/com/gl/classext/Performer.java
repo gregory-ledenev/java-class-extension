@@ -34,6 +34,5 @@ public interface Performer<R> {
      * @param anArgs    arguments
      * @return operation result
      */
-    @SuppressWarnings("unused") // operation is unused now but can be helpful in the future
     R perform(String operation, Object anObject, Object[] anArgs);
 }

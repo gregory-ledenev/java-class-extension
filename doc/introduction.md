@@ -166,7 +166,7 @@ In most cases, shared extensions should be used for optimal performance, shared 
 
 3. Through the unified `ClassExtension.sharedExtension()` factory method that creates either dynamic or static extensions based on the `@ExtensionInterface` annotation of the extension interface.
 
-#### Custom Instances
+#### Utilizing Custom Instances
 For scenarios requiring more flexibility or context-specific implementations:
 * Explicitly create and use dedicated `ClassExtension` instances.
 * This allows for different sets of implementations and rules across various contexts.
