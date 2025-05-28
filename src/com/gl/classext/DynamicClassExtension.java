@@ -839,7 +839,7 @@ public class DynamicClassExtension extends AbstractClassExtension {
      * @param aParameterTypes  parameter types of an operation to check
      * @throws IllegalArgumentException if an extension is invalid
      */
-    public boolean isPresent(Class<?> anObjectClass, Class<?> anExtensionClass, String anOperation, Class<?>[] aParameterTypes) {
+    public boolean isPresentOperation(Class<?> anObjectClass, Class<?> anExtensionClass, String anOperation, Class<?>[] aParameterTypes) {
         Objects.requireNonNull(anOperation);
         Objects.requireNonNull(anObjectClass);
         Objects.requireNonNull(anExtensionClass);

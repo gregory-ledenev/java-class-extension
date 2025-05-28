@@ -812,7 +812,7 @@ public class DynamicClassExtensionTest {
         // must succeed as it is annotated with @OptionalMethod
         assertEquals(100f, itemShippable.calculateShippingCost("asap"));
         try {
-            assertFalse(dynamicClassExtension.isPresent(Book.class, Item_Shippable.class, "calculateShippingCost", null));
+            assertFalse(dynamicClassExtension.isPresentOperation(Book.class, Item_Shippable.class, "calculateShippingCost", null));
             // must fail as it is not annotated with @OptionalMethod
             itemShippable.calculateShippingCost();
             fail("Unexpectedly succeeded call: calculateShippingCost()");

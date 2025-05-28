@@ -296,7 +296,7 @@ static {
 }
 ```
 
-The `@OptionalMethod` annotation designates certain methods as optional, operating under the assumption that callers will verify their availability before invocation. This verification can be performed through class type checks  or by inspecting undefined operations via the `listUndefinedOperations(...)` method. If these safeguards are bypassed and unimplemented methods are invoked anyway, runtime exceptions will occur. It is possible to implement fallback behavior for optional methods by supplying a custom handler function through the `extension(...)` calls. For example:
+The `@OptionalMethod` annotation designates certain methods as optional, operating under the assumption that callers will verify their availability before invocation. This verification can be performed through class type checks, by checking if an operation is present via the `isPresentOperation(...)`  or by inspecting undefined operations via the `listUndefinedOperations(...)` method. If these safeguards are bypassed and unimplemented methods are invoked anyway, runtime exceptions will occur. It is possible to implement fallback behavior for optional methods by supplying a custom handler function through the `extension(...)` calls. For example:
 
 ```java
 Book book = new Book("The Mythical Man-Month");
