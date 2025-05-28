@@ -600,7 +600,7 @@ public class DynamicClassExtension extends AbstractClassExtension {
             result = performDynamicOperation(aClassExtension, anObject, anExtensionInterface, method, args, performerHolder);
         } else {
             if (anObject == null)
-                throw new NullPointerException(MessageFormat.format("There''s no ''{0}'' operation registered for ''null'' objects", method.getName()));
+                throw new NullPointerException(format("There''s no ''{0}'' operation registered for ''null'' objects", method.getName()));
             result = performStaticOperation(aClassExtension, anObject, anExtensionInterface, aMissingMethodsHandler, method, args);
         }
 
@@ -756,22 +756,43 @@ public class DynamicClassExtension extends AbstractClassExtension {
     }
 
     /**
-     * Checks if there is a valid extension defined for a passed object.An extension is considered valid if all its
+     * Checks if there is a valid extension defined for a passed object. An extension is considered valid if all its
      * methods meet one of the following criteria:
      * <ol>
-     * <li>Annotated by {@code @OptionalMethod}</li>
+     * <li>Annotated by {@code @OptionalMethod} (conditional check)</li>
      * <li>Correspond to registered operations</li>
      * <li>Match suitable methods in the {@code aClass} class</li>
      * </ol>
-     *
+     * <p>
      * This validation ensures that every method in the extension can be properly mapped and executed, maintaining
      * consistency between the extension interface and the underlying implementation.
      *
-     * @param aClass         object to check an extension for
+     * @param aClass               object to check an extension for
      * @param anExtensionInterface interface of extension
      * @throws IllegalArgumentException if an extension is invalid
      */
     public <T> void checkValid(Class<?> aClass, Class<T> anExtensionInterface) {
+        checkValid(aClass, anExtensionInterface, true);
+    }
+
+    /**
+     * Checks if there is a valid extension defined for a passed object. An extension is considered valid if all its
+     * methods meet one of the following criteria:
+     * <ol>
+     * <li>Annotated by {@code @OptionalMethod} (conditional check)</li>
+     * <li>Correspond to registered operations</li>
+     * <li>Match suitable methods in the {@code aClass} class</li>
+     * </ol>
+     * <p>
+     * This validation ensures that every method in the extension can be properly mapped and executed, maintaining
+     * consistency between the extension interface and the underlying implementation.
+     *
+     * @param aClass                  object to check an extension for
+     * @param anExtensionInterface    interface of extension
+     * @param isIgnoreOptionalMethods if {@code true}, methods annotated with {@code @OptionalMethod} will be ignored when listing undefined operations
+     * @throws IllegalArgumentException if an extension is invalid
+     */
+    public <T> void checkValid(Class<?> aClass, Class<T> anExtensionInterface, boolean isIgnoreOptionalMethods) {
         Objects.requireNonNull(aClass);
         Objects.requireNonNull(anExtensionInterface);
 

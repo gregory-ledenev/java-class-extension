@@ -795,7 +795,7 @@ public class DynamicClassExtensionTest {
         DynamicClassExtension dynamicClassExtension = setupDynamicClassExtension(shippingLog);
 
         try {
-            dynamicClassExtension.checkValid(ElectronicItem.class, Item_Shippable.class);
+            dynamicClassExtension.checkValid(ElectronicItem.class, Item_Shippable.class, true);
             fail("Unexpectedly valid extension: " + Item_Shippable.class.getName());
         } catch (IllegalArgumentException ex) {
             out.println(ex.getMessage());

@@ -276,9 +276,10 @@ Cashing of extension objects are supported out of the box, and it can be control
 
 This feature is especially useful for testing, as it simplifies the process of detecting discrepancies. When new methods are added to an interface, it becomes easy to identify cases where corresponding operations have not been registered with `DynamicClassExtension`.
 
-It is possible to get a list of undefined operations using the `listUndefinedOperations(...)` method. An operation is considered undefined if it is not annotated by `@OptionalMethod` and meets one of the following criteria:
+It is possible to get a list of undefined operations using the `listUndefinedOperations(...)` method. An operation is considered undefined if it meets one of the following criteria:
 * Not correspond to a registered operation</li>
 * Do not match to a suitable method in the {@code aClass} class</li>
+* Not annotated by `@OptionalMethod` (conditional check)
 
 Sometimes, it can be helpful to define a "catch all" operation suitable for any objects. This can be done by registering it to a base class or simply for `Object`:
 ```java
