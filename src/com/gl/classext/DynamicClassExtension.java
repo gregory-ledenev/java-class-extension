@@ -512,7 +512,6 @@ public class DynamicClassExtension extends AbstractClassExtension {
      * @param aSupplementaryInterfaces supplementary interfaces of extension object to be returned
      * @return an extension object
      */
-    @SuppressWarnings("unchecked")
     public <T> T extension(Object anObject, Class<T> anExtensionInterface, Class<?>... aSupplementaryInterfaces) {
         return extension(anObject, null, anExtensionInterface, aSupplementaryInterfaces);
     }
@@ -776,7 +775,7 @@ public class DynamicClassExtension extends AbstractClassExtension {
         Objects.requireNonNull(aClass);
         Objects.requireNonNull(anExtensionInterface);
 
-        List<String> undefinedOperations = listUndefinedOperations(aClass, anExtensionInterface);
+        List<String> undefinedOperations = listUndefinedOperations(aClass, anExtensionInterface, true);
         if (! undefinedOperations.isEmpty())
             throw new IllegalArgumentException(format("No \"{0}\" operation for {1} in \"{2}\" extension",
                     undefinedOperations.getFirst(),
@@ -785,25 +784,26 @@ public class DynamicClassExtension extends AbstractClassExtension {
     }
 
     /**
-     * Lists all undefined operations. An operation is considered undefined if it is not annotated by {@code @OptionalMethod}
-     * and meets one of the following criteria:
+     * Lists all undefined operations. An operation is considered undefined if it is conditionally not annotated by
+     * {@code @OptionalMethod} and meets one of the following criteria:
      * <ol>
      * <li>Not correspond to a registered operation</li>
      * <li>Do not match to a suitable method in the {@code aClass} class</li>
      * </ol>
      *
-     * @param aClass         object to check an extension for
-     * @param anExtensionInterface interface of extension
+     * @param aClass                  object to check an extension for
+     * @param anExtensionInterface    interface of extension
+     * @param isIgnoreOptionalMethods if {@code true}, methods annotated with {@code @OptionalMethod} will be ignored when listing undefined operations
      * @return a list of all undefined operations
      */
-    public <T> List<String> listUndefinedOperations(Class<?> aClass, Class<T> anExtensionInterface) {
+    public <T> List<String> listUndefinedOperations(Class<?> aClass, Class<T> anExtensionInterface, boolean isIgnoreOptionalMethods) {
         Objects.requireNonNull(aClass);
         Objects.requireNonNull(anExtensionInterface);
 
         List<String> result = new ArrayList<>();
 
         for (Method method : anExtensionInterface.getMethods()) {
-            if (method.isAnnotationPresent(OptionalMethod.class))
+            if (isIgnoreOptionalMethods && method.isAnnotationPresent(OptionalMethod.class))
                 continue;
             ExtensionOperationResult extensionOperation = findExtensionOperation(aClass, anExtensionInterface, method, method.getParameterTypes());
             PerformerHolder<?> operation = extensionOperation.operation;
@@ -1169,7 +1169,7 @@ public class DynamicClassExtension extends AbstractClassExtension {
          */
         @SuppressWarnings("unchecked")
         @Deprecated
-        private <R, T1, U> Builder<E> defaultOperations(Class<T1> anObjectClass) {
+        private <R, T1> Builder<E> defaultOperations(Class<T1> anObjectClass) {
             dynamicClassExtension.addExtensionOperation(anObjectClass, extensionInterface,
                     operationName, (object, arg) -> (R) performOperation(operationName, object, arg));
             dynamicClassExtension.addExtensionOperation(anObjectClass, extensionInterface,

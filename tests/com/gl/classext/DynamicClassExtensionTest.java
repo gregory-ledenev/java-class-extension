@@ -811,8 +811,8 @@ public class DynamicClassExtensionTest {
         Item_Shippable itemShippable = dynamicClassExtension.extension(book, aMethod -> 100f, Item_Shippable.class);
         // must succeed as it is annotated with @OptionalMethod
         assertEquals(100f, itemShippable.calculateShippingCost("asap"));
-
         try {
+            assertFalse(dynamicClassExtension.isPresent(Book.class, Item_Shippable.class, "calculateShippingCost", null));
             // must fail as it is not annotated with @OptionalMethod
             itemShippable.calculateShippingCost();
             fail("Unexpectedly succeeded call: calculateShippingCost()");
@@ -825,7 +825,7 @@ public class DynamicClassExtensionTest {
     void listUndefinedOperationsTest() {
         StringBuilder shippingLog = new StringBuilder();
         DynamicClassExtension dynamicClassExtension = setupDynamicClassExtension(shippingLog);
-        String result = String.join("\n", dynamicClassExtension.listUndefinedOperations(ElectronicItem.class, Item_Shippable.class));
+        String result = String.join("\n", dynamicClassExtension.listUndefinedOperations(ElectronicItem.class, Item_Shippable.class, true));
         out.println(result);
         assertEquals("""
                      T calculateShippingCost()

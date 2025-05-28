@@ -96,9 +96,9 @@ assertSame(book, ClassExtension.getDelegate(shippable));
 #### Inheritance and Polymorphism Support
 `DynamicClassExtension` takes care of inheritance so it is possible to design and implement class extensions hierarchy that fully or partially resembles original classes' hierarchy. If there's no explicit extension operations specified for particular class - its parent extension will be utilized. For example, if there's no explicit extension operations defined for `AutoPart` objects - base `ship()` and `log(boolean)` operations specified for `Item` will be used instead.
 
-Dynamic operations can override methods defined in the objects class. For example, if you add a `toString` operation to the `AutoPart` class - it will override the `toString()` method defined in the `Object` class.
+Dynamic operations can override methods defined in the objects' class. For example, if you add a `toString` operation to the `AutoPart` class - it will override the `toString()` method defined in the `Object` class.
 
-Objects and extensions can be utilized uniformly as similar objects if they implement the same base interfaces. For example, if both `Item` and `ItemShippable` implements(extends) the same `ItemInterface` interface having the `getName()` method - both items and their extensions can use that method with the same results.
+Objects and extensions can be used uniformly as similar objects if they implement the same base interfaces. For example, if both `Item` and `ItemShippable` implements(extends) the same `ItemInterface` interface having the `getName()` method - both items and their extensions can use that method with the same results.
 
 ```java
 interface ItemInterface {
@@ -257,7 +257,7 @@ DynamicClassExtension dynamicClassExtension = new DynamicClassExtension().builde
         build();
 ```
 
-To alter properties of an operation:
+To alter the properties of an operation:
 1. Make an alteration intention for the operation using the `Builder.alteroperation(...)` method
 2. Specify properties for the operation e.g. by using the `Builder.async(...)` method
 ```java
@@ -271,15 +271,51 @@ DynamicClassExtension dynamicClassExtension = new DynamicClassExtension().builde
 #### Cashing
 Cashing of extension objects are supported out of the box, and it can be controlled via the `Classextension.cacheEnabled` property. Cache utilizes weak references to release extension objects that are not in use. Though, to perform full cleanup either the `cacheCleanup()` should be used or automatic cleanup can be initiated via the `scheduleCacheCleanup()`. If automatic cache cleanup is used - it can be stopped by calling the `shutdownCacheCleanup()`.
 
-#### Validation
+#### Integrity and Validation
 `DynamicClassExtension` offers a capability to validate extensions for a given class through its `checkValid(...)` method. An extension is deemed valid when corresponding operations are registered for all its methods. However, in certain scenarios, it's desirable to maintain extension validity while supporting only a subset of operations. This flexibility can be achieved by annotating specific methods in the extension interface with `@OptionalMethods` annotation.
 
 This feature is especially useful for testing, as it simplifies the process of detecting discrepancies. When new methods are added to an interface, it becomes easy to identify cases where corresponding operations have not been registered with `DynamicClassExtension`.
+
+It is possible to get a list of undefined operations using the `listUndefinedOperations(...)` method. An operation is considered undefined if it is not annotated by `@OptionalMethod` and meets one of the following criteria:
+* Not correspond to a registered operation</li>
+* Do not match to a suitable method in the {@code aClass} class</li>
+
+Sometimes, it can be helpful to define a "catch all" operation suitable for any objects. This can be done by registering it to a base class or simply for `Object`:
+```java
+static {
+    DynamicClassExtension.sharedBuilder().extensionInterface(Shippable.class).
+    operationName("ship").
+        operation(Book.class, book -> shipBook(book)).
+        operation(Furniture.class, furniture -> shipFurniture(furniture)).
+        operation(ElectronicItem.class, electronicItem -> shipElectronicItem(electronicItem)).
+        operation(AutoPart.class, electronicItem -> shipAutoPart(autoPart)).
+        operation(Object.class, object -> shipDefault(object)). // catch all
+    operationName("name").
+        operation(Object.class, (object) -> DynamicClassExtension.performOperation("name", object)).
+    build();
+}
+```
+
+The `@OptionalMethod` annotation designates certain methods as optional, operating under the assumption that callers will verify their availability before invocation. This verification can be performed through class type checks  or by inspecting undefined operations via the `listUndefinedOperations(...)` method. If these safeguards are bypassed and unimplemented methods are invoked anyway, runtime exceptions will occur. It is possible to implement fallback behavior for optional methods by supplying a custom handler function through the `extension(...)` calls. For example:
+
+```java
+Book book = new Book("The Mythical Man-Month");
+Item_Shippable itemShippable = DynamicClassExtension.sharedInstance().extension(book, aMethod -> 100f, Item_Shippable.class);
+// must succeed as it is annotated with @OptionalMethod
+assertEquals(100f, itemShippable.calculateShippingCost("asap"));
+try {
+    // must fail as it is not annotated with @OptionalMethod
+    itemShippable.calculateShippingCost();
+    fail("Unexpectedly succeeded call: calculateShippingCost()");
+} catch (IllegalArgumentException ex) {
+    out.println(ex.getMessage());
+}
+```
 
 #### Limitations
 The following are limitations of `DynamicClassExtension`:
 1. Overloaded operations are not supported yet. So for example, it is not possible to define both `log(boolean)` and `log(String)` operations
 2. Operations having more than one parameter are supported by passing all the arguments as an array of objects.
-3. Dynamic nature of the operations prevents detecting some errors at compile time so be careful during refactoring of extension interfaces and check operations handling after any refactorings. It is recommended to mark any extension interfaces with `@ExtensionInterface` annotation to let developers know that they should check and test dynamic operations after any refactorings.
+3. The dynamic nature of the operations prevents detecting some errors at compile time, so be careful during refactoring of extension interfaces and check operations handling after any refactorings. It is recommended to mark any extension interfaces with `@ExtensionInterface` annotation to let developers know that they should check and test dynamic operations after any refactorings.
 
 Next >> [Aspects](aspects.md)
