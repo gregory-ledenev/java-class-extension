@@ -108,6 +108,7 @@ public class DynamicClassExtensionTest {
         float calculateShippingCost();
         @OptionalMethod
         float calculateShippingCost(String anInstructions);
+        String throwException();
     }
 
 
@@ -808,11 +809,14 @@ public class DynamicClassExtensionTest {
         DynamicClassExtension dynamicClassExtension = setupDynamicClassExtension(shippingLog);
 
         Book book = new Book("The Mythical Man-Month");
-        Item_Shippable itemShippable = dynamicClassExtension.extension(book, aMethod -> 100f, Item_Shippable.class);
-        // must succeed as it is annotated with @OptionalMethod
+        Item_Shippable itemShippable = dynamicClassExtension.extension(book,
+                aMethod -> 100f, // optional and missing methods handler
+                Item_Shippable.class);
+        // must succeed as it is annotated with @OptionalMethod and the missing methods handler will be called
         assertEquals(100f, itemShippable.calculateShippingCost("asap"));
         try {
-            assertFalse(dynamicClassExtension.isPresentOperation(Book.class, Item_Shippable.class, "calculateShippingCost", null));
+            assertFalse(dynamicClassExtension.isPresentOperation(Book.class, Item_Shippable.class,
+                    "calculateShippingCost", null));
             // must fail as it is not annotated with @OptionalMethod
             itemShippable.calculateShippingCost();
             fail("Unexpectedly succeeded call: calculateShippingCost()");
@@ -829,7 +833,8 @@ public class DynamicClassExtensionTest {
         out.println(result);
         assertEquals("""
                      T calculateShippingCost()
-                     T getAccountable()""", result);
+                     T getAccountable()
+                     T throwException()""", result);
     }
 
     @Test
@@ -1194,13 +1199,31 @@ public class DynamicClassExtensionTest {
     @Test
     void propertyChangeUtilityTest() {
         Book book = new Book("The Mythical Man-Month");
-        Item_Shippable extension = Aspects.propertyChangeExtension(book, Item_Shippable.class, evt -> out.println(evt.toString()));
+        Item_Shippable extension = Aspects.propertyChangeExtension(book, Item_Shippable.class,
+                evt -> out.println(evt.toString()));
         out.println(extension.getName());
         extension.setName("Shining");
         out.println(extension.getName());
         assertEquals("Shining", extension.getName());
     }
 
+    @Test
+    void handleThrowableAdviceTest() {
+        DynamicClassExtension dynamicClassExtension = new DynamicClassExtension().builder(Item_Shippable.class).
+        operationName("throwException").
+                operation(Item.class, aItem -> { throw new RuntimeException("Test exception"); }).
+        build();
+
+        dynamicClassExtension.aspectBuilder().
+                extensionInterface(ItemInterface.class).
+                    objectClass(Item.class).
+                        operation("throwException()").
+                            around(new HandleThrowableAdvice<String>(() -> null));
+
+        Book book = new Book("The Mythical Man-Month");
+        Item_Shippable extension = dynamicClassExtension.extension(book, Item_Shippable.class);
+        assertNull(extension.throwException());
+    }
 
     @Test
     void logBeforeAndAfterAdviceTest() {

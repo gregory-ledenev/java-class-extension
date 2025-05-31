@@ -1052,7 +1052,7 @@ public class Aspects {
 
 
     /**
-     * Utility method that returns an extension with added ability to listen for property changes. Note: returned
+     * Utility method that returns an extension with the added ability to listen for property changes. Note: returned
      * extensions will not be cached.
      *
      * @param anObject                object to return an extension object for
@@ -1182,6 +1182,49 @@ public class Aspects {
 
             if (result != null && logger != null)
                 logger.severe("Result is not a Collection or Map: " + result);
+
+            return result;
+        }
+    }
+
+    /**
+     * Advice (around) that allows catching all exceptions and return some value instead
+     */
+    public static class HandleThrowableAdvice<T> implements AroundAdvice {
+        private final Supplier<T> supplier;
+        private final Logger logger;
+
+        /**
+         * Creates a new {@code ReadOnlyCollectionOrMapAdvice} instance
+         */
+        public HandleThrowableAdvice(Supplier<T> aSupplier) {
+            this(aSupplier, null);
+        }
+
+        /**
+         * Creates a new {@code ReadOnlyCollectionOrMapAdvice} instance with a supplier and a Logger
+         * @param aSupplier supplier that provides a value to be returned when some exception occurs
+         * @param aLogger logger
+         */
+        public HandleThrowableAdvice(Supplier<T> aSupplier, Logger aLogger) {
+            Objects.requireNonNull(aSupplier, "Supplier is not specified");
+            supplier = aSupplier;
+            logger = aLogger;
+        }
+
+        /**
+         * {@inheritDoc}
+         */
+        @Override
+        public Object apply(Object performer, String operation, Object object, Object[] args) {
+            Object result = null;
+            try {
+                result = AroundAdvice.applyDefault(performer, operation, object, args);
+            } catch (Throwable aThrowable) {
+                result = supplier.get();
+                if (logger != null)
+                    logger.log(Level.SEVERE, "Exception occurred: " + aThrowable, aThrowable);
+            }
 
             return result;
         }

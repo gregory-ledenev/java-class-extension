@@ -121,5 +121,6 @@ The Java Class Extension Library offers several ready to use Advices - lambda fu
 * `Aspects.RetryAdvice` - automatically retries failed operations.
 * `Aspects.CachedValueAdvice` - allows caching of operation results
 * `Aspects.ReadOnlyCollectionOrMapAdvice` - allows turning all the `Collection` or `Map` results to their unmodifiable views 
+* `Aspects.HandleThrowableAdvice` - allows catching all exceptions and return some value instead 
 
 Next >> [Utilities](utilities.md)
