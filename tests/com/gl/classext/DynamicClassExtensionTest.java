@@ -1252,7 +1252,7 @@ public class DynamicClassExtensionTest {
     @Test
     void extensionWithDescriptionTest() {
         final String description = "Some description for Runnable";
-        Runnable extension = lambdaWithDescription((Runnable) () -> {}, Runnable.class, description);
+        Runnable extension = lambdaWithDescription((Runnable) () -> {}, description);
         out.println(extension.toString());
         assertEquals(description, extension.toString());
     }
@@ -1623,12 +1623,18 @@ public class DynamicClassExtensionTest {
 
     @Test
     void lambdaWithDescriptionAndIDTest() {
-        Runnable r1 = DynamicClassExtension.lambdaWithDescriptionAndID((Runnable) () -> out.println("R"), Runnable.class, "R1", "r1");
+        Runnable r1 = DynamicClassExtension.lambdaWithDescriptionAndID((Runnable) () -> out.println("R"),"R1", "r1");
         assertEquals("r1", r1 instanceof DynamicClassExtension.IdentityHolder id2 ? id2.getID() : null);
-        Runnable r2 = DynamicClassExtension.lambdaWithDescriptionAndID((Runnable) () -> out.println("R"), Runnable.class, "R1", "r1");
+
+        Runnable r2 = DynamicClassExtension.lambdaWithDescriptionAndID((Runnable) () -> out.println("R"), "R1", "r1");
         assertEquals("r1", r1 instanceof DynamicClassExtension.IdentityHolder id2 ? id2.getID() : null);
-        Runnable r3 = DynamicClassExtension.lambdaWithDescriptionAndID((Runnable) () -> out.println("R3"), Runnable.class, "R3", "r3");
+
+        Runnable r3 = DynamicClassExtension.lambdaWithDescriptionAndID((Runnable) () -> out.println("R3"),"R3", "r3");
         assertEquals("r3", r3 instanceof DynamicClassExtension.IdentityHolder id3 ? id3.getID() : null);
+
+        assertEquals("R1", r1.toString());
+        assertEquals("R1", r2.toString());
+        assertEquals("R3", r3.toString());
 
         assertEquals(r1, r2);
         assertEquals(r2, r1);

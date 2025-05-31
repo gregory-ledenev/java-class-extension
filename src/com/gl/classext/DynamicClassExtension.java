@@ -27,7 +27,6 @@ package com.gl.classext;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
-import java.text.MessageFormat;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
@@ -1368,24 +1367,32 @@ public class DynamicClassExtension extends AbstractClassExtension {
     }
 
     /**
-     * Returns an extension (wrapper) for a lambda function that associates a custom description with it. Lambda functions
-     * in Java cannot customize their {@code toString()} method output, which can be inconvenient for debugging. This
-     * method allows specifying a textual description that will be returned by the {@code toString()} method of the
-     * wrapper.
+     * Returns an extension (wrapper) for a lambda function that associates a custom description with it. Lambda
+     * functions in Java cannot customize their {@code toString()} method output, which can be inconvenient for
+     * debugging. This method allows specifying a textual description that will be returned by the {@code toString()}
+     * method of the wrapper.
      *
-     * @param aLambdaFunction      lambda function
-     * @param aFunctionalInterface functional interface of lambda function
-     * @param aDescription         description to be returned by {@code toString()}
+     * @param aLambdaFunction lambda function
+     * @param aDescription    description to be returned by {@code toString()}
      * @return lambda function associated with the description
      */
-    public static <T> T lambdaWithDescription(Object aLambdaFunction, Class<T> aFunctionalInterface, String aDescription) {
+    public static <T> T lambdaWithDescription(Object aLambdaFunction, String aDescription) {
+        Objects.requireNonNull(aLambdaFunction);
+        Objects.requireNonNull(aDescription, "Description is not specified");
+
+        Class<?>[] interfaces = aLambdaFunction.getClass().getInterfaces();
+        if (interfaces.length != 1)
+            throw new IllegalArgumentException("Lambda function must represent exactly one interface");
+        Class<?> functionalInterface = interfaces[0];
+
         DynamicClassExtension dynamicClassExtension = new DynamicClassExtension().
-                builder(aFunctionalInterface).
+                builder(functionalInterface).
                 operationName("toString").
                 operation(Object.class, o -> aDescription).
                 build();
         dynamicClassExtension.setCacheEnabled(false);
-        return dynamicClassExtension.extension(aLambdaFunction, aFunctionalInterface);
+        //noinspection unchecked
+        return (T) dynamicClassExtension.extension(aLambdaFunction, functionalInterface);
     }
 
     /**
@@ -1398,22 +1405,29 @@ public class DynamicClassExtension extends AbstractClassExtension {
      * </ul>
      *
      * @param aLambdaFunction      lambda function
-     * @param aFunctionalInterface functional interface of lambda function
-     * @param aDescription         description to be returned by {@code toString()}
+     * @param aDescription         optional description to be returned by {@code toString()}
      * @param anID                 an identity that will be used to calculate {@code hashCode} and to determine equality using the {@code equals} method
      * @return lambda function associated with the description snd the identity
      */
 
-    public static <T> T lambdaWithDescriptionAndID(Object aLambdaFunction, Class<T> aFunctionalInterface, String aDescription, Object anID) {
+    public static <T> T lambdaWithDescriptionAndID(Object aLambdaFunction, String aDescription, Object anID) {
+        Objects.requireNonNull(aLambdaFunction);
+        Objects.requireNonNull(anID, "Identity is not specified");
+
+        Class<?>[] interfaces = aLambdaFunction.getClass().getInterfaces();
+        if (interfaces.length != 1)
+            throw new IllegalArgumentException("Lambda function must represent exactly one interface");
+        Class<?> functionalInterface = interfaces[0];
+
         final DynamicClassExtension dynamicClassExtension = new DynamicClassExtension();
         dynamicClassExtension.
-                builder(aFunctionalInterface).
+                builder(functionalInterface).
                 operationName("toString").
-                operation(Object.class, o -> aDescription).
+                operation(Object.class, o -> aDescription != null ? aDescription : aLambdaFunction.toString()).
                 operationName("hashCode").
                 operation(Object.class, o -> anID.hashCode()).
                 operationName("equals").
-                operation(Object.class, (Object o1, Object o2) -> dynamicClassExtension.extension(o1, aFunctionalInterface, IdentityHolder.class) instanceof IdentityHolder id1 &&
+                operation(Object.class, (Object o1, Object o2) -> dynamicClassExtension.extension(o1, functionalInterface, IdentityHolder.class) instanceof IdentityHolder id1 &&
                             o2 instanceof IdentityHolder id2 &&
                             Objects.equals(id1.getID(), id2.getID())).
                 build().builder(IdentityHolder.class).
@@ -1421,7 +1435,8 @@ public class DynamicClassExtension extends AbstractClassExtension {
                 operation(Object.class, o -> anID).
                 build();
         dynamicClassExtension.setCacheEnabled(false);
-        return dynamicClassExtension.extension(aLambdaFunction, aFunctionalInterface, IdentityHolder.class);
+        //noinspection unchecked
+        return (T) dynamicClassExtension.extension(aLambdaFunction, functionalInterface, IdentityHolder.class);
     }
 }
 
