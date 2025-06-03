@@ -1262,13 +1262,15 @@ public class DynamicClassExtensionTest {
     @Test
     void retryAdviceTest() {
         DynamicClassExtension dynamicClassExtension = new DynamicClassExtension().
-                aspectBuilder().
-                    extensionInterface(ItemInterface.class).
-                        objectClass(Item.class).
-                            operation("ship()").
-                                around(new RetryAdvice(3, 1000, Logger.getLogger(getClass().getName()), (result, ex) -> {
-                                    if (result instanceof ShippingInfo shippingInfo) {
-                                        return ! shippingInfo.result.contains("Ship");
+                aspectBuilder().extensionInterface(ItemInterface.class).
+                objectClass(Item.class).
+                    operation("ship()").
+                        around(new RetryAdvice(3, 1000,
+                                Logger.getLogger(getClass().getName()),
+                                (result, ex) -> {
+                                    // check if the operation succeeded
+                                    if (result instanceof ShippingInfo(String aResult)) {
+                                        return ! aResult.contains("Ship");
                                     } else {
                                         return ! (ex instanceof IllegalStateException);
                                     }
@@ -1277,21 +1279,21 @@ public class DynamicClassExtensionTest {
                 builder(Item_Shippable.class).
                 operationName("ship").
                 operation(Book.class, (book) -> {
-                            if (retryTestCount > 0)
-                                return new ShippingInfo("Shipped: " + book);
-                            else {
-                                retryTestCount++;
-                                throw new IllegalStateException("Failed to ship: " + book);
-                            }
-                        }).
-                        async((result, ex) -> {
-                            if (ex != null) {
-                                out.println("FAILED: " + ex);
-                            } else {
-                                out.println(result);
-                                assertEquals("ShippingInfo[result=Shipped: Book[\"The Mythical Man-Month\"]]", result);
-                            }
-                        }).
+                    if (retryTestCount > 0)
+                        return new ShippingInfo("Shipped: " + book);
+                    else {
+                        retryTestCount++;
+                        throw new IllegalStateException("Failed to ship: " + book);
+                    }
+                }).
+                async((result, ex) -> {
+                    if (ex != null) {
+                        out.println("FAILED: " + ex);
+                    } else {
+                        out.println(result);
+                        assertEquals("ShippingInfo[result=Shipped: Book[\"The Mythical Man-Month\"]]", result);
+                    }
+                }).
                 build();
 
         Book book = new Book("The Mythical Man-Month");
@@ -1309,6 +1311,10 @@ public class DynamicClassExtensionTest {
     void cachedValueAdviceTest() {
         System.setProperty("java.util.logging.SimpleFormatter.format", "%4$s: %5$s%n");
 
+        StringBuilderHandler stringBuilderHandler = new StringBuilderHandler();
+        Logger logger = Logger.getLogger(getClass().getName());
+        logger.addHandler(stringBuilderHandler);
+
         CachedValueProvider cache = new CachedValueProvider() {
             private final Map<Object, Object> cache =new HashMap<>();
             @Override
@@ -1322,17 +1328,14 @@ public class DynamicClassExtensionTest {
             }
         };
 
-        StringBuilderHandler stringBuilderHandler = new StringBuilderHandler();
-        Logger logger = Logger.getLogger(getClass().getName());
-        logger.addHandler(stringBuilderHandler);
-
         DynamicClassExtension dynamicClassExtension = new DynamicClassExtension().
                 aspectBuilder().
                     extensionInterface(ItemInterface.class).
                         objectClass(Item.class).
                             operation("*").
                                 around(new CachedValueAdvice(cache, logger)).
-                                around((performer, operation, object, args) -> "AROUND: " + AroundAdvice.applyDefault(performer, operation, object, args)).
+                                around((performer, operation, object, args) -> "AROUND: " +
+                                        AroundAdvice.applyDefault(performer, operation, object, args)).
                 build();
 
         Item[] items = {
@@ -1727,7 +1730,8 @@ public class DynamicClassExtensionTest {
                 build();
         Names names = new Names();
         try {
-            dynamicClassExtension.extension(names, NamesHolder.class).getNames().add("test");
+            NamesHolder namesHolder = dynamicClassExtension.extension(names, NamesHolder.class);
+            namesHolder.getNames().add("test"); // cant add because list is read-only
             fail("Unexpected success on list modification");
         } catch (UnsupportedOperationException ex) {
             // do nothing

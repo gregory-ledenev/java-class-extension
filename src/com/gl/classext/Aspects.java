@@ -922,8 +922,8 @@ public class Aspects {
     /**
      * Advice (around) that automatically retries failed operations. Executes the operation multiple times upon
      * exception, up to a specified retry limit, before propagating the final failure. Default policy is "retry after
-     * any exception" but it is possible to fine tune that behaviour to provide {@code resultChecker} that allows
-     * checking whether results ot exceptions are errors that can be recovered by retrying the operation.
+     * any exception" but it is possible to fine-tune that behavior to provide {@code resultChecker} that allows
+     * checking whether results of exceptions are errors that can be recovered by retrying the operation.
      */
     public static class RetryAdvice implements AroundAdvice {
         private final int retryCount;
