@@ -4,6 +4,7 @@ package com.gl.classext;
 import org.junit.jupiter.api.Test;
 
 import java.text.MessageFormat;
+import java.time.Duration;
 import java.util.*;
 import java.util.function.Supplier;
 import java.util.logging.*;
@@ -1736,6 +1737,42 @@ public class DynamicClassExtensionTest {
         } catch (UnsupportedOperationException ex) {
             // do nothing
         }
+    }
+
+    static int circuitBreakfastedAttemptsCount = 0;
+
+    @Test
+    void circuitBreakerAdviceTest() {
+        DynamicClassExtension dynamicClassExtension = new DynamicClassExtension().
+                aspectBuilder().
+                extensionInterface(Shippable.class).
+                objectClass(Book.class).
+                operation("ship").
+                around(new CircuitBreakerAdvice(3, Duration.ofSeconds(5))).
+                build().
+                builder(Shippable.class).
+                objectClass(Book.class).
+                operation("ship", (Book book) -> {
+                    if (circuitBreakfastedAttemptsCount++ > 2)
+                        return new ShippingInfo("SHIPPED: " + book.toString());
+                    else
+                        throw new RuntimeException("Failed to ship " + book.toString());
+                }).
+                build();
+
+        int succeedCount = 0;
+        Shippable shippable = dynamicClassExtension.extension(new Book("The Mythical Man-Month"), Shippable.class);
+        for (int i = 0; i < 10; i++) {
+            try {
+                if (i == 5)
+                    Thread.sleep(6000);
+                out.println(shippable.ship());
+                succeedCount++;
+            } catch (Exception aE) {
+                out.println(aE.getMessage());
+            }
+        }
+        assertEquals(5, succeedCount);
     }
 
     interface MultipleParameters {

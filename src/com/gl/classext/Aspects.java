@@ -3,6 +3,7 @@ package com.gl.classext;
 import java.beans.PropertyChangeEvent;
 import java.beans.PropertyChangeListener;
 import java.lang.reflect.Method;
+import java.time.Duration;
 import java.util.*;
 import java.util.function.BiPredicate;
 import java.util.function.Consumer;
@@ -1227,6 +1228,50 @@ public class Aspects {
             }
 
             return result;
+        }
+    }
+
+    /**
+     * Advice (around) that adds a circuit breaker to an operation
+     */
+    public static class CircuitBreakerAdvice implements AroundAdvice {
+        private final CircuitBreaker circuitBreaker;
+        private final Logger logger;
+
+        /**
+         * Constructs an instance of CircuitBreakerAdvice with no logger.
+         *
+         * @param aFailureThreshold the number of allowed consecutive failures before the circuit breaker is opened
+         * @param aTimeout the duration for which the circuit breaker remains open after reaching the failure threshold
+         */
+        public CircuitBreakerAdvice(int aFailureThreshold, Duration aTimeout) {
+            this(aFailureThreshold, aTimeout, null);
+        }
+
+        /**
+         * Constructs an instance of CircuitBreakerAdvice.
+         *
+         * @param aFailureThreshold the number of allowed consecutive failures before the circuit breaker is opened
+         * @param aTimeout the duration for which the circuit breaker remains open after reaching the failure threshold
+         * @param aLogger the logger instance used to log exception information; can be null
+         */
+        public CircuitBreakerAdvice(int aFailureThreshold, Duration aTimeout, Logger aLogger) {
+            circuitBreaker = new CircuitBreaker(aFailureThreshold, aTimeout);
+            logger = aLogger;
+        }
+
+        /**
+         * {@inheritDoc}
+         */
+        @Override
+        public Object apply(Object performer, String operation, Object object, Object[] args) {
+            try {
+                return circuitBreaker.execute(() -> AroundAdvice.applyDefault(performer, operation, object, args));
+            } catch (Exception ex) {
+                if (logger != null)
+                    logger.log(Level.SEVERE, "Exception occurred: " + ex, ex);
+                throw new RuntimeException(ex);
+            }
         }
     }
 }
