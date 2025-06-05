@@ -277,4 +277,23 @@ public abstract class AbstractClassExtension implements ClassExtension {
         return Stream.iterate(anObjectClass.getSuperclass(), Objects::nonNull, (Class<?> aClass) -> aClass.getSuperclass()).
                 toList();
     }
+
+    /**
+     * Determines whether caching is enabled for the given extension interface.
+     * If the extension interface is annotated with {@code ExtensionInterface}, its specified
+     * caching policy will be considered. Otherwise, the default caching policy applies.
+     *
+     * @param <T> the type of the extension interface
+     * @param anExtensionInterface the extension interface to check for caching policy
+     * @return {@code true} if caching is enabled, {@code false} otherwise
+     */
+    public <T> boolean isCacheEnabled(Class<T> anExtensionInterface) {
+        boolean result = isCacheEnabled();
+        if (anExtensionInterface.isAnnotationPresent(ExtensionInterface.class)) {
+            CachePolicy cachePolicy = anExtensionInterface.getAnnotation(ExtensionInterface.class).cachePolicy();
+            if (cachePolicy != CachePolicy.DEFAULT)
+                result = cachePolicy == CachePolicy.ENABLED;
+        }
+        return result;
+    }
 }

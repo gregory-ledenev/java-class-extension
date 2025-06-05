@@ -679,6 +679,27 @@ public class DynamicClassExtensionTest {
         assertSame(extension, dynamicClassExtension.extension(book, Item_Shippable.class));
     }
 
+    @ExtensionInterface(cachePolicy = ClassExtension.CachePolicy.DISABLED)
+    static interface NonCachedItem_Shippable extends Item_Shippable {
+    }
+
+    /**
+     * Test for optionally cached extension
+     */
+    @Test
+    void cacheOptionalTest() {
+        DynamicClassExtension dynamicClassExtension = setupDynamicClassExtension(new StringBuilder());
+        Book book = new Book("The Mythical Man-Month");
+
+        dynamicClassExtension.setCacheEnabled(false);
+        Item_Shippable extension = dynamicClassExtension.extension(book, Item_Shippable.class);
+        assertNotSame(extension, dynamicClassExtension.extension(book, Item_Shippable.class));
+
+        dynamicClassExtension.setCacheEnabled(true);
+        extension = dynamicClassExtension.extension(book, NonCachedItem_Shippable.class);
+        assertNotSame(extension, dynamicClassExtension.extension(book, NonCachedItem_Shippable.class));
+    }
+
     /**
      * Test for cached extension
      */
@@ -1745,19 +1766,19 @@ public class DynamicClassExtensionTest {
     void circuitBreakerAdviceTest() {
         DynamicClassExtension dynamicClassExtension = new DynamicClassExtension().
                 aspectBuilder().
-                extensionInterface(Shippable.class).
-                objectClass(Book.class).
-                operation("ship").
-                around(new CircuitBreakerAdvice(3, Duration.ofSeconds(5))).
+                    extensionInterface(Shippable.class).
+                    objectClass(Book.class).
+                        operation("ship").
+                            around(new CircuitBreakerAdvice(3, Duration.ofSeconds(5))).
                 build().
                 builder(Shippable.class).
-                objectClass(Book.class).
-                operation("ship", (Book book) -> {
-                    if (circuitBreakfastedAttemptsCount++ > 2)
-                        return new ShippingInfo("SHIPPED: " + book.toString());
-                    else
-                        throw new RuntimeException("Failed to ship " + book.toString());
-                }).
+                    objectClass(Book.class).
+                        operation("ship", (Book book) -> {
+                            if (circuitBreakfastedAttemptsCount++ > 2)
+                                return new ShippingInfo("SHIPPED: " + book.toString());
+                            else
+                                throw new RuntimeException("Failed to ship " + book.toString());
+                        }).
                 build();
 
         int succeedCount = 0;

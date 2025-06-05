@@ -271,6 +271,10 @@ DynamicClassExtension dynamicClassExtension = new DynamicClassExtension().builde
 #### Cashing
 Cashing of extension objects are supported out of the box, and it can be controlled via the `Classextension.cacheEnabled` property. Cache utilizes weak references to release extension objects that are not in use. Though, to perform full cleanup either the `cacheCleanup()` should be used or automatic cleanup can be initiated via the `scheduleCacheCleanup()`. If automatic cache cleanup is used - it can be stopped by calling the `shutdownCacheCleanup()`.
 
+If there is a need to explicitly get some non-cached extensions - use the `DynamicClassExtension.extensionNoCache(...)` method to get them.
+
+It is possible to explicitly define cache policy per each extension interface. It can be done using the `@ExtensionInterface` annotation amd specifying the `cachePolicy` field. 
+
 #### Integrity and Validation
 `DynamicClassExtension` offers a capability to validate extensions for a given class through its `checkValid(...)` method. An extension is deemed valid when corresponding operations are registered for all its methods. However, in certain scenarios, it's desirable to maintain extension validity while supporting only a subset of operations. This flexibility can be achieved by annotating specific methods in the extension interface with `@OptionalMethods` annotation.
 

@@ -35,12 +35,14 @@ import java.lang.annotation.Target;
  * <ol>
  * <li>Compose proper extension class names</li>
  * <li>Determine packages to lookup for extension classes via the {@code packages} parameter</li>
- * <li>Determine extension type via the {@code type} parameter</li>
+ * <li>Determine an extension type via the {@code type} parameter</li>
+ * <li>Determine an extension caching policy via the {@code cachePolicy} parameter</li>
  * </ol>
  */
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.TYPE)
 public @interface ExtensionInterface {
     ClassExtension.Type type() default ClassExtension.Type.STATIC_PROXY;
+    ClassExtension.CachePolicy cachePolicy() default ClassExtension.CachePolicy.DEFAULT;
     String[] packages() default {};
 }

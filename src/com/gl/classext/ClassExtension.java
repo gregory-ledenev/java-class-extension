@@ -32,7 +32,25 @@ package com.gl.classext;
 public interface ClassExtension {
 
     /**
-     * Defines type of class extension
+     * Enum representing the caching policy for the {@code ClassExtension} class. It defines
+     * whether caching is enabled, disabled, or determined based on a default behavior.
+     */
+    enum CachePolicy {
+        /**
+         * Default caching policy, honoring {@code ClassExtension.cacheEnabled} property
+         */
+        DEFAULT,
+        /**
+         * Cache is disabled
+         */
+        DISABLED,
+        /**
+         * Cache is enabled
+         */
+        ENABLED,
+    }
+    /**
+     * Defines a type of class extension
      */
     enum Type {
         /**

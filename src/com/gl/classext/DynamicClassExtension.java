@@ -24,6 +24,7 @@ SOFTWARE.
 
 package com.gl.classext;
 
+import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
@@ -449,9 +450,7 @@ public class DynamicClassExtension extends AbstractClassExtension {
 
             return (T) Proxy.newProxyInstance(getClass().getClassLoader(),
                     extensionInterfaces.toArray(new Class[0]),
-                    (proxy, method, args) -> performOperation(this, anObject,
-                            aMissingMethodsHandler, anExtensionInterface, aSupplementaryInterfaces,
-                            method, args));
+                    new ExtensionInvocationHandler(anObject, aMissingMethodsHandler, anExtensionInterface, aSupplementaryInterfaces));
         } catch (Exception ex) {
             throw new RuntimeException(ex);
         }
@@ -531,8 +530,10 @@ public class DynamicClassExtension extends AbstractClassExtension {
     public <T> T extension(Object anObject, Function<Method, Object> aMissingMethodsHandler, Class<T> anExtensionInterface, Class<?>... aSupplementaryInterfaces) {
         Objects.requireNonNull(anExtensionInterface);
 
-        return (T) extensionCache.getOrCreate(new ClassExtensionKey(anObject, anExtensionInterface), () ->
-                extensionNoCache(anObject, aMissingMethodsHandler, anExtensionInterface, aSupplementaryInterfaces));
+        return isCacheEnabled(anExtensionInterface) ?
+                (T) extensionCache.getOrCreate(new ClassExtensionKey(anObject, anExtensionInterface), () ->
+                        extensionNoCache(anObject, aMissingMethodsHandler, anExtensionInterface, aSupplementaryInterfaces)) :
+                extensionNoCache(anObject, aMissingMethodsHandler, anExtensionInterface, aSupplementaryInterfaces);
     }
 
     @Override
@@ -1437,6 +1438,27 @@ public class DynamicClassExtension extends AbstractClassExtension {
         dynamicClassExtension.setCacheEnabled(false);
         //noinspection unchecked
         return (T) dynamicClassExtension.extension(aLambdaFunction, functionalInterface, IdentityHolder.class);
+    }
+
+    private class ExtensionInvocationHandler<T> implements InvocationHandler {
+        private final Object object;
+        private final Function<Method, Object> missingMethodsHandler;
+        private final Class<T> extensionInterface;
+        private final Class<?>[] supplementaryInterfaces;
+
+        public ExtensionInvocationHandler(Object anObject, Function<Method, Object> aMissingMethodsHandler, Class<T> anExtensionInterface, Class<?>... aSupplementaryInterfaces) {
+            object = anObject;
+            missingMethodsHandler = aMissingMethodsHandler;
+            extensionInterface = anExtensionInterface;
+            supplementaryInterfaces = aSupplementaryInterfaces;
+        }
+
+        @Override
+        public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
+            return DynamicClassExtension.this.performOperation(DynamicClassExtension.this, object,
+                    missingMethodsHandler, extensionInterface, supplementaryInterfaces,
+                    method, args);
+        }
     }
 }
 
