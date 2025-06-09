@@ -1847,6 +1847,56 @@ public class DynamicClassExtensionTest {
     }
 
     @Test
+    void TestDynamicQuotaAdvice() {
+        DynamicClassExtension dynamicClassExtension = new DynamicClassExtension().
+                aspectBuilder().
+                extensionInterface(Shippable.class).
+                objectClass(Book.class).
+                operation("track(*)").
+                around(new DynamicQuotaAdvice(new QuotaHandler() {
+                    long quota = 20;
+                    @Override
+                    public long getQuota(String anOperation, Object anObject, Object[] anArgs) {
+                        return quota;
+                    }
+
+                    @Override
+                    public void decreaseQuota(long anAmount, String operation, Object object, Object[] args) {
+                        quota -= anAmount;
+                    }
+
+                    @Override
+                    public long calculateOperationCost(String operation, Object object, Object[] args) {
+                        return 2;
+                    }
+
+                    @Override
+                    public long calculateOperationResultCost(String anOperation, Object aResult, Object anObject, Object[] anArgs) {
+                        return 1;
+                    }
+                }, Logger.getLogger(getClass().getName()))).
+                build().
+                builder(Shippable.class).
+                objectClass(Book.class).
+                operation("track", (Book book, Boolean isVerbose) -> {
+                    return new TrackingInfo("Delivered: " + book.toString());
+                }).
+                build();
+
+        int succeedCount = 0;
+        Shippable shippable = dynamicClassExtension.extension(new Book("The Mythical Man-Month"), Shippable.class);
+        try {
+            for (int i = 0; i < 10; i++) {
+                shippable.track(true);
+                succeedCount++;
+            }
+            assertEquals(7, succeedCount);
+        } catch (Exception ex) {
+            out.println(ex.getMessage());
+        }
+    }
+
+    @Test
     void multipleParametersOperationTest() {
         DynamicClassExtension dynamicClassExtension = new DynamicClassExtension().builder(MultipleParameters.class).
                 operationName("arrayParameter").
