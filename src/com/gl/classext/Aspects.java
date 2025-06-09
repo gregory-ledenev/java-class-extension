@@ -1492,8 +1492,10 @@ public class Aspects {
 
             // check result quota
             long resultCost = quotaHandler.calculateOperationResultCost(operation, result, object, args);
-            checkQuota(operation, resultCost, availableQuota - operationCost);
 
+            if (availableQuota - operationCost- resultCost < 0) // rollback operation cost
+                quotaHandler.decreaseQuota(-operationCost, operation, object, args);
+            checkQuota(operation, resultCost, availableQuota - operationCost);
             quotaHandler.decreaseQuota(resultCost, operation, object, args);
 
             if (logger != null)
