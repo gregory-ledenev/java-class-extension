@@ -680,7 +680,7 @@ public class DynamicClassExtensionTest {
     }
 
     @ExtensionInterface(cachePolicy = ClassExtension.CachePolicy.DISABLED)
-    static interface NonCachedItem_Shippable extends Item_Shippable {
+    interface NonCachedItem_Shippable extends Item_Shippable {
     }
 
     /**
@@ -1802,6 +1802,51 @@ public class DynamicClassExtensionTest {
     }
 
     @Test
+    void testRateLimitedAdvice() {
+        DynamicClassExtension dynamicClassExtension = new DynamicClassExtension().
+                aspectBuilder().
+                extensionInterface(Shippable.class).
+                objectClass(Book.class).
+                operation("track(*)").
+                around(new RateLimitedAdvice(5, Duration.ofSeconds(1))).
+                build().
+                builder(Shippable.class).
+                objectClass(Book.class).
+                operation("track", (Book book, Boolean isVerbose) -> {
+                    return new TrackingInfo("Delivered: " + book.toString());
+                }).
+                build();
+
+        int succeedCount = 0;
+        Shippable shippable = dynamicClassExtension.extension(new Book("The Mythical Man-Month"), Shippable.class);
+        try {
+            for (int i = 0; i < 7; i++) {
+                shippable.track(true);
+                succeedCount++;
+            }
+        } catch (Exception ex) {
+            out.println(ex.getMessage());
+        }
+        assertEquals(5, succeedCount);
+
+        sleep(500);
+        try {
+            shippable.track(false);
+            fail("Unexpected success on rate limited operation");
+        } catch (Exception ex) {
+            out.println(ex.getMessage());
+        }
+
+        sleep(1001);
+        try {
+            shippable.track(false);
+        } catch (Exception ex) {
+            out.println(ex.getMessage());
+            fail("Unexpected failure on rate limited operation");
+        }
+    }
+
+    @Test
     void multipleParametersOperationTest() {
         DynamicClassExtension dynamicClassExtension = new DynamicClassExtension().builder(MultipleParameters.class).
                 operationName("arrayParameter").
@@ -1830,8 +1875,12 @@ public class DynamicClassExtensionTest {
     }
 
     private static void sleep() {
+        sleep(1000);
+    }
+
+    private static void sleep(long millis) {
         try {
-            Thread.sleep(1000);
+            Thread.sleep(millis);
         } catch (InterruptedException ex) {
             ex.printStackTrace();
         }

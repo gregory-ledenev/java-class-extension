@@ -934,6 +934,9 @@ public class DynamicClassExtension extends AbstractClassExtension {
         return result;
     }
 
+    public static String parameterTypesAsString(Object[] anArgs) {
+        return Arrays.stream(DynamicClassExtension.parameterTypes(anArgs)).map(Class::getSimpleName).collect(Collectors.joining(", "));
+    }
 
     static String operationName(String anOperationName, Class<?>[] aParameterTypes) {
         return aParameterTypes == null || aParameterTypes.length == 0 ? anOperationName : anOperationName + SUFFIX_BI;

@@ -5,6 +5,7 @@ import java.beans.PropertyChangeListener;
 import java.lang.reflect.Method;
 import java.time.Duration;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.BiPredicate;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
@@ -1272,6 +1273,92 @@ public class Aspects {
                     logger.log(Level.SEVERE, "Exception occurred: " + ex, ex);
                 throw new RuntimeException(ex);
             }
+        }
+    }
+
+    /**
+     * Advice (around) that allows rate limiting for operations
+     */
+    public static class RateLimitedAdvice implements AroundAdvice {
+        private final Logger logger;
+        private final long maxTokens;
+        private final long refillIntervalMillis;
+        private final AtomicLong availableTokens = new AtomicLong(0);
+        private volatile long lastRefillTimestamp;
+
+        /**
+         * Creates a RateLimitedAdvice. For example, {@code new RateLimitedAdvice(5, new Duration(1))} creates a
+         * rate-limited advice that ensures an operation can be executed at most 5 times per second.
+         *
+         * @param maxTokens      the maximum number of tokens the bucket can hold (rate limit)
+         * @param refillInterval the interval at which tokens are added to the bucket
+         */
+        public RateLimitedAdvice(long maxTokens, Duration refillInterval) {
+            this(maxTokens, refillInterval, null);
+        }
+
+        /**
+         * Creates a RateLimitedAdvice. For example, {@code new RateLimitedAdvice(5, new Duration(1), null)} creates a
+         * rate-limited advice that ensures an operation can be executed at most 5 times per second.
+         * @param maxTokens           the maximum number of tokens the bucket can hold (rate limit)
+         * @param refillInterval      the interval at which tokens are added to the bucket
+         * @param logger              optional logger
+         */
+        public RateLimitedAdvice(long maxTokens, Duration refillInterval, Logger logger) {
+            if (maxTokens <= 0 || refillInterval.isNegative() || refillInterval.isZero()) {
+                throw new IllegalArgumentException("Invalid rate-limiting parameters.");
+            }
+            this.maxTokens = maxTokens;
+            this.refillIntervalMillis = refillInterval.toMillis();
+            this.logger = logger;
+            this.availableTokens.set(maxTokens);
+            this.lastRefillTimestamp = System.currentTimeMillis();
+        }
+
+        private void refillTokens() {
+            long now = System.currentTimeMillis();
+            long elapsedTime = now - lastRefillTimestamp;
+
+            if (elapsedTime >= refillIntervalMillis) {
+                long tokensToAdd = Math.max(0, elapsedTime / refillIntervalMillis) * maxTokens;
+                availableTokens.addAndGet(tokensToAdd);
+                availableTokens.updateAndGet(current -> Math.min(current, maxTokens));
+                lastRefillTimestamp = now;
+            }
+        }
+
+        /**
+         * {@inheritDoc}
+         */
+        @Override
+        public Object apply(Object performer, String operation, Object object, Object[] args)
+                throws RateLimitedAdviceException {
+            refillTokens();
+
+            if (availableTokens.get() > 0) {
+                availableTokens.decrementAndGet();
+                if (logger != null)
+                    logger.info(String.format("Rate limited advice invoked for operation: %s(%s)",
+                            operation, DynamicClassExtension.parameterTypesAsString(args)));
+                return AroundAdvice.applyDefault(performer, operation, object, args);
+            } else {
+                String message = String.format("Rate limit exceeded for operation: %s(%s) (%d per %d ms.)",
+                        operation, DynamicClassExtension.parameterTypesAsString(args),
+                        maxTokens, refillIntervalMillis);
+                if (logger != null)
+                    logger.warning(message);
+                throw new RateLimitedAdviceException(message);
+            }
+        }
+    }
+
+    /**
+     * Exception thrown in the context of rate-limited advice interception. This exception is typically used to signal
+     * constraints or violations related to rate-limiting during method interception or advisory execution.
+     */
+    public static class RateLimitedAdviceException extends RuntimeException {
+        public RateLimitedAdviceException(String message) {
+            super(message);
         }
     }
 }
