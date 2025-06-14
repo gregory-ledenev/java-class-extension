@@ -1803,18 +1803,17 @@ public class DynamicClassExtensionTest {
 
     @Test
     void testRateLimitedAdvice() {
-        DynamicClassExtension dynamicClassExtension = new DynamicClassExtension().
-                aspectBuilder().
-                extensionInterface(Shippable.class).
-                objectClass(Book.class).
-                operation("track(*)").
-                around(new RateLimitedAdvice(5, Duration.ofSeconds(1))).
+        DynamicClassExtension dynamicClassExtension = new DynamicClassExtension().aspectBuilder().
+                    extensionInterface(Shippable.class).
+                        objectClass(Book.class).
+                            operation("track(*)").
+                                around(new RateLimitedAdvice(5, Duration.ofSeconds(1))).
                 build().
-                builder(Shippable.class).
-                objectClass(Book.class).
-                operation("track", (Book book, Boolean isVerbose) -> {
-                    return new TrackingInfo("Delivered: " + book.toString());
-                }).
+                    builder(Shippable.class).
+                        objectClass(Book.class).
+                            operation("track", (Book book, Boolean isVerbose) -> {
+                                return new TrackingInfo("Delivered: " + book.toString());
+                            }).
                 build();
 
         int succeedCount = 0;
