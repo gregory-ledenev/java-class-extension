@@ -24,10 +24,10 @@ SOFTWARE.
 
 package com.gl.classext;
 
+import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
-import java.text.MessageFormat;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
@@ -432,12 +432,13 @@ public class DynamicClassExtension extends AbstractClassExtension {
      * {@code addExtensionOperation()} to compose dynamic extensions before calling the {@code dynamicExtension} method.
      * Otherwise, an empty dynamic extension having no operations will be returned.
      *
-     * @param anObject         object to return an extension object for
-     * @param anExtensionInterface class of extension object to be returned
+     * @param anObject               object to return an extension object for
+     * @param aMissingMethodsHandler  missing methods handler
+     * @param anExtensionInterface   class of extension object to be returned
      * @return an extension object
      */
     @SuppressWarnings({"unchecked"})
-    public <T> T extensionNoCache(Object anObject, Class<T> anExtensionInterface, Class<?>... aSupplementaryInterfaces) {
+    public <T> T extensionNoCache(Object anObject, Function<Method, Object> aMissingMethodsHandler, Class<T> anExtensionInterface, Class<?>... aSupplementaryInterfaces) {
         Objects.requireNonNull(anExtensionInterface);
 
         try {
@@ -449,7 +450,7 @@ public class DynamicClassExtension extends AbstractClassExtension {
 
             return (T) Proxy.newProxyInstance(getClass().getClassLoader(),
                     extensionInterfaces.toArray(new Class[0]),
-                    (proxy, method, args) -> performOperation(this, anObject, anExtensionInterface, aSupplementaryInterfaces, method, args));
+                    new ExtensionInvocationHandler(anObject, aMissingMethodsHandler, anExtensionInterface, aSupplementaryInterfaces));
         } catch (Exception ex) {
             throw new RuntimeException(ex);
         }
@@ -466,7 +467,7 @@ public class DynamicClassExtension extends AbstractClassExtension {
      */
     @SuppressWarnings("unused")
     public <T> T sharedExtensionNoCache(Object anObject, Class<T> anExtensionInterface) {
-        return sharedInstance().extensionNoCache(anObject, anExtensionInterface);
+        return sharedInstance().extensionNoCache(anObject, null, anExtensionInterface);
     }
 
     /**
@@ -489,17 +490,50 @@ public class DynamicClassExtension extends AbstractClassExtension {
      * Otherwise, an empty dynamic extension having no operations will be returned. It uses cache to avoid redundant
      * objects creation.
      *
+     * @param anObject             object to return an extension object for
+     * @param aMissingMethodsHandler   missing methods handler
+     * @param anExtensionInterface class of extension object to be returned
+     * @return an extension object
+     */
+    public <T> T extension(Object anObject, Function<Method, Object> aMissingMethodsHandler, Class<T> anExtensionInterface) {
+        return extension(anObject, aMissingMethodsHandler, anExtensionInterface, (Class<?>[]) null);
+    }
+
+    /**
+     * Finds and returns an extension object according to a supplied class. You should use calls of
+     * {@code addExtensionOperation()} to compose dynamic extensions before calling the {@code dynamicExtension} method.
+     * Otherwise, an empty dynamic extension having no operations will be returned. It uses cache to avoid redundant
+     * objects creation.
+     *
      * @param anObject                 object to return an extension object for
      * @param anExtensionInterface     class of extension object to be returned
      * @param aSupplementaryInterfaces supplementary interfaces of extension object to be returned
      * @return an extension object
      */
-    @SuppressWarnings("unchecked")
     public <T> T extension(Object anObject, Class<T> anExtensionInterface, Class<?>... aSupplementaryInterfaces) {
+        return extension(anObject, null, anExtensionInterface, aSupplementaryInterfaces);
+    }
+
+    /**
+     * Finds and returns an extension object according to a supplied class. You should use calls of
+     * {@code addExtensionOperation()} to compose dynamic extensions before calling the {@code dynamicExtension} method.
+     * Otherwise, an empty dynamic extension having no operations will be returned. It uses cache to avoid redundant
+     * objects creation.
+     *
+     * @param anObject                 object to return an extension object for
+     * @param aMissingMethodsHandler   missing methods handler
+     * @param anExtensionInterface     class of extension object to be returned
+     * @param aSupplementaryInterfaces supplementary interfaces of an extension object to be returned
+     * @return an extension object
+     */
+    @SuppressWarnings("unchecked")
+    public <T> T extension(Object anObject, Function<Method, Object> aMissingMethodsHandler, Class<T> anExtensionInterface, Class<?>... aSupplementaryInterfaces) {
         Objects.requireNonNull(anExtensionInterface);
 
-        return (T) extensionCache.getOrCreate(new ClassExtensionKey(anObject, anExtensionInterface), () ->
-                extensionNoCache(anObject, anExtensionInterface, aSupplementaryInterfaces));
+        return isCacheEnabled(anExtensionInterface) ?
+                (T) extensionCache.getOrCreate(new ClassExtensionKey(anObject, anExtensionInterface), () ->
+                        extensionNoCache(anObject, aMissingMethodsHandler, anExtensionInterface, aSupplementaryInterfaces)) :
+                extensionNoCache(anObject, aMissingMethodsHandler, anExtensionInterface, aSupplementaryInterfaces);
     }
 
     @Override
@@ -548,7 +582,7 @@ public class DynamicClassExtension extends AbstractClassExtension {
         return result;
     }
 
-    <T> Object performOperation(DynamicClassExtension aClassExtension, Object anObject, Class<T> anExtensionInterface,
+    <T> Object performOperation(DynamicClassExtension aClassExtension, Object anObject, Function<Method, Object> aMissingMethodsHandler, Class<T> anExtensionInterface,
                                 Class<?>[] aSupplementaryInterfaces, Method method, Object[] args) throws InvocationTargetException, IllegalAccessException {
         Object result;
 
@@ -566,8 +600,8 @@ public class DynamicClassExtension extends AbstractClassExtension {
             result = performDynamicOperation(aClassExtension, anObject, anExtensionInterface, method, args, performerHolder);
         } else {
             if (anObject == null)
-                throw new NullPointerException(MessageFormat.format("There''s no ''{0}'' operation registered for ''null'' objects", method.getName()));
-            result = performStaticOperation(aClassExtension, anObject, anExtensionInterface, method, args);
+                throw new NullPointerException(format("There''s no ''{0}'' operation registered for ''null'' objects", method.getName()));
+            result = performStaticOperation(aClassExtension, anObject, anExtensionInterface, aMissingMethodsHandler, method, args);
         }
 
         return result;
@@ -614,7 +648,7 @@ public class DynamicClassExtension extends AbstractClassExtension {
         return result;
     }
 
-    private static <T> Object performStaticOperation(DynamicClassExtension aClassExtension, Object anObject, Class<T> anExtensionClass, Method method, Object[] args) throws IllegalAccessException, InvocationTargetException {
+    private static <T> Object performStaticOperation(DynamicClassExtension aClassExtension, Object anObject, Class<T> anExtensionClass, Function<Method, Object> aMissingMethodsHandler, Method method, Object[] args) throws IllegalAccessException, InvocationTargetException {
         Object result;
 
         Pointcut aroundPointcut = null;
@@ -658,8 +692,11 @@ public class DynamicClassExtension extends AbstractClassExtension {
         } else if (method.getDeclaringClass().isAssignableFrom(PrivateDelegateHolder.class)) {
             result = method.invoke((PrivateDelegateHolder)() -> anObject, args);
         } else {
-            throw new IllegalArgumentException(format("No \"{0}\" operation for \"{1}\"",
-                    displayOperationName(method.getName(), void.class.equals(method.getReturnType()), args), anObject));
+            if (aMissingMethodsHandler != null && method.isAnnotationPresent(OptionalMethod.class))
+                result = aMissingMethodsHandler.apply(method);
+            else
+                throw new IllegalArgumentException(format("No \"{0}\" operation for \"{1}\"",
+                        displayOperationName(method.getName(), void.class.equals(method.getReturnType()), args), anObject));
         }
 
         return classExtensionForOperationResult(aClassExtension, method, result);
@@ -719,26 +756,47 @@ public class DynamicClassExtension extends AbstractClassExtension {
     }
 
     /**
-     * Checks if there is a valid extension defined for a passed object.An extension is considered valid if all its
+     * Checks if there is a valid extension defined for a passed object. An extension is considered valid if all its
      * methods meet one of the following criteria:
      * <ol>
-     * <li>Annotated by {@code @OptionalMethod}</li>
+     * <li>Annotated by {@code @OptionalMethod} (conditional check)</li>
      * <li>Correspond to registered operations</li>
      * <li>Match suitable methods in the {@code aClass} class</li>
      * </ol>
-     *
+     * <p>
      * This validation ensures that every method in the extension can be properly mapped and executed, maintaining
      * consistency between the extension interface and the underlying implementation.
      *
-     * @param aClass         object to check an extension for
+     * @param aClass               object to check an extension for
      * @param anExtensionInterface interface of extension
      * @throws IllegalArgumentException if an extension is invalid
      */
     public <T> void checkValid(Class<?> aClass, Class<T> anExtensionInterface) {
+        checkValid(aClass, anExtensionInterface, true);
+    }
+
+    /**
+     * Checks if there is a valid extension defined for a passed object. An extension is considered valid if all its
+     * methods meet one of the following criteria:
+     * <ol>
+     * <li>Annotated by {@code @OptionalMethod} (conditional check)</li>
+     * <li>Correspond to registered operations</li>
+     * <li>Match suitable methods in the {@code aClass} class</li>
+     * </ol>
+     * <p>
+     * This validation ensures that every method in the extension can be properly mapped and executed, maintaining
+     * consistency between the extension interface and the underlying implementation.
+     *
+     * @param aClass                  object to check an extension for
+     * @param anExtensionInterface    interface of extension
+     * @param isIgnoreOptionalMethods if {@code true}, methods annotated with {@code @OptionalMethod} will be ignored when listing undefined operations
+     * @throws IllegalArgumentException if an extension is invalid
+     */
+    public <T> void checkValid(Class<?> aClass, Class<T> anExtensionInterface, boolean isIgnoreOptionalMethods) {
         Objects.requireNonNull(aClass);
         Objects.requireNonNull(anExtensionInterface);
 
-        List<String> undefinedOperations = listUndefinedOperations(aClass, anExtensionInterface);
+        List<String> undefinedOperations = listUndefinedOperations(aClass, anExtensionInterface, true);
         if (! undefinedOperations.isEmpty())
             throw new IllegalArgumentException(format("No \"{0}\" operation for {1} in \"{2}\" extension",
                     undefinedOperations.getFirst(),
@@ -747,25 +805,26 @@ public class DynamicClassExtension extends AbstractClassExtension {
     }
 
     /**
-     * Lists all undefined operations. An operation is considered undefined if it is not annotated by {@code @OptionalMethod}
-     * and meets one of the following criteria:
+     * Lists all undefined operations. An operation is considered undefined if it is conditionally not annotated by
+     * {@code @OptionalMethod} and meets one of the following criteria:
      * <ol>
      * <li>Not correspond to a registered operation</li>
      * <li>Do not match to a suitable method in the {@code aClass} class</li>
      * </ol>
      *
-     * @param aClass         object to check an extension for
-     * @param anExtensionInterface interface of extension
+     * @param aClass                  object to check an extension for
+     * @param anExtensionInterface    interface of extension
+     * @param isIgnoreOptionalMethods if {@code true}, methods annotated with {@code @OptionalMethod} will be ignored when listing undefined operations
      * @return a list of all undefined operations
      */
-    public <T> List<String> listUndefinedOperations(Class<?> aClass, Class<T> anExtensionInterface) {
+    public <T> List<String> listUndefinedOperations(Class<?> aClass, Class<T> anExtensionInterface, boolean isIgnoreOptionalMethods) {
         Objects.requireNonNull(aClass);
         Objects.requireNonNull(anExtensionInterface);
 
         List<String> result = new ArrayList<>();
 
         for (Method method : anExtensionInterface.getMethods()) {
-            if (method.isAnnotationPresent(OptionalMethod.class))
+            if (isIgnoreOptionalMethods && method.isAnnotationPresent(OptionalMethod.class))
                 continue;
             ExtensionOperationResult extensionOperation = findExtensionOperation(aClass, anExtensionInterface, method, method.getParameterTypes());
             PerformerHolder<?> operation = extensionOperation.operation;
@@ -801,7 +860,7 @@ public class DynamicClassExtension extends AbstractClassExtension {
      * @param aParameterTypes  parameter types of an operation to check
      * @throws IllegalArgumentException if an extension is invalid
      */
-    public boolean isPresent(Class<?> anObjectClass, Class<?> anExtensionClass, String anOperation, Class<?>[] aParameterTypes) {
+    public boolean isPresentOperation(Class<?> anObjectClass, Class<?> anExtensionClass, String anOperation, Class<?>[] aParameterTypes) {
         Objects.requireNonNull(anOperation);
         Objects.requireNonNull(anObjectClass);
         Objects.requireNonNull(anExtensionClass);
@@ -875,6 +934,9 @@ public class DynamicClassExtension extends AbstractClassExtension {
         return result;
     }
 
+    public static String parameterTypesAsString(Object[] anArgs) {
+        return Arrays.stream(DynamicClassExtension.parameterTypes(anArgs)).map(Class::getSimpleName).collect(Collectors.joining(", "));
+    }
 
     static String operationName(String anOperationName, Class<?>[] aParameterTypes) {
         return aParameterTypes == null || aParameterTypes.length == 0 ? anOperationName : anOperationName + SUFFIX_BI;
@@ -1131,7 +1193,7 @@ public class DynamicClassExtension extends AbstractClassExtension {
          */
         @SuppressWarnings("unchecked")
         @Deprecated
-        private <R, T1, U> Builder<E> defaultOperations(Class<T1> anObjectClass) {
+        private <R, T1> Builder<E> defaultOperations(Class<T1> anObjectClass) {
             dynamicClassExtension.addExtensionOperation(anObjectClass, extensionInterface,
                     operationName, (object, arg) -> (R) performOperation(operationName, object, arg));
             dynamicClassExtension.addExtensionOperation(anObjectClass, extensionInterface,
@@ -1309,24 +1371,32 @@ public class DynamicClassExtension extends AbstractClassExtension {
     }
 
     /**
-     * Returns an extension (wrapper) for a lambda function that associates a custom description with it. Lambda functions
-     * in Java cannot customize their {@code toString()} method output, which can be inconvenient for debugging. This
-     * method allows specifying a textual description that will be returned by the {@code toString()} method of the
-     * wrapper.
+     * Returns an extension (wrapper) for a lambda function that associates a custom description with it. Lambda
+     * functions in Java cannot customize their {@code toString()} method output, which can be inconvenient for
+     * debugging. This method allows specifying a textual description that will be returned by the {@code toString()}
+     * method of the wrapper.
      *
-     * @param aLambdaFunction      lambda function
-     * @param aFunctionalInterface functional interface of lambda function
-     * @param aDescription         description to be returned by {@code toString()}
+     * @param aLambdaFunction lambda function
+     * @param aDescription    description to be returned by {@code toString()}
      * @return lambda function associated with the description
      */
-    public static <T> T lambdaWithDescription(Object aLambdaFunction, Class<T> aFunctionalInterface, String aDescription) {
+    public static <T> T lambdaWithDescription(Object aLambdaFunction, String aDescription) {
+        Objects.requireNonNull(aLambdaFunction);
+        Objects.requireNonNull(aDescription, "Description is not specified");
+
+        Class<?>[] interfaces = aLambdaFunction.getClass().getInterfaces();
+        if (interfaces.length != 1)
+            throw new IllegalArgumentException("Lambda function must represent exactly one interface");
+        Class<?> functionalInterface = interfaces[0];
+
         DynamicClassExtension dynamicClassExtension = new DynamicClassExtension().
-                builder(aFunctionalInterface).
+                builder(functionalInterface).
                 operationName("toString").
                 operation(Object.class, o -> aDescription).
                 build();
         dynamicClassExtension.setCacheEnabled(false);
-        return dynamicClassExtension.extension(aLambdaFunction, aFunctionalInterface);
+        //noinspection unchecked
+        return (T) dynamicClassExtension.extension(aLambdaFunction, functionalInterface);
     }
 
     /**
@@ -1339,22 +1409,29 @@ public class DynamicClassExtension extends AbstractClassExtension {
      * </ul>
      *
      * @param aLambdaFunction      lambda function
-     * @param aFunctionalInterface functional interface of lambda function
-     * @param aDescription         description to be returned by {@code toString()}
+     * @param aDescription         optional description to be returned by {@code toString()}
      * @param anID                 an identity that will be used to calculate {@code hashCode} and to determine equality using the {@code equals} method
      * @return lambda function associated with the description snd the identity
      */
 
-    public static <T> T lambdaWithDescriptionAndID(Object aLambdaFunction, Class<T> aFunctionalInterface, String aDescription, Object anID) {
+    public static <T> T lambdaWithDescriptionAndID(Object aLambdaFunction, String aDescription, Object anID) {
+        Objects.requireNonNull(aLambdaFunction);
+        Objects.requireNonNull(anID, "Identity is not specified");
+
+        Class<?>[] interfaces = aLambdaFunction.getClass().getInterfaces();
+        if (interfaces.length != 1)
+            throw new IllegalArgumentException("Lambda function must represent exactly one interface");
+        Class<?> functionalInterface = interfaces[0];
+
         final DynamicClassExtension dynamicClassExtension = new DynamicClassExtension();
         dynamicClassExtension.
-                builder(aFunctionalInterface).
+                builder(functionalInterface).
                 operationName("toString").
-                operation(Object.class, o -> aDescription).
+                operation(Object.class, o -> aDescription != null ? aDescription : aLambdaFunction.toString()).
                 operationName("hashCode").
                 operation(Object.class, o -> anID.hashCode()).
                 operationName("equals").
-                operation(Object.class, (Object o1, Object o2) -> dynamicClassExtension.extension(o1, aFunctionalInterface, IdentityHolder.class) instanceof IdentityHolder id1 &&
+                operation(Object.class, (Object o1, Object o2) -> dynamicClassExtension.extension(o1, functionalInterface, IdentityHolder.class) instanceof IdentityHolder id1 &&
                             o2 instanceof IdentityHolder id2 &&
                             Objects.equals(id1.getID(), id2.getID())).
                 build().builder(IdentityHolder.class).
@@ -1362,7 +1439,29 @@ public class DynamicClassExtension extends AbstractClassExtension {
                 operation(Object.class, o -> anID).
                 build();
         dynamicClassExtension.setCacheEnabled(false);
-        return dynamicClassExtension.extension(aLambdaFunction, aFunctionalInterface, IdentityHolder.class);
+        //noinspection unchecked
+        return (T) dynamicClassExtension.extension(aLambdaFunction, functionalInterface, IdentityHolder.class);
+    }
+
+    private class ExtensionInvocationHandler<T> implements InvocationHandler {
+        private final Object object;
+        private final Function<Method, Object> missingMethodsHandler;
+        private final Class<T> extensionInterface;
+        private final Class<?>[] supplementaryInterfaces;
+
+        public ExtensionInvocationHandler(Object anObject, Function<Method, Object> aMissingMethodsHandler, Class<T> anExtensionInterface, Class<?>... aSupplementaryInterfaces) {
+            object = anObject;
+            missingMethodsHandler = aMissingMethodsHandler;
+            extensionInterface = anExtensionInterface;
+            supplementaryInterfaces = aSupplementaryInterfaces;
+        }
+
+        @Override
+        public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
+            return DynamicClassExtension.this.performOperation(DynamicClassExtension.this, object,
+                    missingMethodsHandler, extensionInterface, supplementaryInterfaces,
+                    method, args);
+        }
     }
 }
 

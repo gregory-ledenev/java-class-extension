@@ -152,4 +152,8 @@ For example, if the `Toy` class does not have an explicit `Shippable` extension,
 #### Cashing
 Cashing of extension objects are supported out of the box, and it can be controlled via the `Classextension.cacheEnabled` property. It utilizes weak references to release extension objects that are not in use. Though, to perform full cleanup either the `cacheCleanup()` should be used or automatic cleanup can be initiated via the `scheduleCacheCleanup()`. If automatic cache cleanup is used - it can be stopped by calling the `shutdownCacheCleanup()`.
 
+If there is a need to explicitly get some non-cached extensions - use the `DynamicClassExtension.extensionNoCache(...)` method to get them.
+
+It is possible to explicitly define cache policy per each extension interface. It can be done using the `@ExtensionInterface` annotation amd specifying the `cachePolicy` field.
+
 Next >> [Dynamic Class Extensions](dynamic-class-extensions.md)

@@ -31,7 +31,7 @@ public ShippingInfo ship(Item item) {
     };
 }
 ```
-While this method is simple and direct, it comes with several disadvantages:
+While this method is straightforward and direct, it comes with several disadvantages:
 
 1. It bypasses polymorphism, opting instead for an outdated imitation of it.
 2. It violates SOLID principles, as introducing a new class (Item) requires modifications to existing code.
@@ -72,10 +72,11 @@ Class extensions (categories) are beneficial because they:
 4. Enable adding new features to existing types, including third-party or framework types.
 5. Facilitate better separation of concerns in complex applications.
 6. Improve code readability and maintainability.
+7. Allows adding aspects in addition to adding operations.
 
 These benefits lead to more flexible, maintainable, and efficient code structures. Unfortunately, Java does not natively support class extensions (categories) and there is a little chance such support is going to be introduced in the near future.
 
-Java Class Extension Library provides a valuable alternative for native class extensions with just a little more verbose code and little more complex implementation.
+Java Class Extension Library provides a valuable alternative for native class extensions with just a little more verbose code and a bit more complex implementation.
 
 The library leverages the `ClassExtension` interface, which facilitates querying for an extension based on an object's extension interface. Once obtained, these extensions unlock additional functionality with remarkable ease. For example, obtaining a `Shippable` extension and using its `ship()` method to perform shipping a book would look like:
 ```java
@@ -124,7 +125,7 @@ The library supports the following approaches:
 1. [Static Class Extensions](static-class-extensions.md): define and implement extensions as usual Java classes and then utilize the Java Class Extension library to find matching extension classes and create extension objects.
 2. [Dynamic Class Extensions](dynamic-class-extensions.md): utilize the Java Class Extension library to define extensions by composing them as sets of lambda operations and let the library create extensions dynamically on the fly.
 
-The choice between them ultimately depends on several factors like implementation details, performance, personal preferences, coding style, established habits and specific project requirements. Each approach has its strengths and weaknesses, and the best choice will depend on the particular context and needs of your project.
+The choice between them ultimately depends on several factors like implementation details, performance, personal preferences, coding style, established habits, and specific project requirements. Each approach has its strengths and weaknesses, and the best choice will depend on the particular context and needs of your project.
 
 Performance-wise, Dynamic Class Extensions are generally **slower** than Static Class Extensions. The difference can be ~30% for [Proxy](static-class-extensions.md#proxy) and ~100% for [Direct](static-class-extensions.md#direct) Static Class Extensions. So if performance is a major factor - you should consider using Direct Static Class Extensions.
 
@@ -146,16 +147,16 @@ While the Java Class Extension Library requires slightly more code and efforts t
    * No clashes with third-party libraries
    * Multiple extensions with identical names can coexist in different places or packages
 4. AOP Aspects Support
-   * Ability to specify some actions should be applied before, after or around some operations.
+   * Ability to specify some actions should be applied before, after, or around some operations.
    * Good for logging and tracing, security, caching, retrying etc.
 
 These features provide greater flexibility and power, allowing for more sophisticated and maintainable code structures compared to native class extensions in many other languages.
 
-#### Obtaining Class Extensions
+#### Getting Class Extensions
 It is possible to use either shared or dedicated class extensions.
 
-##### Utilizing Shared Extensions
-In most cases, shared extensions should be used for optimal performance, shared cache and consistency:
+##### Using Shared Extensions
+In most cases, shared extensions should be used for optimal performance, shared cache, and consistency:
 1. Via factory methods:
    * `DynamicClassExtension.sharedExtension()`
    * `StaticClassExtension.sharedExtension()`
@@ -166,7 +167,7 @@ In most cases, shared extensions should be used for optimal performance, shared 
 
 3. Through the unified `ClassExtension.sharedExtension()` factory method that creates either dynamic or static extensions based on the `@ExtensionInterface` annotation of the extension interface.
 
-#### Custom Instances
+#### Utilizing Custom Instances
 For scenarios requiring more flexibility or context-specific implementations:
 * Explicitly create and use dedicated `ClassExtension` instances.
 * This allows for different sets of implementations and rules across various contexts.

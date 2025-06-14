@@ -6,7 +6,7 @@ The library provides lots of ready-to-use utility methods that may simplify vari
 There is a `DynamicClassExtension.lambdaWithDescription` utility method that returns an extension (wrapper) for a lambda function that associates a custom description with it. Lambda functions in Java cannot customize their `toString()` method output, which can be inconvenient for debugging. This method allows specifying a textual description that will be returned by the `toString()` method of the wrapper.
 ```java
 final String description = "Some description for Runnable";
-Runnable extension = lambdaWithDescription((Runnable) () -> {}, Runnable.class, description);
+Runnable extension = DynamicClassExtension.lambdaWithDescription((Runnable) () -> {}, Runnable.class, description);
 out.println(extension.toString());
 assertEquals(description, extension.toString());
 ```

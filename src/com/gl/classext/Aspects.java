@@ -3,7 +3,9 @@ package com.gl.classext;
 import java.beans.PropertyChangeEvent;
 import java.beans.PropertyChangeListener;
 import java.lang.reflect.Method;
+import java.time.Duration;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.BiPredicate;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
@@ -34,6 +36,7 @@ public class Aspects {
     public interface Advice {
         /**
          * Returns {@code AdviceType} for this advice
+         *
          * @return an {@code AdviceType}
          */
         default AdviceType getAdviceType() {
@@ -97,8 +100,8 @@ public class Aspects {
          * operation. Use the {@code applyDefault} method to perform standard handling.
          *
          * @param performer performer object that is responsible for actual operation performing.  It is intentionally
-         *                  passed as an {@code Object} to avoid its altering or hacking somehow because it must be passed
-         *                  further to the {@code applyDefault} "as is".
+         *                  passed as an {@code Object} to avoid its altering or hacking somehow because it must be
+         *                  passed further to the {@code applyDefault} "as is".
          * @param operation the operation to be performed
          * @param object    object to perform the operation for
          * @param args      arguments for the operation
@@ -115,10 +118,10 @@ public class Aspects {
 
         /**
          * Performs default handling of an operation. An around lambda function should call this method to allow default
-         * handling of an operation e.g. calling an underlying method, performing a dynamic operation or transferring control to the
-         * next around advice in the chain. Generally, this method should be called only once inside an around lambda
-         * function to avoid side effects. Though some advice implementation like {@code RetryAdvice} may call the
-         * {@code applyDefault()} several times in attempts to recover after some failure.
+         * handling of an operation e.g. calling an underlying method, performing a dynamic operation, or transferring
+         * control to the next around advice in the chain. Generally, this method should be called only once inside an
+         * around lambda function to avoid side effects. Though some advice implementation like {@code RetryAdvice} may
+         * call the {@code applyDefault()} several times in attempts to recover after some failure.
          * <pre><code>
          * DynamicClassExtension dynamicClassExtension = new DynamicClassExtension().
          *     aspectBuilder().
@@ -150,7 +153,9 @@ public class Aspects {
 
     protected interface Pointcut {
         void before(String anOperation, Object anObject, Object[] anArguments);
+
         void after(Object aResult, String anOperation, Object anObject, Object[] anArguments);
+
         Object around(Object aPerformer, String anOperation, Object anObject, Object[] anArguments);
 
         default Predicate<Class<?>> getObjectClass() {
@@ -187,7 +192,7 @@ public class Aspects {
             return anIndex == pointcuts.size() - 1 ?
                     aPerformer :
                     (Performer<Object>) (operation1, object1, args1) ->
-                            pointcuts.get(anIndex + 1).around(getChainedPerformer(anIndex+1, aPerformer, anOperation, anObject, anArguments), operation1, object1, args1);
+                            pointcuts.get(anIndex + 1).around(getChainedPerformer(anIndex + 1, aPerformer, anOperation, anObject, anArguments), operation1, object1, args1);
         }
 
         @Override
@@ -205,6 +210,7 @@ public class Aspects {
             }
         }
     }
+
     protected static class SinglePointcut implements Pointcut {
         private final Predicate<Class<?>> extensionInterface;
 
@@ -215,6 +221,7 @@ public class Aspects {
         private final Object advice;
         private boolean enabled = true;
         private Object id;
+
         public SinglePointcut(Predicate<Class<?>> anExtensionInterface,
                               Predicate<Class<?>> anObjectClass,
                               BiPredicate<String, Class<?>[]> anOperation,
@@ -337,6 +344,7 @@ public class Aspects {
 
     /**
      * Builder that allows adding Aspects to the operations
+     *
      * @param <T>
      */
     public static class AspectBuilder<T extends AbstractClassExtension> {
@@ -444,6 +452,7 @@ public class Aspects {
 
         /**
          * Creates a new instance of {@code AspectBuilder} and supplies a {@code ClassExtension} to build Aspects for
+         *
          * @param aClassExtension a {@code ClassExtension} to build Aspects for
          */
         public AspectBuilder(T aClassExtension) {
@@ -452,6 +461,7 @@ public class Aspects {
 
         /**
          * Optional terminal operation that simply returns a {@code ClassExtension}
+         *
          * @return a {@code ClassExtension} to build Aspects for
          */
         public T build() {
@@ -474,6 +484,7 @@ public class Aspects {
 
         /**
          * Specifies extension interfaces the Aspects should be added fpr
+         *
          * @param anExtensionInterfaces extension interfaces
          * @return this Builder
          */
@@ -530,7 +541,7 @@ public class Aspects {
             boolean result = false;
             if ("*".equals(anOperation) || operationParameters.length == aParameterTypes.length) {
                 result = operationParameters.length == 0;
-                for (int i = 0; i < operationParameters.length && ! result; i++)
+                for (int i = 0; i < operationParameters.length && !result; i++)
                     result = matches(operationParameters[i], aParameterTypes[i].getName()) ||
                             matches(operationParameters[i], aParameterTypes[i].getSimpleName());
             }
@@ -561,8 +572,9 @@ public class Aspects {
         }
 
         /**
-         * Adds a {@code AspectType.BEFORE} advice for a previously specified combination of extension interface(s), object
-         * class(es) and operation(s)
+         * Adds a {@code AspectType.BEFORE} advice for a previously specified combination of extension interface(s),
+         * object class(es) and operation(s)
+         *
          * @param aBefore advice to be added
          * @return this Builder
          */
@@ -586,8 +598,9 @@ public class Aspects {
         }
 
         /**
-         * Adds a {@code AspectType.AFTER} advice for a previously specified combination of extension interface(s), object
-         * class(es) and operation(s)
+         * Adds a {@code AspectType.AFTER} advice for a previously specified combination of extension interface(s),
+         * object class(es) and operation(s)
+         *
          * @param anAfter advice to be added
          * @return this Builder
          */
@@ -611,8 +624,9 @@ public class Aspects {
         }
 
         /**
-         * Adds a {@code AspectType.AROUND} advice for a previously specified combination of extension interface(s), object
-         * class(es) and operation(s)
+         * Adds a {@code AspectType.AROUND} advice for a previously specified combination of extension interface(s),
+         * object class(es) and operation(s)
+         *
          * @param anAround advice to be added
          * @return this Builder
          */
@@ -636,8 +650,8 @@ public class Aspects {
         }
 
         /**
-         * Adds several advices for a previously specified combination of extension interface(s),
-         * object class(es) and operation(s)
+         * Adds several advices for a previously specified combination of extension interface(s), object class(es) and
+         * operation(s)
          *
          * @param anAdvicesSupplier a supplier function called to add several advices at once
          * @return this Builder
@@ -650,8 +664,8 @@ public class Aspects {
         }
 
         /**
-         * Adds several advices for a previously specified combination of extension interface(s),
-         * object class(es) and operation(s)
+         * Adds several advices for a previously specified combination of extension interface(s), object class(es) and
+         * operation(s)
          *
          * @param anAdvices advices to add
          * @return this Builder
@@ -668,8 +682,9 @@ public class Aspects {
         }
 
         /**
-         * Removes advice(s) for a previously specified combination of extension interface(s), object
-         * class(es) and operation(s)
+         * Removes advice(s) for a previously specified combination of extension interface(s), object class(es) and
+         * operation(s)
+         *
          * @param anAdvices advices to be removed
          * @return this Builder
          */
@@ -693,8 +708,9 @@ public class Aspects {
         }
 
         /**
-         * Enables advice(s) for a previously specified combination of extension interface(s), object
-         * class(es) and operation(s)
+         * Enables advice(s) for a previously specified combination of extension interface(s), object class(es) and
+         * operation(s)
+         *
          * @param isEnabled enabled value
          * @param anAdvices advices to be enabled
          * @return this Builder
@@ -747,6 +763,7 @@ public class Aspects {
 
         /**
          * Creates a new instance of {@code LogBeforeAdvice} and supplies a {@code Logger} to it
+         *
          * @param aLogger logger
          */
         public LogBeforeAdvice(Logger aLogger) {
@@ -779,6 +796,7 @@ public class Aspects {
 
         /**
          * Creates a new instance of {@code LogAfterAdvice} and supplies a {@code Logger} to it
+         *
          * @param aLogger logger
          */
         public LogAfterAdvice(Logger aLogger) {
@@ -814,6 +832,7 @@ public class Aspects {
 
         /**
          * Creates a new instance of {@code LogPerformTimeAdvice} and supplies a {@code Logger} to it
+         *
          * @param aLogger logger
          */
         public LogPerformTimeAdvice(Logger aLogger) {
@@ -840,7 +859,7 @@ public class Aspects {
             long startTime = System.currentTimeMillis();
 
             Object result = AroundAdvice.applyDefault(performer, operation, object, args);
-            logger.info(format(loggerInfoPattern, operation, System.currentTimeMillis()-startTime));
+            logger.info(format(loggerInfoPattern, operation, System.currentTimeMillis() - startTime));
             return result;
         }
     }
@@ -851,6 +870,7 @@ public class Aspects {
     public static class PropertyChangeAdvice implements AroundAdvice {
         /**
          * Creates a new instance of {@code PropertyChangeAdvice} and supplies it with a {@code PropertyChangeListener}
+         *
          * @param aPropertyChangeListener property change listener
          */
         public PropertyChangeAdvice(PropertyChangeListener aPropertyChangeListener) {
@@ -908,7 +928,7 @@ public class Aspects {
 
             if (isProperty) {
                 Object newPropertyValue = getPropertyValue(object, propertyName, args[0]);
-                if (! Objects.equals(oldPropertyValue, newPropertyValue))
+                if (!Objects.equals(oldPropertyValue, newPropertyValue))
                     propertyChangeListener.propertyChange(new PropertyChangeEvent(this,
                             propertyName.substring(0, 1).toLowerCase() + propertyName.substring(1),
                             oldPropertyValue,
@@ -922,8 +942,8 @@ public class Aspects {
     /**
      * Advice (around) that automatically retries failed operations. Executes the operation multiple times upon
      * exception, up to a specified retry limit, before propagating the final failure. Default policy is "retry after
-     * any exception" but it is possible to fine tune that behaviour to provide {@code resultChecker} that allows
-     * checking whether results ot exceptions are errors that can be recovered by retrying the operation.
+     * any exception" but it is possible to fine-tune that behavior to provide {@code resultChecker} that allows
+     * checking whether results of exceptions are errors that can be recovered by retrying the operation.
      */
     public static class RetryAdvice implements AroundAdvice {
         private final int retryCount;
@@ -932,7 +952,7 @@ public class Aspects {
         private final BiPredicate<Object, Throwable> resultChecker;
 
         /**
-         * Creates new advice with 500ms sleep time, no logger and no result checker
+         * Creates new advice with 500ms sleep time, no logger, and no result checker
          *
          * @param aRetryCount retry count
          */
@@ -988,11 +1008,11 @@ public class Aspects {
                 } catch (Throwable ex) {
                     resultEx = new RuntimeException(ex);
                     if (logger != null)
-                        logger.log(Level.SEVERE, "Failed operation: " + operation,  ex);
+                        logger.log(Level.SEVERE, "Failed operation: " + operation, ex);
                     if (resultChecker != null && resultChecker.test(null, ex))
                         break; // exception is not recoverable - return
                 }
-                if (i < retryCount -1 && sleepTime > 0) {
+                if (i < retryCount - 1 && sleepTime > 0) {
                     try {
                         if (logger != null)
                             logger.info("Sleeping for: " + sleepTime);
@@ -1014,6 +1034,7 @@ public class Aspects {
     /**
      * Utility method that returns an extension with added performance logging for all operations. Note: returned
      * extensions will not be cached.
+     *
      * @param anObject             object to return an extension object for
      * @param anExtensionInterface interface of extension object to be returned
      * @return an extension object
@@ -1021,10 +1042,10 @@ public class Aspects {
     public static <T> T logPerformanceExtension(Object anObject, Class<T> anExtensionInterface) {
         DynamicClassExtension dynamicClassExtension = new DynamicClassExtension().
                 aspectBuilder().
-                    objectClass("*").
-                    extensionInterface("*").
-                    operation("*").
-                        around(new LogPerformTimeAdvice()).
+                objectClass("*").
+                extensionInterface("*").
+                operation("*").
+                around(new LogPerformTimeAdvice()).
                 build();
         dynamicClassExtension.setCacheEnabled(false);
         return dynamicClassExtension.extension(anObject, anExtensionInterface);
@@ -1033,6 +1054,7 @@ public class Aspects {
     /**
      * Utility method that returns an extension with logging added before and after all the operations. Note: returned
      * extensions will not be cached.
+     *
      * @param anObject             object to return an extension object for
      * @param anExtensionInterface interface of extension object to be returned
      * @return an extension object
@@ -1040,11 +1062,11 @@ public class Aspects {
     public static <T> T logBeforeAndAfterExtension(Object anObject, Class<T> anExtensionInterface) {
         DynamicClassExtension dynamicClassExtension = new DynamicClassExtension().
                 aspectBuilder().
-                    objectClass("*").
-                    extensionInterface("*").
-                    operation("*").
-                        before(new LogBeforeAdvice()).
-                        after(new LogAfterAdvice()).
+                objectClass("*").
+                extensionInterface("*").
+                operation("*").
+                before(new LogBeforeAdvice()).
+                after(new LogAfterAdvice()).
                 build();
         dynamicClassExtension.setCacheEnabled(false);
         return dynamicClassExtension.extension(anObject, anExtensionInterface);
@@ -1052,7 +1074,7 @@ public class Aspects {
 
 
     /**
-     * Utility method that returns an extension with added ability to listen for property changes. Note: returned
+     * Utility method that returns an extension with the added ability to listen for property changes. Note: returned
      * extensions will not be cached.
      *
      * @param anObject                object to return an extension object for
@@ -1073,8 +1095,8 @@ public class Aspects {
     }
 
     /**
-     * A record that holds all the operation perform arguments. This record should be used by underlying cache implementation
-     * to compose actual keys for cached values.
+     * A record that holds all the operation perform arguments. This record should be used by underlying cache
+     * implementation to compose actual keys for cached values.
      *
      * @param operation operation
      * @param object    an object to perform the operation for
@@ -1152,12 +1174,14 @@ public class Aspects {
 
         /**
          * Creates a new {@code ReadOnlyCollectionOrMapAdvice} instance
-          */
+         */
         public ReadOnlyCollectionOrMapAdvice() {
             logger = null;
         }
+
         /**
          * Creates a new {@code ReadOnlyCollectionOrMapAdvice} instance with a Logger
+         *
          * @param aLogger logger
          */
         public ReadOnlyCollectionOrMapAdvice(Logger aLogger) {
@@ -1184,6 +1208,323 @@ public class Aspects {
                 logger.severe("Result is not a Collection or Map: " + result);
 
             return result;
+        }
+    }
+
+    /**
+     * Advice (around) that allows catching all exceptions and return some value instead
+     */
+    public static class HandleThrowableAdvice<T> implements AroundAdvice {
+        private final Supplier<T> supplier;
+        private final Logger logger;
+
+        /**
+         * Creates a new {@code ReadOnlyCollectionOrMapAdvice} instance
+         */
+        public HandleThrowableAdvice(Supplier<T> aSupplier) {
+            this(aSupplier, null);
+        }
+
+        /**
+         * Creates a new {@code ReadOnlyCollectionOrMapAdvice} instance with a supplier and a Logger
+         *
+         * @param aSupplier supplier that provides a value to be returned when some exception occurs
+         * @param aLogger   logger
+         */
+        public HandleThrowableAdvice(Supplier<T> aSupplier, Logger aLogger) {
+            Objects.requireNonNull(aSupplier, "Supplier is not specified");
+            supplier = aSupplier;
+            logger = aLogger;
+        }
+
+        /**
+         * {@inheritDoc}
+         */
+        @Override
+        public Object apply(Object performer, String operation, Object object, Object[] args) {
+            Object result = null;
+            try {
+                result = AroundAdvice.applyDefault(performer, operation, object, args);
+            } catch (Throwable aThrowable) {
+                result = supplier.get();
+                if (logger != null)
+                    logger.log(Level.SEVERE, "Exception occurred: " + aThrowable, aThrowable);
+            }
+
+            return result;
+        }
+    }
+
+    /**
+     * Advice (around) that adds a circuit breaker to an operation
+     */
+    public static class CircuitBreakerAdvice implements AroundAdvice {
+        private final CircuitBreaker circuitBreaker;
+        private final Logger logger;
+
+        /**
+         * Constructs an instance of CircuitBreakerAdvice with no logger.
+         *
+         * @param aFailureThreshold the number of allowed consecutive failures before the circuit breaker is opened
+         * @param aTimeout          the duration for which the circuit breaker remains open after reaching the failure
+         *                          threshold
+         */
+        public CircuitBreakerAdvice(int aFailureThreshold, Duration aTimeout) {
+            this(aFailureThreshold, aTimeout, null);
+        }
+
+        /**
+         * Constructs an instance of CircuitBreakerAdvice.
+         *
+         * @param aFailureThreshold the number of allowed consecutive failures before the circuit breaker is opened
+         * @param aTimeout          the duration for which the circuit breaker remains open after reaching the failure
+         *                          threshold
+         * @param aLogger           the logger instance used to log exception information; can be null
+         */
+        public CircuitBreakerAdvice(int aFailureThreshold, Duration aTimeout, Logger aLogger) {
+            circuitBreaker = new CircuitBreaker(aFailureThreshold, aTimeout);
+            logger = aLogger;
+        }
+
+        /**
+         * {@inheritDoc}
+         */
+        @Override
+        public Object apply(Object performer, String operation, Object object, Object[] args) {
+            try {
+                return circuitBreaker.execute(() -> AroundAdvice.applyDefault(performer, operation, object, args));
+            } catch (Exception ex) {
+                if (logger != null)
+                    logger.log(Level.SEVERE, "Exception occurred: " + ex, ex);
+                throw new RuntimeException(ex);
+            }
+        }
+    }
+
+    /**
+     * Advice (around) that allows rate limiting for operations
+     */
+    public static class RateLimitedAdvice implements AroundAdvice {
+        private final Logger logger;
+        private final long maxTokens;
+        private final long refillIntervalMillis;
+        private final AtomicLong availableTokens = new AtomicLong(0);
+        private volatile long lastRefillTimestamp;
+
+        /**
+         * Creates a RateLimitedAdvice. For example, {@code new RateLimitedAdvice(5, new Duration(1))} creates a
+         * rate-limited advice that ensures an operation can be executed at most 5 times per second.
+         *
+         * @param maxTokens      the maximum number of tokens the bucket can hold (rate limit)
+         * @param refillInterval the interval at which tokens are added to the bucket
+         */
+        public RateLimitedAdvice(long maxTokens, Duration refillInterval) {
+            this(maxTokens, refillInterval, null);
+        }
+
+        /**
+         * Creates a RateLimitedAdvice. For example, {@code new RateLimitedAdvice(5, new Duration(1), null)} creates a
+         * rate-limited advice that ensures an operation can be executed at most 5 times per second.
+         *
+         * @param maxTokens      the maximum number of tokens the bucket can hold (rate limit)
+         * @param refillInterval the interval at which tokens are added to the bucket
+         * @param logger         optional logger
+         */
+        public RateLimitedAdvice(long maxTokens, Duration refillInterval, Logger logger) {
+            if (maxTokens <= 0 || refillInterval.isNegative() || refillInterval.isZero()) {
+                throw new IllegalArgumentException("Invalid rate-limiting parameters.");
+            }
+            this.maxTokens = maxTokens;
+            this.refillIntervalMillis = refillInterval.toMillis();
+            this.logger = logger;
+            this.availableTokens.set(maxTokens);
+            this.lastRefillTimestamp = System.currentTimeMillis();
+        }
+
+        private void refillTokens() {
+            long now = System.currentTimeMillis();
+            long elapsedTime = now - lastRefillTimestamp;
+
+            if (elapsedTime >= refillIntervalMillis) {
+                long tokensToAdd = Math.max(0, elapsedTime / refillIntervalMillis) * maxTokens;
+                availableTokens.addAndGet(tokensToAdd);
+                availableTokens.updateAndGet(current -> Math.min(current, maxTokens));
+                lastRefillTimestamp = now;
+            }
+        }
+
+        /**
+         * {@inheritDoc}
+         */
+        @Override
+        public Object apply(Object performer, String operation, Object object, Object[] args)
+                throws RateLimitedAdviceException {
+            refillTokens();
+
+            if (availableTokens.get() > 0) {
+                availableTokens.decrementAndGet();
+                if (logger != null)
+                    logger.info(String.format("Rate limited advice invoked for operation: %s(%s)",
+                            operation, DynamicClassExtension.parameterTypesAsString(args)));
+                return AroundAdvice.applyDefault(performer, operation, object, args);
+            } else {
+                String message = String.format("Rate limit exceeded for operation: %s(%s) (%d per %d ms.)",
+                        operation, DynamicClassExtension.parameterTypesAsString(args),
+                        maxTokens, refillIntervalMillis);
+                if (logger != null)
+                    logger.warning(message);
+                throw new RateLimitedAdviceException(message);
+            }
+        }
+    }
+
+    /**
+     * Exception thrown in the context of rate-limited advice interception. This exception is typically used to signal
+     * constraints or violations related to rate-limiting during method interception or advisory execution.
+     */
+    public static class RateLimitedAdviceException extends IllegalStateException {
+        public RateLimitedAdviceException(String message) {
+            super(message);
+        }
+    }
+
+    /**
+     * Represents a handler for managing quotas on operations. This interface defines methods
+     * to retrieve available quota, decrease quota based on usage, and calculate costs associated
+     * with operations and their results. Note: implementation of the interface must take care of proper synchronization
+     * when getting and updating quota
+     */
+    public interface QuotaHandler {
+        /**
+         * Retrieves the available quota for a specified operation and context.
+         *
+         * @param anOperation the name of the operation for which the quota is being retrieved
+         * @param anObject the object associated with the operation
+         * @param anArgs arguments related to the operation
+         * @return the remaining quota as a long value
+         */
+        long getQuota(String anOperation, Object anObject, Object[] anArgs);
+        /**
+         * Decreases the available quota for a specific operation.
+         *
+         * @param anAmount   the amount by which the quota should be decreased
+         * @param anOperation  the name of the operation for which the quota is being reduced
+         * @param anObject     the object related to the operation
+         * @param anArgs       the arguments associated with the operation
+         */
+        void decreaseQuota(long anAmount, String anOperation, Object anObject, Object[] anArgs);
+        /**
+         * Calculates the cost associated with performing a specific operation.
+         *
+         * @param anOperation the name of the operation for which the cost is being calculated
+         * @param anObject the object involved in the operation
+         * @param anArgs the arguments related to the operation
+         * @return the calculated cost of the operation as a long value
+         */
+        long calculateOperationCost(String anOperation, Object anObject, Object[] anArgs);
+        /**
+         * Calculates the cost associated with a given operation result based on the operation type,
+         * result object, relevant context object, and operation arguments (({@code 0} if left default)).
+         *
+         * @param anOperation the name of the operation being performed
+         * @param aResult   the result of the operation
+         * @param anObject    the context object relevant to the operation
+         * @param anArgs      the arguments with which the operation is executed
+         * @return the calculated cost of the operation result
+         */
+        default long calculateOperationResultCost(String anOperation, Object aResult, Object anObject, Object[] anArgs) {
+            return 0;
+        }
+    }
+
+    /**
+     * Represents a dynamic quota advice implementation that ensures quota constraints
+     * are adhered to when performing operations. The class acts as around advice
+     * that validates the available quota before allowing an operation to proceed.
+     * Post-operation, it verifies the result cost against the remaining quota
+     * and updates the quota appropriately. Runtime exceptions are thrown if the
+     * operation or result exceeds the allocated quota.
+     */
+    public static class DynamicQuotaAdvice implements AroundAdvice {
+
+        private final QuotaHandler quotaHandler;
+        private final Logger logger;
+
+        /**
+         * Creates a new instance of DynamicQuotaAdvice.
+         *
+         * @param quotaHandler The QuotaHandler to manage operation and result costs.
+         */
+        public DynamicQuotaAdvice(QuotaHandler quotaHandler) {
+            this(quotaHandler, null);
+        }
+
+        /**
+         * Creates a new instance of DynamicQuotaAdvice.
+         *
+         * @param quotaHandler The QuotaHandler to manage operation and result costs.
+         * @param logger       Optional Logger for logging purposes.
+         */
+        public DynamicQuotaAdvice(QuotaHandler quotaHandler, Logger logger) {
+            this.quotaHandler = quotaHandler;
+            this.logger = logger;
+        }
+
+        /**
+         * {@inheritDoc}
+         */
+        @Override
+        public Object apply(Object performer, String operation, Object object, Object[] args)
+                throws DynamicQuotaAdviceException {
+            long availableQuota = quotaHandler.getQuota(operation, object, args);
+
+            // calculate and check operation quota
+            long operationCost = quotaHandler.calculateOperationCost(operation, object, args);
+            checkQuota(operation, operationCost, availableQuota);
+
+            if (logger != null)
+                logger.info(String.format("Quota check passed for operation %s(%s). Operation cost: %d, Available quota: %d",
+                        operation, DynamicClassExtension.parameterTypesAsString(args), operationCost, availableQuota));
+
+            // perform operation
+            Object result = AroundAdvice.applyDefault(performer, operation, object, args);
+            quotaHandler.decreaseQuota(operationCost, operation, object, args);
+
+            // check result quota
+            long resultCost = quotaHandler.calculateOperationResultCost(operation, result, object, args);
+
+            if (availableQuota - operationCost- resultCost < 0) // rollback operation cost
+                quotaHandler.decreaseQuota(-operationCost, operation, object, args);
+            checkQuota(operation, resultCost, availableQuota - operationCost);
+            quotaHandler.decreaseQuota(resultCost, operation, object, args);
+
+            if (logger != null)
+                logger.info(String.format("Operation %s(%s) completed. Result cost: %d, Remaining quota: %d",
+                        operation, DynamicClassExtension.parameterTypesAsString(args),
+                        resultCost, availableQuota - operationCost - resultCost));
+
+            return result;
+        }
+
+        private void checkQuota(String operation, long cost, long availableQuota) {
+            if (cost > availableQuota) {
+                String message = String.format("Quota exceeded! Operation '%s' (cost: %d) cannot proceed. Available quota: %d",
+                        operation, cost, availableQuota);
+                if (logger != null)
+                    logger.warning(message);
+                throw new DynamicQuotaAdviceException(message);
+            }
+        }
+
+        /**
+         * Exception thrown to indicate specific advice related to dynamic quota management.
+         * This exception is used to signal issues or errors within the context of
+         * dynamic quota handling logic.
+         */
+        public static class DynamicQuotaAdviceException extends IllegalStateException {
+            public DynamicQuotaAdviceException(String message) {
+                super(message);
+            }
         }
     }
 }

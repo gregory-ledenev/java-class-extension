@@ -2,6 +2,9 @@ package com.gl.classext;
 
 import org.junit.jupiter.api.Test;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import static java.lang.System.out;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
@@ -72,10 +75,23 @@ public class UnionTest {
                 new AutoPart("Tire"),
         };
 
+        List<String> names = new ArrayList<>();
+        List<String> shippingInfos = new ArrayList<>();
+
         for (Object item : items) {
             Shippable extension = dynamicClassExtension.extension(item, Shippable.class);
-            out.println("Shipping: " + extension.name());
-            extension.ship();
+            names.add(extension.name());
+            shippingInfos.add(extension.ship().result);
         }
+        assertEquals("""
+                    The Mythical Man-Month book shipped
+                    Sofa furniture shipped
+                    Soundbar electronic item shipped
+                    Tire auto part shipped""", String.join("\n", shippingInfos));
+        assertEquals("""
+                    The Mythical Man-Month
+                    Sofa
+                    Soundbar
+                    Tire""", String.join("\n", names));
     }
 }

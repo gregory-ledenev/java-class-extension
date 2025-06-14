@@ -4,6 +4,7 @@ package com.gl.classext;
 import org.junit.jupiter.api.Test;
 
 import java.text.MessageFormat;
+import java.time.Duration;
 import java.util.*;
 import java.util.function.Supplier;
 import java.util.logging.*;
@@ -108,6 +109,7 @@ public class DynamicClassExtensionTest {
         float calculateShippingCost();
         @OptionalMethod
         float calculateShippingCost(String anInstructions);
+        String throwException();
     }
 
 
@@ -677,6 +679,27 @@ public class DynamicClassExtensionTest {
         assertSame(extension, dynamicClassExtension.extension(book, Item_Shippable.class));
     }
 
+    @ExtensionInterface(cachePolicy = ClassExtension.CachePolicy.DISABLED)
+    interface NonCachedItem_Shippable extends Item_Shippable {
+    }
+
+    /**
+     * Test for optionally cached extension
+     */
+    @Test
+    void cacheOptionalTest() {
+        DynamicClassExtension dynamicClassExtension = setupDynamicClassExtension(new StringBuilder());
+        Book book = new Book("The Mythical Man-Month");
+
+        dynamicClassExtension.setCacheEnabled(false);
+        Item_Shippable extension = dynamicClassExtension.extension(book, Item_Shippable.class);
+        assertNotSame(extension, dynamicClassExtension.extension(book, Item_Shippable.class));
+
+        dynamicClassExtension.setCacheEnabled(true);
+        extension = dynamicClassExtension.extension(book, NonCachedItem_Shippable.class);
+        assertNotSame(extension, dynamicClassExtension.extension(book, NonCachedItem_Shippable.class));
+    }
+
     /**
      * Test for cached extension
      */
@@ -698,8 +721,8 @@ public class DynamicClassExtensionTest {
     void nonCacheTest() {
         DynamicClassExtension dynamicClassExtension = setupDynamicClassExtension(new StringBuilder());
         Book book = new Book("The Mythical Man-Month");
-        Item_Shippable extension = dynamicClassExtension.extensionNoCache(book, Item_Shippable.class);
-        assertNotSame(extension, dynamicClassExtension.extensionNoCache(book, Item_Shippable.class));
+        Item_Shippable extension = dynamicClassExtension.extensionNoCache(book, null, Item_Shippable.class);
+        assertNotSame(extension, dynamicClassExtension.extensionNoCache(book, null, Item_Shippable.class));
     }
 
     /**
@@ -789,14 +812,36 @@ public class DynamicClassExtensionTest {
         }
     }
 
-        @Test
+    @Test
     void ensureInvalidTest() {
         StringBuilder shippingLog = new StringBuilder();
         DynamicClassExtension dynamicClassExtension = setupDynamicClassExtension(shippingLog);
 
         try {
-            dynamicClassExtension.checkValid(ElectronicItem.class, Item_Shippable.class);
+            dynamicClassExtension.checkValid(ElectronicItem.class, Item_Shippable.class, true);
             fail("Unexpectedly valid extension: " + Item_Shippable.class.getName());
+        } catch (IllegalArgumentException ex) {
+            out.println(ex.getMessage());
+        }
+    }
+
+    @Test
+    void callUndefinedOperationTest() {
+        StringBuilder shippingLog = new StringBuilder();
+        DynamicClassExtension dynamicClassExtension = setupDynamicClassExtension(shippingLog);
+
+        Book book = new Book("The Mythical Man-Month");
+        Item_Shippable itemShippable = dynamicClassExtension.extension(book,
+                aMethod -> 100f, // optional and missing methods handler
+                Item_Shippable.class);
+        // must succeed as it is annotated with @OptionalMethod and the missing methods handler will be called
+        assertEquals(100f, itemShippable.calculateShippingCost("asap"));
+        try {
+            assertFalse(dynamicClassExtension.isPresentOperation(Book.class, Item_Shippable.class,
+                    "calculateShippingCost", null));
+            // must fail as it is not annotated with @OptionalMethod
+            itemShippable.calculateShippingCost();
+            fail("Unexpectedly succeeded call: calculateShippingCost()");
         } catch (IllegalArgumentException ex) {
             out.println(ex.getMessage());
         }
@@ -806,11 +851,12 @@ public class DynamicClassExtensionTest {
     void listUndefinedOperationsTest() {
         StringBuilder shippingLog = new StringBuilder();
         DynamicClassExtension dynamicClassExtension = setupDynamicClassExtension(shippingLog);
-        String result = String.join("\n", dynamicClassExtension.listUndefinedOperations(ElectronicItem.class, Item_Shippable.class));
+        String result = String.join("\n", dynamicClassExtension.listUndefinedOperations(ElectronicItem.class, Item_Shippable.class, true));
         out.println(result);
         assertEquals("""
                      T calculateShippingCost()
-                     T getAccountable()""", result);
+                     T getAccountable()
+                     T throwException()""", result);
     }
 
     @Test
@@ -1175,13 +1221,31 @@ public class DynamicClassExtensionTest {
     @Test
     void propertyChangeUtilityTest() {
         Book book = new Book("The Mythical Man-Month");
-        Item_Shippable extension = Aspects.propertyChangeExtension(book, Item_Shippable.class, evt -> out.println(evt.toString()));
+        Item_Shippable extension = Aspects.propertyChangeExtension(book, Item_Shippable.class,
+                evt -> out.println(evt.toString()));
         out.println(extension.getName());
         extension.setName("Shining");
         out.println(extension.getName());
         assertEquals("Shining", extension.getName());
     }
 
+    @Test
+    void handleThrowableAdviceTest() {
+        DynamicClassExtension dynamicClassExtension = new DynamicClassExtension().builder(Item_Shippable.class).
+        operationName("throwException").
+                operation(Item.class, aItem -> { throw new RuntimeException("Test exception"); }).
+        build();
+
+        dynamicClassExtension.aspectBuilder().
+                extensionInterface(ItemInterface.class).
+                    objectClass(Item.class).
+                        operation("throwException()").
+                            around(new HandleThrowableAdvice<String>(() -> null));
+
+        Book book = new Book("The Mythical Man-Month");
+        Item_Shippable extension = dynamicClassExtension.extension(book, Item_Shippable.class);
+        assertNull(extension.throwException());
+    }
 
     @Test
     void logBeforeAndAfterAdviceTest() {
@@ -1210,7 +1274,7 @@ public class DynamicClassExtensionTest {
     @Test
     void extensionWithDescriptionTest() {
         final String description = "Some description for Runnable";
-        Runnable extension = lambdaWithDescription((Runnable) () -> {}, Runnable.class, description);
+        Runnable extension = lambdaWithDescription((Runnable) () -> {}, description);
         out.println(extension.toString());
         assertEquals(description, extension.toString());
     }
@@ -1220,13 +1284,15 @@ public class DynamicClassExtensionTest {
     @Test
     void retryAdviceTest() {
         DynamicClassExtension dynamicClassExtension = new DynamicClassExtension().
-                aspectBuilder().
-                    extensionInterface(ItemInterface.class).
-                        objectClass(Item.class).
-                            operation("ship()").
-                                around(new RetryAdvice(3, 1000, Logger.getLogger(getClass().getName()), (result, ex) -> {
-                                    if (result instanceof ShippingInfo shippingInfo) {
-                                        return ! shippingInfo.result.contains("Ship");
+                aspectBuilder().extensionInterface(ItemInterface.class).
+                objectClass(Item.class).
+                    operation("ship()").
+                        around(new RetryAdvice(3, 1000,
+                                Logger.getLogger(getClass().getName()),
+                                (result, ex) -> {
+                                    // check if the operation succeeded
+                                    if (result instanceof ShippingInfo(String aResult)) {
+                                        return ! aResult.contains("Ship");
                                     } else {
                                         return ! (ex instanceof IllegalStateException);
                                     }
@@ -1235,21 +1301,21 @@ public class DynamicClassExtensionTest {
                 builder(Item_Shippable.class).
                 operationName("ship").
                 operation(Book.class, (book) -> {
-                            if (retryTestCount > 0)
-                                return new ShippingInfo("Shipped: " + book);
-                            else {
-                                retryTestCount++;
-                                throw new IllegalStateException("Failed to ship: " + book);
-                            }
-                        }).
-                        async((result, ex) -> {
-                            if (ex != null) {
-                                out.println("FAILED: " + ex);
-                            } else {
-                                out.println(result);
-                                assertEquals("ShippingInfo[result=Shipped: Book[\"The Mythical Man-Month\"]]", result);
-                            }
-                        }).
+                    if (retryTestCount > 0)
+                        return new ShippingInfo("Shipped: " + book);
+                    else {
+                        retryTestCount++;
+                        throw new IllegalStateException("Failed to ship: " + book);
+                    }
+                }).
+                async((result, ex) -> {
+                    if (ex != null) {
+                        out.println("FAILED: " + ex);
+                    } else {
+                        out.println(result);
+                        assertEquals("ShippingInfo[result=Shipped: Book[\"The Mythical Man-Month\"]]", result);
+                    }
+                }).
                 build();
 
         Book book = new Book("The Mythical Man-Month");
@@ -1267,6 +1333,10 @@ public class DynamicClassExtensionTest {
     void cachedValueAdviceTest() {
         System.setProperty("java.util.logging.SimpleFormatter.format", "%4$s: %5$s%n");
 
+        StringBuilderHandler stringBuilderHandler = new StringBuilderHandler();
+        Logger logger = Logger.getLogger(getClass().getName());
+        logger.addHandler(stringBuilderHandler);
+
         CachedValueProvider cache = new CachedValueProvider() {
             private final Map<Object, Object> cache =new HashMap<>();
             @Override
@@ -1280,17 +1350,14 @@ public class DynamicClassExtensionTest {
             }
         };
 
-        StringBuilderHandler stringBuilderHandler = new StringBuilderHandler();
-        Logger logger = Logger.getLogger(getClass().getName());
-        logger.addHandler(stringBuilderHandler);
-
         DynamicClassExtension dynamicClassExtension = new DynamicClassExtension().
                 aspectBuilder().
                     extensionInterface(ItemInterface.class).
                         objectClass(Item.class).
                             operation("*").
                                 around(new CachedValueAdvice(cache, logger)).
-                                around((performer, operation, object, args) -> "AROUND: " + AroundAdvice.applyDefault(performer, operation, object, args)).
+                                around((performer, operation, object, args) -> "AROUND: " +
+                                        AroundAdvice.applyDefault(performer, operation, object, args)).
                 build();
 
         Item[] items = {
@@ -1581,12 +1648,18 @@ public class DynamicClassExtensionTest {
 
     @Test
     void lambdaWithDescriptionAndIDTest() {
-        Runnable r1 = DynamicClassExtension.lambdaWithDescriptionAndID((Runnable) () -> out.println("R"), Runnable.class, "R1", "r1");
+        Runnable r1 = DynamicClassExtension.lambdaWithDescriptionAndID((Runnable) () -> out.println("R"),"R1", "r1");
         assertEquals("r1", r1 instanceof DynamicClassExtension.IdentityHolder id2 ? id2.getID() : null);
-        Runnable r2 = DynamicClassExtension.lambdaWithDescriptionAndID((Runnable) () -> out.println("R"), Runnable.class, "R1", "r1");
+
+        Runnable r2 = DynamicClassExtension.lambdaWithDescriptionAndID((Runnable) () -> out.println("R"), "R1", "r1");
         assertEquals("r1", r1 instanceof DynamicClassExtension.IdentityHolder id2 ? id2.getID() : null);
-        Runnable r3 = DynamicClassExtension.lambdaWithDescriptionAndID((Runnable) () -> out.println("R3"), Runnable.class, "R3", "r3");
+
+        Runnable r3 = DynamicClassExtension.lambdaWithDescriptionAndID((Runnable) () -> out.println("R3"),"R3", "r3");
         assertEquals("r3", r3 instanceof DynamicClassExtension.IdentityHolder id3 ? id3.getID() : null);
+
+        assertEquals("R1", r1.toString());
+        assertEquals("R1", r2.toString());
+        assertEquals("R3", r3.toString());
 
         assertEquals(r1, r2);
         assertEquals(r2, r1);
@@ -1679,16 +1752,147 @@ public class DynamicClassExtensionTest {
                 build();
         Names names = new Names();
         try {
-            dynamicClassExtension.extension(names, NamesHolder.class).getNames().add("test");
+            NamesHolder namesHolder = dynamicClassExtension.extension(names, NamesHolder.class);
+            namesHolder.getNames().add("test"); // cant add because list is read-only
             fail("Unexpected success on list modification");
         } catch (UnsupportedOperationException ex) {
             // do nothing
         }
     }
 
+    static int circuitBreakfastedAttemptsCount = 0;
+
+    @Test
+    void circuitBreakerAdviceTest() {
+        DynamicClassExtension dynamicClassExtension = new DynamicClassExtension().
+                aspectBuilder().
+                    extensionInterface(Shippable.class).
+                    objectClass(Book.class).
+                        operation("ship").
+                            around(new CircuitBreakerAdvice(3, Duration.ofSeconds(5))).
+                build().
+                builder(Shippable.class).
+                    objectClass(Book.class).
+                        operation("ship", (Book book) -> {
+                            if (circuitBreakfastedAttemptsCount++ > 2)
+                                return new ShippingInfo("SHIPPED: " + book.toString());
+                            else
+                                throw new RuntimeException("Failed to ship " + book.toString());
+                        }).
+                build();
+
+        int succeedCount = 0;
+        Shippable shippable = dynamicClassExtension.extension(new Book("The Mythical Man-Month"), Shippable.class);
+        for (int i = 0; i < 10; i++) {
+            try {
+                if (i == 5)
+                    Thread.sleep(6000);
+                out.println(shippable.ship());
+                succeedCount++;
+            } catch (Exception aE) {
+                out.println(aE.getMessage());
+            }
+        }
+        assertEquals(5, succeedCount);
+    }
+
     interface MultipleParameters {
         String[] arrayParameter(String[] anArray);
         Object[] multipleParameters(int p1, String p2, String p3);
+    }
+
+    @Test
+    void testRateLimitedAdvice() {
+        DynamicClassExtension dynamicClassExtension = new DynamicClassExtension().aspectBuilder().
+                    extensionInterface(Shippable.class).
+                        objectClass(Book.class).
+                            operation("track(*)").
+                                around(new RateLimitedAdvice(5, Duration.ofSeconds(1))).
+                build().
+                    builder(Shippable.class).
+                        objectClass(Book.class).
+                            operation("track", (Book book, Boolean isVerbose) -> {
+                                return new TrackingInfo("Delivered: " + book.toString());
+                            }).
+                build();
+
+        int succeedCount = 0;
+        Shippable shippable = dynamicClassExtension.extension(new Book("The Mythical Man-Month"), Shippable.class);
+        try {
+            for (int i = 0; i < 7; i++) {
+                shippable.track(true);
+                succeedCount++;
+            }
+        } catch (Exception ex) {
+            out.println(ex.getMessage());
+        }
+        assertEquals(5, succeedCount);
+
+        sleep(500);
+        try {
+            shippable.track(false);
+            fail("Unexpected success on rate limited operation");
+        } catch (Exception ex) {
+            out.println(ex.getMessage());
+        }
+
+        sleep(1001);
+        try {
+            shippable.track(false);
+        } catch (Exception ex) {
+            out.println(ex.getMessage());
+            fail("Unexpected failure on rate limited operation");
+        }
+    }
+
+    @Test
+    void TestDynamicQuotaAdvice() {
+        DynamicClassExtension dynamicClassExtension = new DynamicClassExtension().
+                aspectBuilder().
+                extensionInterface(Shippable.class).
+                objectClass(Book.class).
+                operation("track(*)").
+                around(new DynamicQuotaAdvice(new QuotaHandler() {
+                    long quota = 20;
+                    @Override
+                    public long getQuota(String anOperation, Object anObject, Object[] anArgs) {
+                        return quota;
+                    }
+
+                    @Override
+                    public void decreaseQuota(long anAmount, String operation, Object object, Object[] args) {
+                        quota -= anAmount;
+                    }
+
+                    @Override
+                    public long calculateOperationCost(String operation, Object object, Object[] args) {
+                        return 2;
+                    }
+
+                    @Override
+                    public long calculateOperationResultCost(String anOperation, Object aResult, Object anObject, Object[] anArgs) {
+                        return 1;
+                    }
+                }, Logger.getLogger(getClass().getName()))).
+                build().
+                builder(Shippable.class).
+                objectClass(Book.class).
+                operation("track", (Book book, Boolean isVerbose) -> {
+                    return new TrackingInfo("Delivered: " + book.toString());
+                }).
+                build();
+
+        int succeedCount = 0;
+        Shippable shippable = dynamicClassExtension.extension(new Book("The Mythical Man-Month"), Shippable.class);
+        try {
+            for (int i = 0; i < 10; i++) {
+                shippable.track(true);
+                succeedCount++;
+            }
+            assertEquals(7, succeedCount);
+        } catch (Exception ex) {
+            out.println(ex.getMessage());
+        }
     }
 
     @Test
@@ -1720,8 +1924,12 @@ public class DynamicClassExtensionTest {
     }
 
     private static void sleep() {
+        sleep(1000);
+    }
+
+    private static void sleep(long millis) {
         try {
-            Thread.sleep(1000);
+            Thread.sleep(millis);
         } catch (InterruptedException ex) {
             ex.printStackTrace();
         }
