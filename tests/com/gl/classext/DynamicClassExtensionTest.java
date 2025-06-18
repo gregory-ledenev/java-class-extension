@@ -592,7 +592,11 @@ public class DynamicClassExtensionTest {
     }
 
     private static DynamicClassExtension setupDynamicClassExtension(StringBuilder shippingLog) {
-        DynamicClassExtension result = new DynamicClassExtension().builder().
+        return setupDynamicClassExtension(new DynamicClassExtension(), shippingLog);
+    }
+
+    private static DynamicClassExtension setupDynamicClassExtension(DynamicClassExtension aDynamicClassExtension, StringBuilder aShippingLog) {
+        return aDynamicClassExtension.builder().
                 extensionInterface(Item_Shippable.class).
                     operationName("ship").
                         operation(Item.class, book -> new ShippingInfo(book.getName() + " item NOT shipped")).
@@ -602,14 +606,14 @@ public class DynamicClassExtensionTest {
                         operation((Class<?>) null, e -> new ShippingInfo("Nothing to ship")).
                     operationName("log").
                         voidOperation(Item.class, (Item item, Boolean isVerbose) -> {
-                                if (!shippingLog.isEmpty())
-                                    shippingLog.append("\n");
-                                shippingLog.append(item.getName()).append(" is about to be shipped in 1 hour");
+                                if (!aShippingLog.isEmpty())
+                                    aShippingLog.append("\n");
+                                aShippingLog.append(item.getName()).append(" is about to be shipped in 1 hour");
                             }).
                         voidOperation(Item.class, item -> {
-                                if (!shippingLog.isEmpty())
-                                    shippingLog.append("\n");
-                                shippingLog.append(item.getName()).append(" is about to be shipped");
+                                if (!aShippingLog.isEmpty())
+                                    aShippingLog.append("\n");
+                                aShippingLog.append(item.getName()).append(" is about to be shipped");
                             }).
                     operationName("track").
                         operation(Item.class, item -> new TrackingInfo(item.getName() + " item on its way")).
@@ -617,14 +621,10 @@ public class DynamicClassExtensionTest {
                                     " item on its way" + (isVerbose ? "Status: SHIPPED" : ""))).
                     operationName("getName").
                         operation(AutoPart.class, item -> item.getName()  + "[OVERRIDDEN]").
+                build().builder(ClassExtension.DelegateHolder.class).
+                    operationName("getDelegate").
+                        operation(String.class, item -> null).
                 build();
-
-        result = result.builder(ClassExtension.DelegateHolder.class).
-                operationName("getDelegate").
-                operation(String.class, item -> null).
-                build();
-
-        return result;
     }
 
     private static DynamicClassExtension setupDynamicClassExtensionWithDifferentComposition(StringBuilder shippingLog) {
@@ -1923,6 +1923,52 @@ public class DynamicClassExtensionTest {
         assertEquals("ShippingInfo[result=Nothing to ship]", result.toString());
     }
 
+    private static final StringBuilder sharedShippingLog = new StringBuilder();
+
+    static {
+        setupDynamicClassExtension(DynamicClassExtension.sharedInstance(), sharedShippingLog);
+    }
+
+    static class Jewelery extends Item {
+        public Jewelery(String aName) {
+            super(aName);
+        }
+    }
+
+    @Test
+    void testAdhocNewItem() {
+        DynamicClassExtension dynamicClassExtension = DynamicClassExtension.sharedInstance().builder().
+                extensionInterface(Item_Shippable.class).
+                    operationName("ship").
+                        operation(Jewelery.class, jewelery -> new ShippingInfo(jewelery.getName() +
+                                " jewelery shipped")).
+                build();
+
+        Item[] items = {
+                new Book("The Mythical Man-Month"),
+                new Furniture("Sofa"),
+                new ElectronicItem("Soundbar"),
+                new AutoPart("Tire"),
+                new Jewelery("Diamond ring"),
+        };
+
+        List<String> shippingLog = new ArrayList<>();
+
+        for (Item item : items) {
+            Item_Shippable extension = dynamicClassExtension.extension(item, Item_Shippable.class);
+            ShippingInfo shippingInfo = extension.ship();
+            shippingLog.add(shippingInfo.toString());
+            System.out.println(shippingInfo);
+        }
+
+        assertEquals("""
+                     ShippingInfo[result=The Mythical Man-Month book shipped]
+                     ShippingInfo[result=Sofa furniture shipped]
+                     ShippingInfo[result=Soundbar electronic item shipped]
+                     ShippingInfo[result=Tire item NOT shipped]
+                     ShippingInfo[result=Diamond ring jewelery shipped]""", String.join("\n", shippingLog));
+    }
+
     private static void sleep() {
         sleep(1000);
     }
@@ -1957,6 +2003,18 @@ public class DynamicClassExtensionTest {
         @Override
         public void close() throws SecurityException {}
     }
+
+//    interface Persistable {
+//        void load();
+//        void load(String aFileName);
+//        void save();
+//        void save(String aFileName);
+//    }
+//
+//    @Test
+//    void testPersistable() {
+//        initialize an instance of `DynamicClassExtension`for all methods of `Persistable` interface and for the following classes: `Item`, `Book`, `Furniture`, `AutoPart`
+//    }
 }
 
 
