@@ -44,5 +44,6 @@ import java.lang.annotation.Target;
 public @interface ExtensionInterface {
     ClassExtension.Type type() default ClassExtension.Type.STATIC_PROXY;
     ClassExtension.CachePolicy cachePolicy() default ClassExtension.CachePolicy.DEFAULT;
+    ClassExtension.AspectsPolicy aspectsPolicy() default ClassExtension.AspectsPolicy.DEFAULT;
     String[] packages() default {};
 }

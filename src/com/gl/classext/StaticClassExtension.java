@@ -209,9 +209,10 @@ public class StaticClassExtension extends AbstractClassExtension {
             Object extension = createExtension(anObject, extensionClass);
 
             if (instantiationStrategy != Type.STATIC_DIRECT) {
+                Class<?> finalExtensionInterface = extensionInterface;
                 return (T) Proxy.newProxyInstance(extensionInterface.getClassLoader(),
                         new Class<?>[]{anExtensionInterface, PrivateDelegateHolder.class},
-                        (proxy, method, args) -> performOperation(this, extension, anObject, method, args));
+                        (proxy, method, args) -> performOperation(this, finalExtensionInterface, extension, anObject, method, args));
             } else {
                 if (isVerbose() && ! anExtensionInterface.isAssignableFrom(extensionClass))
                     logger.severe(MessageFormat.format("""
@@ -262,16 +263,16 @@ public class StaticClassExtension extends AbstractClassExtension {
         return packageNames;
     }
 
-    private static <T> Object performOperation(StaticClassExtension aClassExtension,
-                                               T anExtension,
-                                               Object anObject, Method aMethod, Object[] anArgs) {
+    private static <T, I> Object performOperation(StaticClassExtension aClassExtension,
+                                                  Class<I> anExtensionInterface, T anExtension,
+                                                  Object anObject, Method aMethod, Object[] anArgs) {
         Object result;
         Aspects.Pointcut aroundPointcut = null;
         Aspects.Pointcut beforePointcut = null;
         Aspects.Pointcut afterPointcut = null;
 
         String methodName = aMethod.getName();
-        if (aClassExtension.isAspectsEnabled()) {
+        if (aClassExtension.isAspectsEnabled(anExtensionInterface)) {
             aroundPointcut = aClassExtension.getPointcut(anExtension.getClass(), anObject.getClass(), methodName, aMethod.getParameterTypes(), Aspects.AdviceType.AROUND);
             beforePointcut = aroundPointcut == null ? aClassExtension.getPointcut(anExtension.getClass(), anObject.getClass(), methodName, aMethod.getParameterTypes(), Aspects.AdviceType.BEFORE) : null;
             afterPointcut = aroundPointcut == null ? aClassExtension.getPointcut(anExtension.getClass(), anObject.getClass(), methodName, aMethod.getParameterTypes(), Aspects.AdviceType.AFTER) : null;

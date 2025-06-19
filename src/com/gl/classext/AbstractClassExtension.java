@@ -139,19 +139,17 @@ public abstract class AbstractClassExtension implements ClassExtension {
     protected final List<SinglePointcut> pointcuts = Collections.synchronizedList(new ArrayList<>());
 
     /**
-     * Determines if the aspects functionality is enabled for this extension.
-     *
-     * @return {@code true} if aspects are enabled, {@code false} otherwise
+     * {@inheritDoc}
      */
+    @Override
     public boolean isAspectsEnabled() {
         return aspectsEnabled;
     }
 
     /**
-     * Toggles the activation of the aspects functionality for this extension.
-     *
-     * @param aAspectsEnabled {@code true} to enable aspects, or {@code false} to disable aspects
+     * {@inheritDoc}
      */
+    @Override
     public void setAspectsEnabled(boolean aAspectsEnabled) {
         aspectsEnabled = aAspectsEnabled;
     }
@@ -293,6 +291,25 @@ public abstract class AbstractClassExtension implements ClassExtension {
             CachePolicy cachePolicy = anExtensionInterface.getAnnotation(ExtensionInterface.class).cachePolicy();
             if (cachePolicy != CachePolicy.DEFAULT)
                 result = cachePolicy == CachePolicy.ENABLED;
+        }
+        return result;
+    }
+
+    /**
+     * Determines whether aspects are enabled for the given extension interface. If the extension
+     * interface is annotated with {@code ExtensionInterface}, its specified aspects policy will
+     * be considered. Otherwise, the default aspects policy applies.
+     *
+     * @param <T> the type of the extension interface
+     * @param anExtensionInterface the extension interface to check for aspects policy
+     * @return {@code true} if aspects are enabled, {@code false} otherwise
+     */
+    public <T> boolean isAspectsEnabled(Class<T> anExtensionInterface) {
+        boolean result = isAspectsEnabled();
+        if (anExtensionInterface.isAnnotationPresent(ExtensionInterface.class)) {
+            AspectsPolicy aspectsPolicy = anExtensionInterface.getAnnotation(ExtensionInterface.class).aspectsPolicy();
+            if (aspectsPolicy != AspectsPolicy.DEFAULT)
+                result = aspectsPolicy == AspectsPolicy.ENABLED;
         }
         return result;
     }

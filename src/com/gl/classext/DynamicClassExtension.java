@@ -617,7 +617,7 @@ public class DynamicClassExtension extends AbstractClassExtension {
         Pointcut beforePointcut;
         Pointcut afterPointcut;
 
-        if (aClassExtension.isAspectsEnabled()) {
+        if (aClassExtension.isAspectsEnabled(anExtensionInterface)) {
             Class<?> objectClass = anObject != null ? anObject.getClass() : Null.class;
             aroundPointcut = performerHolder.around == null ?
                     aClassExtension.getPointcut(anExtensionInterface, objectClass, method.getName(), method.getParameterTypes(), AdviceType.AROUND) : null;
@@ -633,7 +633,7 @@ public class DynamicClassExtension extends AbstractClassExtension {
 
         if (performerHolder.isAsync()) {
             CompletableFuture<?> future = CompletableFuture.supplyAsync(() -> performOperation(aClassExtension,
-                    method.getName(), anObject, method, args,
+                    anExtensionInterface, method.getName(), anObject, method, args,
                     performerHolder,
                     beforePointcut, afterPointcut, aroundPointcut));
             if (performerHolder.getWhenComplete() != null)
@@ -641,24 +641,27 @@ public class DynamicClassExtension extends AbstractClassExtension {
             result = aClassExtension.dummyReturnValue(method);
         } else {
             result = performOperation(aClassExtension,
-                    method.getName(), anObject, method, args,
+                    anExtensionInterface, method.getName(), anObject, method, args,
                     performerHolder,
                     beforePointcut, afterPointcut, aroundPointcut);
         }
         return result;
     }
 
-    private static <T> Object performStaticOperation(DynamicClassExtension aClassExtension, Object anObject, Class<T> anExtensionClass, Function<Method, Object> aMissingMethodsHandler, Method method, Object[] args) throws IllegalAccessException, InvocationTargetException {
+    private static <T> Object performStaticOperation(DynamicClassExtension aClassExtension, Object anObject,
+                                                     Class<T> anExtensionInterface,
+                                                     Function<Method, Object> aMissingMethodsHandler,
+                                                     Method method, Object[] args) throws IllegalAccessException, InvocationTargetException {
         Object result;
 
         Pointcut aroundPointcut = null;
         Pointcut beforePointcut = null;
         Pointcut afterPointcut = null;
 
-        if (aClassExtension.isAspectsEnabled()) {
-            aroundPointcut = aClassExtension.getPointcut(anExtensionClass, anObject.getClass(), method.getName(), method.getParameterTypes(), AdviceType.AROUND);
-            beforePointcut = aroundPointcut == null ? aClassExtension.getPointcut(anExtensionClass, anObject.getClass(), method.getName(), method.getParameterTypes(), AdviceType.BEFORE) : null;
-            afterPointcut = aroundPointcut == null ? aClassExtension.getPointcut(anExtensionClass, anObject.getClass(), method.getName(), method.getParameterTypes(), AdviceType.AFTER) : null;
+        if (aClassExtension.isAspectsEnabled(anExtensionInterface)) {
+            aroundPointcut = aClassExtension.getPointcut(anExtensionInterface, anObject.getClass(), method.getName(), method.getParameterTypes(), AdviceType.AROUND);
+            beforePointcut = aroundPointcut == null ? aClassExtension.getPointcut(anExtensionInterface, anObject.getClass(), method.getName(), method.getParameterTypes(), AdviceType.BEFORE) : null;
+            afterPointcut = aroundPointcut == null ? aClassExtension.getPointcut(anExtensionInterface, anObject.getClass(), method.getName(), method.getParameterTypes(), AdviceType.AFTER) : null;
         }
 
         if (method.getDeclaringClass().isAssignableFrom(anObject.getClass())) {
@@ -695,20 +698,23 @@ public class DynamicClassExtension extends AbstractClassExtension {
             if (aMissingMethodsHandler != null && method.isAnnotationPresent(OptionalMethod.class))
                 result = aMissingMethodsHandler.apply(method);
             else
-                throw new IllegalArgumentException(format("No \"{0}\" operation for \"{1}\"",
-                        displayOperationName(method.getName(), void.class.equals(method.getReturnType()), args), anObject));
+                throw new IllegalArgumentException(format("No \"{0}\" operation of \"{1}\" for \"{2}\"",
+                        displayOperationName(method.getName(), void.class.equals(method.getReturnType()), args),
+                        anExtensionInterface.getName(),
+                        anObject));
         }
 
         return classExtensionForOperationResult(aClassExtension, method, result);
     }
 
-    private static Object performOperation(DynamicClassExtension aClassExtension,
-                                           String anOperation, Object anObject, Method aMethod, Object[] args,
+    private static <T> Object performOperation(DynamicClassExtension aClassExtension,
+                                           Class<T> anExtensionInterface, String anOperation, Object anObject, Method aMethod, Object[] args,
                                            PerformerHolder<?> performerHolder,
                                            Pointcut aBeforePointcut, Pointcut anAfterPointcut, Pointcut anAroundPointcut) {
         Object result;
 
-        if (aClassExtension.isAspectsEnabled()) {
+        boolean aspectsEnabled = aClassExtension.isAspectsEnabled(anExtensionInterface);
+        if (aspectsEnabled) {
             if (performerHolder.getBefore() != null && performerHolder.getAround() == null) {
                 if (aClassExtension.isVerbose())
                     aClassExtension.logger.info(formatAdvice(anObject, performerHolder, AdviceType.BEFORE));
@@ -720,11 +726,11 @@ public class DynamicClassExtension extends AbstractClassExtension {
             }
         }
 
-        if (aClassExtension.isAspectsEnabled() && performerHolder.getAround() != null) {
+        if (aspectsEnabled && performerHolder.getAround() != null) {
             if (aClassExtension.isVerbose())
                 aClassExtension.logger.info(formatAdvice(anObject, performerHolder.getAround(), AdviceType.AROUND));
             result = performerHolder.getAround().apply(performerHolder.getPerformer(), anOperation, anObject, args);
-        } else if (aClassExtension.isAspectsEnabled() && anAroundPointcut != null) {
+        } else if (aspectsEnabled && anAroundPointcut != null) {
             if (aClassExtension.isVerbose())
                 aClassExtension.logger.info(formatAdvice(anObject, anAroundPointcut, AdviceType.AROUND));
             result = anAroundPointcut.around(performerHolder.getPerformer(), anOperation, anObject, args);
@@ -732,7 +738,7 @@ public class DynamicClassExtension extends AbstractClassExtension {
             result = performerHolder.getPerformer().perform(anOperation, anObject, args);
         }
 
-        if (aClassExtension.isAspectsEnabled()) {
+        if (aspectsEnabled) {
             if (performerHolder.getAfter() != null && performerHolder.getAround() == null) {
                 if (aClassExtension.isVerbose())
                     aClassExtension.logger.info(formatAdvice(anObject, performerHolder, AdviceType.AFTER));
@@ -889,8 +895,13 @@ public class DynamicClassExtension extends AbstractClassExtension {
     <T> ExtensionOperationResult findExtensionOperationByInterface(Class<?> anObjectClass, Class<T> anExtensionInterface, Method method, Object[] anArgs) {
         ExtensionOperationResult result = null;
 
-        List<Class<?>> objectClasses = new ArrayList<>(Arrays.asList(anObjectClass.getInterfaces()));
-        objectClasses.addFirst(anObjectClass);
+        List<Class<?>> objectClasses = new ArrayList<>();
+        Class<?> current = anObjectClass;
+        while (current != null) {
+            objectClasses.add(current);
+            current = current.getSuperclass();
+        }
+        objectClasses.addAll(Arrays.asList(anObjectClass.getInterfaces()));
 
         List<Class<?>> extensionInterfaces = new ArrayList<>(Arrays.asList(anExtensionInterface.getInterfaces()));
         extensionInterfaces.addFirst(anExtensionInterface);
