@@ -32,6 +32,20 @@ package com.gl.classext;
 public interface ClassExtension {
 
     /**
+     * Determines if the aspects functionality is enabled for this extension.
+     *
+     * @return {@code true} if aspects are enabled, {@code false} otherwise
+     */
+    boolean isAspectsEnabled();
+
+    /**
+     * Toggles the activation of the aspects functionality for this extension.
+     *
+     * @param aAspectsEnabled {@code true} to enable aspects, or {@code false} to disable aspects
+     */
+    void setAspectsEnabled(boolean aAspectsEnabled);
+
+    /**
      * Enum representing the caching policy for the {@code ClassExtension} class. It defines
      * whether caching is enabled, disabled, or determined based on a default behavior.
      */
@@ -46,6 +60,25 @@ public interface ClassExtension {
         DISABLED,
         /**
          * Cache is enabled
+         */
+        ENABLED,
+    }
+
+    /**
+     * Enumeration representing the policy for enabling or disabling aspects in the {@code ClassExtension}.
+     * It is used to control whether aspects functionality is enabled, disabled, or determined by the default setting.
+     */
+    enum AspectsPolicy {
+        /**
+         * Default aspects policy, honoring {@code ClassExtension.aspectsEnabled} property
+         */
+        DEFAULT,
+        /**
+         * Aspects are disabled
+         */
+        DISABLED,
+        /**
+         * Aspects are enabled
          */
         ENABLED,
     }

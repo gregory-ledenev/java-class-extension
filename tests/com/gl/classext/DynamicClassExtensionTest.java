@@ -93,7 +93,6 @@ public class DynamicClassExtensionTest {
         }
     }
 
-
     interface Shippable {
         ShippingInfo ship();
         TrackingInfo track(boolean isVerbose);
@@ -1097,6 +1096,9 @@ public class DynamicClassExtensionTest {
                     RESULT: Book["The Mythical Man-Month"]""", stringBuilder.toString());
     }
 
+    @ExtensionInterface(aspectsPolicy = ClassExtension.AspectsPolicy.DISABLED)
+    interface Item_ShippableNoAspects extends Item_Shippable {}
+
     @Test
     void testAspectUsingBuilder() {
         List<String> out = new ArrayList<>();
@@ -1171,6 +1173,27 @@ public class DynamicClassExtensionTest {
             extension.log(true);
         }
         System.out.println("----------- Aspects Disabled");
+        outString = String.join("\n", out);
+        System.out.println(outString);
+        assertEquals("""
+                     The Mythical Man-Month is about to be shipped
+                     The Mythical Man-Month is about to be shipped in 1 hour
+                     Sofa is about to be shipped
+                     Sofa is about to be shipped in 1 hour
+                     Soundbar is about to be shipped
+                     Soundbar is about to be shipped in 1 hour
+                     Tire is about to be shipped
+                     Tire is about to be shipped in 1 hour""", outString);
+
+        dynamicClassExtension.setAspectsEnabled(true);
+        out.clear();
+        for (Item item : items) {
+            Item_Shippable extension = dynamicClassExtension.extension(item, Item_ShippableNoAspects.class);
+            System.out.println(extension.toString());
+            extension.log();
+            extension.log(true);
+        }
+        System.out.println("----------- Aspects Disabled by annotation");
         outString = String.join("\n", out);
         System.out.println(outString);
         assertEquals("""
@@ -1940,8 +1963,7 @@ public class DynamicClassExtensionTest {
         DynamicClassExtension dynamicClassExtension = DynamicClassExtension.sharedInstance().builder().
                 extensionInterface(Item_Shippable.class).
                     operationName("ship").
-                        operation(Jewelery.class, jewelery -> new ShippingInfo(jewelery.getName() +
-                                " jewelery shipped")).
+                        operation(Jewelery.class, jewelery -> new ShippingInfo(STR."\{jewelery.getName()} jewelery shipped")).
                 build();
 
         Item[] items = {
