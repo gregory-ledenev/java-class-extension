@@ -86,7 +86,7 @@ Shippable extension = Shippable.extensionFor(book);
 assertTrue(ClassExtension.equals(book, extension));
 ```
 
-If you need to get a delegate object for an extension you may use the `ClassExtension.getDelegate()` method:
+If you need to get a delegate object for an extension, you may use the `ClassExtension.getDelegate()` method:
 ```java
 Book book = new Book("The Mythical Man-Month");
 Shippable shippable = Shippable.extensionFor(book);
@@ -314,6 +314,29 @@ try {
     fail("Unexpectedly succeeded call: calculateShippingCost()");
 } catch (IllegalArgumentException ex) {
     out.println(ex.getMessage());
+}
+```
+
+#### Boxing/Unboxing Optional Results
+`DynamicClassExtension` supports automatic boxing/unboxing of `Optional` operation results. This means if extension interfaces or underlying code start/stop returning `Optional`, they’ll be handled automatically—no code changes required.
+```java
+    @ExtensionInterface
+interface OptionalShippable {
+    Optional<ShippingInfo> ship();
+    TrackingInfo track();
+}
+
+@Test
+void testOptionalBoxing() {
+    DynamicClassExtension dynamicClassExtension = new DynamicClassExtension().builder(OptionalShippable.class).
+            operationName("ship").
+                // requires boxing
+                operation(Item.class, item -> new ShippingInfo(item.getName() + " item shipped")).
+            operationName("track").
+                // requires unboxing
+                operation(Item.class, item -> Optional.of(new TrackingInfo(item.getName() + " item on its way"))).
+            build();
+    ...
 }
 ```
 
