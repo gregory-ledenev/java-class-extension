@@ -1,5 +1,6 @@
 package com.gl.classext;
 
+import javax.swing.text.html.Option;
 import java.lang.reflect.Method;
 import java.util.*;
 import java.util.logging.Level;
@@ -27,22 +28,42 @@ public abstract class AbstractClassExtension implements ClassExtension {
         return format("{0} -> {1} for {2}", anAdviceType, anAdvice, anObject);
     }
 
-    protected static Object classExtensionForOperationResult(ClassExtension aClassExtension, Method aMethod, Object aResult) {
+    protected static Object transformOperationResult(ClassExtension aClassExtension, Method aMethod, Object aResult) {
         Object result = aResult;
 
         if (aResult != null) {
             ObtainExtension annotation = aMethod.getAnnotation(ObtainExtension.class);
-            if (annotation != null) {
-                Type type = annotation.type();
-                Class<?> extensionInterface = aMethod.getReturnType();
-                ExtensionInterface extensionInterfaceAnnotation = extensionInterface.getAnnotation(ExtensionInterface.class);
-                if (extensionInterfaceAnnotation!= null)
-                    type = extensionInterfaceAnnotation .type();
-                if (type == Type.UNKNOWN || aClassExtension.compatible(type))
-                    result = aClassExtension.extension(result, extensionInterface);
-                else
-                    result = ClassExtension.sharedExtension(result, extensionInterface, type);
-            }
+            if (annotation != null)
+                result = classExtensionForOperationResult(aClassExtension, aMethod, annotation, result);
+        }
+
+        result = optionalForOperationResult(aClassExtension, aMethod, result);
+
+        return result;
+    }
+
+    private static Object classExtensionForOperationResult(ClassExtension aClassExtension, Method aMethod, ObtainExtension annotation, Object result) {
+        Type type = annotation.type();
+        Class<?> extensionInterface = aMethod.getReturnType();
+        ExtensionInterface extensionInterfaceAnnotation = extensionInterface.getAnnotation(ExtensionInterface.class);
+        if (extensionInterfaceAnnotation!= null)
+            type = extensionInterfaceAnnotation .type();
+        if (type == Type.UNKNOWN || aClassExtension.compatible(type))
+            result = aClassExtension.extension(result, extensionInterface);
+        else
+            result = ClassExtension.sharedExtension(result, extensionInterface, type);
+        return result;
+    }
+
+    protected static Object optionalForOperationResult(ClassExtension aClassExtension, Method aMethod, Object aResult) {
+        Object result = aResult;
+
+        if (Optional.class.isAssignableFrom(aMethod.getReturnType())) {
+            if (! (result instanceof Optional))
+                result = Optional.ofNullable(result);
+        } else {
+            if (result instanceof Optional)
+                result = ((Optional<?>) result).get();
         }
 
         return result;

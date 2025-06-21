@@ -704,7 +704,7 @@ public class DynamicClassExtension extends AbstractClassExtension {
                         anObject));
         }
 
-        return classExtensionForOperationResult(aClassExtension, method, result);
+        return transformOperationResult(aClassExtension, method, result);
     }
 
     private static <T> Object performOperation(DynamicClassExtension aClassExtension,
@@ -750,7 +750,7 @@ public class DynamicClassExtension extends AbstractClassExtension {
             }
         }
 
-        return classExtensionForOperationResult(aClassExtension, aMethod, result);
+        return transformOperationResult(aClassExtension, aMethod, result);
     }
 
     private Object dummyReturnValue(Method aMethod) {

@@ -42,6 +42,12 @@ import java.lang.annotation.Target;
  * <li>An extension caching policy via the {@code cachePolicy} parameter</li>
  * <li>An aspects handling policy via the {@code aspectsPolicy} parameter</li>
  * </ol>
+ * <p>
+ * Dynamic nature of the {@code DynamicClassExtension} prevents detecting some errors at compile time, so be careful
+ * during refactoring of extension interfaces and check operation handling after any refactorings. It is recommended to
+ * mark any extension interfaces with {@code @ExtensionInterface} annotation to let developers know that they should check and
+ * test dynamic operations after any refactorings.
+ * </p>
  */
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.TYPE)

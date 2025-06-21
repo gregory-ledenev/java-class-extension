@@ -315,7 +315,7 @@ public class StaticClassExtension extends AbstractClassExtension {
             afterPointcut.after(result, methodName, anObject, anArgs);
         }
 
-        return classExtensionForOperationResult(aClassExtension, aMethod, result);
+        return transformOperationResult(aClassExtension, aMethod, result);
     }
 
     private static Object performOperation(StaticClassExtension aClassExtension, Object anObject, Method aMethod, Object[] anArgs, Aspects.Pointcut aroundPointcut) {

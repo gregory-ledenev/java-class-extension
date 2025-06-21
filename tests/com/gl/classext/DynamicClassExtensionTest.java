@@ -1991,6 +1991,79 @@ public class DynamicClassExtensionTest {
                      ShippingInfo[result=Diamond ring jewelery shipped]""", String.join("\n", shippingLog));
     }
 
+    @ExtensionInterface
+    interface OptionalShippable {
+        Optional<ShippingInfo> ship();
+        TrackingInfo track();
+    }
+
+    @Test
+    void testOptionalBoxing() {
+        // setup for boxing and unboxing
+        DynamicClassExtension dynamicClassExtension = new DynamicClassExtension().builder(OptionalShippable.class).
+                operationName("ship").
+                    // requires boxing
+                    operation(Item.class, item -> new ShippingInfo(item.getName() + " item shipped")).
+                operationName("track").
+                    // requires unboxing
+                    operation(Item.class, item -> Optional.of(new TrackingInfo(item.getName() + " item on its way"))).
+                build();
+
+        Item[] items = {
+                new Book("The Mythical Man-Month"),
+                new Furniture("Sofa"),
+                new ElectronicItem("Soundbar"),
+                new AutoPart("Tire"),
+                new Jewelery("Diamond ring"),
+        };
+
+        List<String> log = new ArrayList<>();
+
+        for (Item item : items) {
+            OptionalShippable extension = dynamicClassExtension.extension(item, OptionalShippable.class);
+            ShippingInfo shippingInfo = extension.ship().orElseGet(() -> new ShippingInfo("Error shipping " + item.getName()));
+            log.add(shippingInfo.toString());
+            System.out.println(shippingInfo);
+            TrackingInfo trackingInfo = extension.track();
+            log.add(trackingInfo.toString());
+            out.println(trackingInfo);
+        }
+
+        String expected = """
+                          ShippingInfo[result=The Mythical Man-Month item shipped]
+                          TrackingInfo[result=The Mythical Man-Month item on its way]
+                          ShippingInfo[result=Sofa item shipped]
+                          TrackingInfo[result=Sofa item on its way]
+                          ShippingInfo[result=Soundbar item shipped]
+                          TrackingInfo[result=Soundbar item on its way]
+                          ShippingInfo[result=Tire item shipped]
+                          TrackingInfo[result=Tire item on its way]
+                          ShippingInfo[result=Diamond ring item shipped]
+                          TrackingInfo[result=Diamond ring item on its way]""";
+
+        assertEquals(expected, String.join("\n", log));
+
+        // setup with no need of boxing and unboxing
+        dynamicClassExtension = new DynamicClassExtension().builder(OptionalShippable.class).
+                operationName("ship").
+                operation(Item.class, item -> Optional.of(new ShippingInfo(item.getName() + " item shipped"))).
+                operationName("track").
+                operation(Item.class, item -> new TrackingInfo(item.getName() + " item on its way")).
+                build();
+
+        log.clear();
+        for (Item item : items) {
+            OptionalShippable extension = dynamicClassExtension.extension(item, OptionalShippable.class);
+            ShippingInfo shippingInfo = extension.ship().get();
+            log.add(shippingInfo.toString());
+            System.out.println(shippingInfo);
+            TrackingInfo trackingInfo = extension.track();
+            log.add(trackingInfo.toString());
+            out.println(trackingInfo);
+        }
+        assertEquals(expected, String.join("\n", log));
+    }
+
     private static void sleep() {
         sleep(1000);
     }
