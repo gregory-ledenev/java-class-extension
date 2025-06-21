@@ -321,7 +321,7 @@ try {
 `DynamicClassExtension` supports automatic boxing/unboxing of `Optional` operation results. This means if extension interfaces or underlying code start/stop returning `Optional`, they’ll be handled automatically—no code changes required.
 ```java
 @ExtensionInterface
-interface OptionalShippable {
+interface OptionalShippable { 
     Optional<ShippingInfo> ship();
     TrackingInfo track();
 }
