@@ -75,7 +75,7 @@ for (Item item : items) {
 Supporting a new `Item` class using the Java Class Extension library requires just adding the operations for that new `Item` class. No need to change any other code that does shipping with help of `Shippable` interface. That is it.
 
 ### Details
-For the most of the cases a shared instance of `DynamicClassExtension` should be used. But if there is a need to have different implementations of extensions in different places or domains it is possible to create and utilize new instances of `DynamicClassExtension`.
+For the most of the cases a shared instance of `DynamicClassExtension` can be used. But if there is a need to have different implementations of extensions in different places or domains, it is possible to create and utilize dedicated instances of `DynamicClassExtension`. Context-specific providers or Dependency Injection can be used to distribute dedicated instances of `DynamicClassExtension` to its consumers.
 
 **Note:** Extensions returned by `DynamicClassExtension` do not directly correspond to certain classes themselves. Therefore, it is crucial not to cast these extensions. Instead, always utilize only the methods provided by the extension interface. For example, an extension obtained for the `ItemShippable` interface that combines both `Shippable` and `ItemInterface` can not be cast to the `Item`.
 
@@ -273,7 +273,7 @@ Cashing of extension objects are supported out of the box, and it can be control
 
 If there is a need to explicitly get some non-cached extensions - use the `DynamicClassExtension.extensionNoCache(...)` method to get them.
 
-It is possible to explicitly define cache policy per each extension interface. It can be done using the `@ExtensionInterface` annotation amd specifying the `cachePolicy` field. 
+It is possible to explicitly define cache policy per each extension interface. It can be done using the `@ExtensionInterface` annotation and specifying the `cachePolicy` field. 
 
 #### Integrity and Validation
 `DynamicClassExtension` offers a capability to validate extensions for a given class through its `checkValid(...)` method. An extension is deemed valid when corresponding operations are registered for all its methods. However, in certain scenarios, it's desirable to maintain extension validity while supporting only a subset of operations. This flexibility can be achieved by annotating specific methods in the extension interface with `@OptionalMethods` annotation.
@@ -339,6 +339,20 @@ void testOptionalBoxing() {
     ...
 }
 ```
+
+#### Testing
+Testing can be organized:
+* Using a shared `DynamicClassExtension` instance. In that case that instance should be reset to its 
+initial state:
+  * Explicitly in the test cases after/before each test via `DynamicClassExtension.getInstance().clear`.
+  * Using JUnit 5 extensions:
+  ```java
+      @BeforeEach
+    void setUp(TestInfo testInfo) {
+        DynamicClassExtension.sharedInstance().clear();
+    }```
+* Using a dedicated `DynamicClassExtension` instance. In that case each test should create its own
+  `DynamicClassExtension` to work with.
 
 #### Limitations
 The following are limitations of `DynamicClassExtension`:

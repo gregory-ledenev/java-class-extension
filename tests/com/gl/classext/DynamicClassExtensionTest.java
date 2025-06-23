@@ -1,7 +1,9 @@
 package com.gl.classext;
 
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestInfo;
 
 import java.text.MessageFormat;
 import java.time.Duration;
@@ -1960,10 +1962,10 @@ public class DynamicClassExtensionTest {
 
     @Test
     void testAdhocNewItem() {
-        DynamicClassExtension dynamicClassExtension = DynamicClassExtension.sharedInstance().builder().
+        DynamicClassExtension dynamicClassExtension = setupDynamicClassExtension(new StringBuilder()).builder().
                 extensionInterface(Item_Shippable.class).
                     operationName("ship").
-                        operation(Jewelery.class, jewelery -> new ShippingInfo(STR."\{jewelery.getName()} jewelery shipped")).
+                        operation(Jewelery.class, jewelery -> new ShippingInfo(jewelery.getName() + " jewelery shipped")).
                 build();
 
         Item[] items = {

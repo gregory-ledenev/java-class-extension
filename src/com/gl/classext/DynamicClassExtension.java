@@ -89,10 +89,17 @@ import static java.text.MessageFormat.*;
  * class - its parent extension will be utilised. For example, if there's no explicit extension operations defined for
  * {@code AutoPart} objects - base {@code ship()} and {@code log(boolean)} operations specified for {@code Item} will be used instead.</p>
  *
- * <p>Cashing of extension objects are supported out of the box. Cache utilises weak references to release extension objects
+ * <p>Cashing of extension objects are supported out of the box, and it can be controlled via the
+ * {@code Classextension.cacheEnabled} property. Cache utilizes weak references to release extension objects
  * that are not in use. Though, to perform full cleanup either the {@code cacheCleanup()} should be used or automatic cleanup can
  * be initiated via the {@code scheduleCacheCleanup()}. If automatic cache cleanup is used - it can be stopped by calling the
  * {@code shutdownCacheCleanup()}.</p>
+ *
+ * <p>If there is a need to explicitly get some non-cached extensions - use the {@code DynamicClassExtension.
+ * extensionNoCache(...)} method to get them.</p>
+ *
+ * <p>It is possible to explicitly define cache policy per each extension interface. It can be done using the
+ * {@code @ExtensionInterface} annotation and specifying the {@code cachePolicy} field.</p>
  *
  * @see <a href="https://github.com/gregory-ledenev/java-class-extension/blob/main/doc/dynamic-class-extensions.md">More details</a>
  * @author Gregory Ledenev
@@ -425,6 +432,13 @@ public class DynamicClassExtension extends AbstractClassExtension {
         Objects.requireNonNull(anOperationName);
 
         operationsMap.remove(new OperationKey(aClass, anExtensionClass, operationName(anOperationName, aParameterTypes)));
+    }
+
+    /**
+     * Removes all registered operations
+     */
+    public void clear() {
+        operationsMap.clear();
     }
 
     /**
