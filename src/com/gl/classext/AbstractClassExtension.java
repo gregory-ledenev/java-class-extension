@@ -63,7 +63,7 @@ public abstract class AbstractClassExtension implements ClassExtension {
                 result = Optional.ofNullable(result);
         } else {
             if (result instanceof Optional)
-                result = ((Optional<?>) result).get();
+                result = ((Optional<?>) result).orElse(null);
         }
 
         return result;

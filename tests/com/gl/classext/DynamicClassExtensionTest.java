@@ -1997,6 +1997,9 @@ public class DynamicClassExtensionTest {
     interface OptionalShippable {
         Optional<ShippingInfo> ship();
         TrackingInfo track();
+
+        Optional<ShippingInfo> ship(String anInstructions);
+        TrackingInfo track(String anInstructions);
     }
 
     @Test
@@ -2006,9 +2009,11 @@ public class DynamicClassExtensionTest {
                 operationName("ship").
                     // requires boxing
                     operation(Item.class, item -> new ShippingInfo(item.getName() + " item shipped")).
+                    operation(Item.class, (aItem, aO) -> null).
                 operationName("track").
                     // requires unboxing
                     operation(Item.class, item -> Optional.of(new TrackingInfo(item.getName() + " item on its way"))).
+                    operation(Item.class, (aItem, aO) -> Optional.empty()).
                 build();
 
         Item[] items = {
@@ -2026,22 +2031,36 @@ public class DynamicClassExtensionTest {
             ShippingInfo shippingInfo = extension.ship().orElseGet(() -> new ShippingInfo("Error shipping " + item.getName()));
             log.add(shippingInfo.toString());
             System.out.println(shippingInfo);
+            shippingInfo = extension.ship("").orElseGet(() -> new ShippingInfo("Error shipping " + item.getName()));
+            log.add(shippingInfo.toString());
+            System.out.println(shippingInfo);
+
             TrackingInfo trackingInfo = extension.track();
             log.add(trackingInfo.toString());
             out.println(trackingInfo);
+            trackingInfo = extension.track("");
+            if (trackingInfo != null) {
+                log.add(trackingInfo.toString());
+                out.println(trackingInfo);
+            }
         }
 
         String expected = """
-                          ShippingInfo[result=The Mythical Man-Month item shipped]
-                          TrackingInfo[result=The Mythical Man-Month item on its way]
-                          ShippingInfo[result=Sofa item shipped]
-                          TrackingInfo[result=Sofa item on its way]
-                          ShippingInfo[result=Soundbar item shipped]
-                          TrackingInfo[result=Soundbar item on its way]
-                          ShippingInfo[result=Tire item shipped]
-                          TrackingInfo[result=Tire item on its way]
-                          ShippingInfo[result=Diamond ring item shipped]
-                          TrackingInfo[result=Diamond ring item on its way]""";
+                         ShippingInfo[result=The Mythical Man-Month item shipped]
+                         ShippingInfo[result=Error shipping The Mythical Man-Month]
+                         TrackingInfo[result=The Mythical Man-Month item on its way]
+                         ShippingInfo[result=Sofa item shipped]
+                         ShippingInfo[result=Error shipping Sofa]
+                         TrackingInfo[result=Sofa item on its way]
+                         ShippingInfo[result=Soundbar item shipped]
+                         ShippingInfo[result=Error shipping Soundbar]
+                         TrackingInfo[result=Soundbar item on its way]
+                         ShippingInfo[result=Tire item shipped]
+                         ShippingInfo[result=Error shipping Tire]
+                         TrackingInfo[result=Tire item on its way]
+                         ShippingInfo[result=Diamond ring item shipped]
+                         ShippingInfo[result=Error shipping Diamond ring]
+                         TrackingInfo[result=Diamond ring item on its way]""";
 
         assertEquals(expected, String.join("\n", log));
 
@@ -2063,7 +2082,17 @@ public class DynamicClassExtensionTest {
             log.add(trackingInfo.toString());
             out.println(trackingInfo);
         }
-        assertEquals(expected, String.join("\n", log));
+        assertEquals("""
+                          ShippingInfo[result=The Mythical Man-Month item shipped]
+                          TrackingInfo[result=The Mythical Man-Month item on its way]
+                          ShippingInfo[result=Sofa item shipped]
+                          TrackingInfo[result=Sofa item on its way]
+                          ShippingInfo[result=Soundbar item shipped]
+                          TrackingInfo[result=Soundbar item on its way]
+                          ShippingInfo[result=Tire item shipped]
+                          TrackingInfo[result=Tire item on its way]
+                          ShippingInfo[result=Diamond ring item shipped]
+                          TrackingInfo[result=Diamond ring item on its way]""", String.join("\n", log));
     }
 
     private static void sleep() {
