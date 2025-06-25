@@ -86,8 +86,10 @@ class ItemShippable implements Shippable {
     }
 
     public ShippingInfo ship() {
-        return new ShippingInfo(MessageFormat.format("{0} NOT shipped. Instructions: {1}",
-                getDelegate(), instructions != null ? instructions : "NONE"));
+        String result = MessageFormat.format("{0} NOT shipped", getDelegate());
+        if (instructions != null)
+            result +=  ". Instructions: " + instructions;
+        return new ShippingInfo(result);
     }
 
     public void log() {

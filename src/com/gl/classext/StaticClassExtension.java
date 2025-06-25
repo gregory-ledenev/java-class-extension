@@ -136,7 +136,7 @@ public class StaticClassExtension extends AbstractClassExtension {
      * redundant objects creation. If no cache should be used - turn it OFF via the {@code setCacheEnabled(false)} call
      *
      * @param anObject             object to return an extension object for
-     * @param anExtensionInterface interface of extension object to be returned
+     * @param anExtensionInterface interface of an extension object to be returned
      * @return an extension object
      */
     public static <T> T sharedExtension(Object anObject, Class<T> anExtensionInterface) {
@@ -232,15 +232,31 @@ public class StaticClassExtension extends AbstractClassExtension {
                     extensionClass.getName(), extensionInterface.getName()));
     }
 
+    /**
+     * Factory interface responsible for creation of extensions.
+     */
     @FunctionalInterface
     public interface ExtensionFactory {
+        /** Creates an extension for a supplied object, an extension interface and an extension class (if located)
+         * @param anObject             object to return an extension object for
+         * @param anExtensionInterface interface of an extension object to be returned
+         * @param anExtensionClass     extension class. It can be {@code null} if not located, and it can be ignored if not needed.
+         * @return an extension object or {@code null} to let {@code StaticClassExtension} create an extension object itself
+         */
         Object createExtension(Object anObject, Class<?> anExtensionInterface, Class<?> anExtensionClass);
     }
 
+    /**
+     * @return extension factory
+     */
     public ExtensionFactory getExtensionFactory() {
         return extensionFactory;
     }
 
+    /**
+     * Specifies extension factory should be used to create extensions
+     * @param aExtensionFactory extension factory
+     */
     public void setExtensionFactory(ExtensionFactory aExtensionFactory) {
         extensionFactory = aExtensionFactory;
     }
