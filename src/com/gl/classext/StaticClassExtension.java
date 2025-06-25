@@ -197,16 +197,15 @@ public class StaticClassExtension extends AbstractClassExtension {
         packageNames.addAll(extensionPackages(extensionInterface));
 
         Class<?> extensionClass = extensionClassForObject(anObject, extensionInterface, packageNames);
-        if (extensionClass == null)
+        if (extensionClass == null && extensionFactory == null)
             throw new IllegalArgumentException(MessageFormat.format("No extension {0} for a {1} class",
                     extensionNames(packageNames, anObject.getClass().getSimpleName(), extensionInterface.getSimpleName()),
                     anObject.getClass().getName()));
         try {
-            if (!extensionInterface.isAssignableFrom(extensionClass))
-                throw new IllegalStateException(MessageFormat.format("Extension \"{0}\"class does not implement the \"{1}\" interface",
-                        extensionClass.getName(), extensionInterface.getName()));
+            if (extensionClass != null)
+                checkExtensionClass(extensionClass, extensionInterface);
 
-            Object extension = createExtension(anObject, extensionClass);
+            Object extension = createExtension(anObject, anExtensionInterface, extensionClass);
 
             if (instantiationStrategy != Type.STATIC_DIRECT) {
                 Class<?> finalExtensionInterface = extensionInterface;
@@ -227,10 +226,47 @@ public class StaticClassExtension extends AbstractClassExtension {
         }
     }
 
+    private static void checkExtensionClass(Class<?> extensionClass, Class<?> extensionInterface) {
+        if (! extensionInterface.isAssignableFrom(extensionClass))
+            throw new IllegalStateException(MessageFormat.format("Extension \"{0}\"class does not implement the \"{1}\" interface",
+                    extensionClass.getName(), extensionInterface.getName()));
+    }
+
+    @FunctionalInterface
+    public interface ExtensionFactory {
+        Object createExtension(Object anObject, Class<?> anExtensionInterface, Class<?> anExtensionClass);
+    }
+
+    public ExtensionFactory getExtensionFactory() {
+        return extensionFactory;
+    }
+
+    public void setExtensionFactory(ExtensionFactory aExtensionFactory) {
+        extensionFactory = aExtensionFactory;
+    }
+
+    private ExtensionFactory extensionFactory;
+
     @SuppressWarnings({"rawtypes", "unchecked"})
-    private static Object createExtension(Object anObject, Class<?> anExtensionClass) throws NoSuchMethodException, InstantiationException, IllegalAccessException, InvocationTargetException {
-        Constructor<?> constructor = getDeclaredConstructor(anExtensionClass, anObject.getClass());
+    private Object createExtension(Object anObject, Class<?> anExtensionInterface, Class<?> anExtensionClass)
+            throws NoSuchMethodException, InstantiationException, IllegalAccessException, InvocationTargetException {
+        Object result = null;
+
+        if (extensionFactory != null) {
+            result = extensionFactory.createExtension(anObject, anExtensionInterface, anExtensionClass);
+            if (result != null)
+                checkExtensionClass(result.getClass(), anExtensionInterface);
+        }
+
+        if (result == null)
+            result = defaultCreateExtension(anObject, anExtensionClass);
+
+        return result;
+    }
+
+    private static Object defaultCreateExtension(Object anObject, Class<?> anExtensionClass) throws NoSuchMethodException, InstantiationException, IllegalAccessException, InvocationTargetException {
         Object result;
+        Constructor<?> constructor = getDeclaredConstructor(anExtensionClass, anObject.getClass());
         if (constructor.getParameterCount() == 1) {
             result = constructor.newInstance(anObject);
         } else {
@@ -242,7 +278,6 @@ public class StaticClassExtension extends AbstractClassExtension {
                         anExtensionClass, anExtensionClass.getSimpleName(), DelegateHolder.class));
             }
         }
-
         return result;
     }
 

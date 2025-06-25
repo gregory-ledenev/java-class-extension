@@ -166,14 +166,14 @@ public interface ClassExtension {
      * @return {@code true} if class extension is compatible with an extension type; {@code false} otherwise
      */
     boolean compatible(Type aType);
-
     /**
      * Finds and returns an extension object according to a supplied interface. It creates either dynamic or static
-     * extensions according to the {@code @ExtensionInterface} annotation for {@code anExtensionInterface} argument
+     * extensions according to the {@code @ExtensionInterface.type} annotation for {@code anExtensionInterface} argument
      *
      * @param anObject             object to return an extension object for
      * @param anExtensionInterface interface of extension object to be returned
      * @return an extension object
+     * @throws IllegalArgumentException if extension interface is not annotated with {@code @ExtensionInterface} annotation
      */
     static <T> T sharedExtension(Object anObject, Class<T> anExtensionInterface) {
         ExtensionInterface annotation = anExtensionInterface.getAnnotation(ExtensionInterface.class);
