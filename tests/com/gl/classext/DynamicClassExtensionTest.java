@@ -1,9 +1,7 @@
 package com.gl.classext;
 
 
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.TestInfo;
 
 import java.text.MessageFormat;
 import java.time.Duration;
@@ -1756,33 +1754,52 @@ public class DynamicClassExtensionTest {
 
     private interface NamesHolder {
         List<String> getNames();
+        int getID();
+        String getDescription();
     }
 
     private static class Names implements NamesHolder {
+        int ID = 12345;
+        String description = "Some description";
         private final List<String> names = new ArrayList<>();
+
         @Override
         public List<String> getNames() {
             return names;
         }
+
+        @Override
+        public String getDescription() {
+            return description;
+        }
+
+        @Override
+        public int getID() {
+            return ID;
+        }
     }
 
     @Test
-    void readOnlyCollectionsAdviceTest() {
+    void unmodifiedValueAdviceTest() {
         DynamicClassExtension dynamicClassExtension = new DynamicClassExtension().
                 aspectBuilder().
                 extensionInterface(NamesHolder.class).
                     objectClass(Names.class).
-                        operation("getNames()").
-                            around(new ReadOnlyCollectionOrMapAdvice()).
+                        operation("*").
+                            around(new UnmodifiableValueAdvice(aO -> {
+                                return aO instanceof String str ? new String(str) : null;
+                            }, Logger.getLogger(getClass().getName()))).
                 build();
         Names names = new Names();
+        NamesHolder namesHolder = dynamicClassExtension.extension(names, NamesHolder.class);
         try {
-            NamesHolder namesHolder = dynamicClassExtension.extension(names, NamesHolder.class);
             namesHolder.getNames().add("test"); // cant add because list is read-only
             fail("Unexpected success on list modification");
         } catch (UnsupportedOperationException ex) {
             // do nothing
         }
+        assertEquals(namesHolder.getID(), namesHolder.getID()); // should succeed but log error message
+        assertNotSame(namesHolder.getDescription(), namesHolder.getDescription()); // should succedd as each call produces a copy
     }
 
     static int circuitBreakfastedAttemptsCount = 0;
