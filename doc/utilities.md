@@ -27,6 +27,21 @@ assertEquals(r2, r1);
 assertNotEquals(r1, r3);
 assertNotEquals(r3, r1);
 ```
+### Payload Bundling
+Sometimes, you may want to attach additional data—such as diagnostics or contextual information—to an extension without modifying interfaces or their implementations. The DynamicClassExtension utility makes this possible by allowing you to bundle and retrieve payloads dynamically, eliminating the need for static code changes.
+
+* To add a payload to an extension, use: `DynamicClassExtension.extensionWithPayload(...)`.
+* To retrieve the payload from an extension, use: `DynamicClassExtension.getPayloadForExtension(...)`
+
+This approach provides flexibility when you need to associate extra information with extensions at runtime, streamlining your code and avoiding the complexity of static inheritance or interface modification.
+```java
+String payload = "Some textual payload";
+Book book = new Book("The Mythical Man-Month");
+ItemInterface extension = DynamicClassExtension.extensionWithPayload(book, ItemInterface.class, payload);
+
+assertEquals("Some textual payload", DynamicClassExtension.getPayloadForExtension(extension).orElse("No payload"));
+assertEquals("The Mythical Man-Month", extension.getName());
+```
 
 ### Performance Logging
 There is an `Aspects.logPerformanceExtension` utility method that returns an extension with added performance logging for all operations. Use of this utility eliminates manual method modification for performance logging:

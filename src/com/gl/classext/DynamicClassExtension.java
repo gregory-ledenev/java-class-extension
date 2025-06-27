@@ -520,8 +520,8 @@ public class DynamicClassExtension extends AbstractClassExtension {
      * objects creation.
      *
      * @param anObject                 object to return an extension object for
-     * @param anExtensionInterface     class of extension object to be returned
-     * @param aSupplementaryInterfaces supplementary interfaces of extension object to be returned
+     * @param anExtensionInterface     interface of an extension object to be returned
+     * @param aSupplementaryInterfaces supplementary interfaces of an extension object to be returned
      * @return an extension object
      */
     public <T> T extension(Object anObject, Class<T> anExtensionInterface, Class<?>... aSupplementaryInterfaces) {
@@ -1487,6 +1487,45 @@ public class DynamicClassExtension extends AbstractClassExtension {
                     missingMethodsHandler, extensionInterface, supplementaryInterfaces,
                     method, args);
         }
+    }
+
+    interface PayloadHolder {
+        Object getPayload();
+    }
+
+    /**
+     * Finds and returns an extension object, bundled with a payload, according to a supplied class. To obtain a payload
+     * for an extension use the {@code getPayloadForExtension(...)} method
+     *
+     *
+     * @param anObject             object to return an extension object for
+     * @param anExtensionInterface interface of an extension object to be returned
+     * @param aPayload             payload to bundle with an extension to be returned
+     * @return an extension object
+     */
+    public static <T> T extensionWithPayload(Object anObject, Class<T> anExtensionInterface, final Object aPayload) {
+        Objects.requireNonNull(aPayload);
+
+        final DynamicClassExtension dynamicClassExtension = new DynamicClassExtension();
+        dynamicClassExtension.setCacheEnabled(false);
+        dynamicClassExtension.builder(PayloadHolder.class).
+                operationName("getPayload").
+                operation(Object.class, o -> aPayload).
+                build();
+
+        return dynamicClassExtension.extension(anObject, anExtensionInterface, PayloadHolder.class);
+    }
+
+    /**
+     * Obtains payload for a passed extension
+     * @param anExtension an extension to obtain payload for
+     * @return payload
+     */
+    public static Optional<Object> getPayloadForExtension(Object anExtension) {
+        Objects.requireNonNull(anExtension);
+
+        return Optional.ofNullable(
+                (anExtension instanceof PayloadHolder payloadHolder) ? payloadHolder.getPayload() : null);
     }
 }
 

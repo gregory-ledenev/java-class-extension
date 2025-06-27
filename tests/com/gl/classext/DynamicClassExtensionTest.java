@@ -1217,8 +1217,8 @@ public class DynamicClassExtensionTest {
         };
 
         for (Item item : items) {
-            Item_Shippable extension = Aspects.logPerformanceExtension(item, Item_Shippable.class);
-            System.out.println(extension.toString());
+            Item_Shippable extension = logPerformanceExtension(item, Item_Shippable.class);
+            out.println(extension.toString());
         }
     }
 
@@ -1244,7 +1244,7 @@ public class DynamicClassExtensionTest {
     @Test
     void propertyChangeUtilityTest() {
         Book book = new Book("The Mythical Man-Month");
-        Item_Shippable extension = Aspects.propertyChangeExtension(book, Item_Shippable.class,
+        Item_Shippable extension = propertyChangeExtension(book, Item_Shippable.class,
                 evt -> out.println(evt.toString()));
         out.println(extension.getName());
         extension.setName("Shining");
@@ -1290,7 +1290,7 @@ public class DynamicClassExtensionTest {
 
         for (Item item : items) {
             Item_Shippable extension = dynamicClassExtension.extension(item, Item_Shippable.class);
-            System.out.println(extension.toString());
+            out.println(extension.toString());
         }
     }
 
@@ -1343,7 +1343,7 @@ public class DynamicClassExtensionTest {
 
         Book book = new Book("The Mythical Man-Month");
         Item_Shippable extension = dynamicClassExtension.extension(book, Item_Shippable.class);
-        System.out.println(extension.ship());
+        out.println(extension.ship());
 
         try {
             Thread.sleep(5000);
@@ -1380,7 +1380,7 @@ public class DynamicClassExtensionTest {
                             operation("*").
                                 around(new CachedValueAdvice(cache, logger)).
                                 around((performer, operation, object, args) -> "AROUND: " +
-                                        AroundAdvice.applyDefault(performer, operation, object, args)).
+                                        applyDefault(performer, operation, object, args)).
                 build();
 
         Item[] items = {
@@ -1392,12 +1392,12 @@ public class DynamicClassExtensionTest {
 
         for (Item item : items) {
             Item_Shippable extension = dynamicClassExtension.extension(item, Item_Shippable.class);
-            System.out.println(extension.toString());
+            out.println(extension.toString());
         }
 
         for (Item item : items) {
             Item_Shippable extension = dynamicClassExtension.extension(item, Item_Shippable.class);
-            System.out.println(extension.toString());
+            out.println(extension.toString());
         }
 
         out.println(stringBuilderHandler.getStringBuilder().toString());
@@ -1417,11 +1417,11 @@ public class DynamicClassExtensionTest {
                         objectClass(Item.class).
                             operation("*").
                                 advices(builder -> {
-                                    builder.around((performer, operation, object, args) -> "AROUND 1: " + AroundAdvice.applyDefault(performer, operation, object, args)).
-                                            around((performer, operation, object, args) -> "AROUND 2: " + AroundAdvice.applyDefault(performer, operation, object, args)).
-                                            around((performer, operation, object, args) -> "AROUND 3: " + AroundAdvice.applyDefault(performer, operation, object, args)).
-                                            around((performer, operation, object, args) -> "AROUND 4: " + AroundAdvice.applyDefault(performer, operation, object, args)).
-                                            around((performer, operation, object, args) -> "AROUND 5: " + AroundAdvice.applyDefault(performer, operation, object, args));
+                                    builder.around((performer, operation, object, args) -> "AROUND 1: " + applyDefault(performer, operation, object, args)).
+                                            around((performer, operation, object, args) -> "AROUND 2: " + applyDefault(performer, operation, object, args)).
+                                            around((performer, operation, object, args) -> "AROUND 3: " + applyDefault(performer, operation, object, args)).
+                                            around((performer, operation, object, args) -> "AROUND 4: " + applyDefault(performer, operation, object, args)).
+                                            around((performer, operation, object, args) -> "AROUND 5: " + applyDefault(performer, operation, object, args));
                                 }).
                 build();
 
@@ -1474,7 +1474,7 @@ public class DynamicClassExtensionTest {
 
         for (Item item : items) {
             Item_Shippable extension = dynamicClassExtension.extension(item, Item_Shippable.class);
-            System.out.println(extension.toString());
+            out.println(extension.toString());
         }
 
         assertEquals("""
@@ -1505,7 +1505,7 @@ public class DynamicClassExtensionTest {
 
         for (Item item : items) {
             Item_Shippable extension = dynamicClassExtension.extension(item, Item_Shippable.class);
-            System.out.println(extension.toString());
+            out.println(extension.toString());
         }
         assertEquals("""
                     INFO: BEFORE: Book["The Mythical Man-Month"] -> toString()
@@ -1530,7 +1530,7 @@ public class DynamicClassExtensionTest {
 
         for (Item item : items) {
             Item_Shippable extension = dynamicClassExtension.extension(item, Item_Shippable.class);
-            System.out.println(extension.toString());
+            out.println(extension.toString());
         }
         assertEquals("""
                     INFO: BEFORE: Book["The Mythical Man-Month"] -> toString()
@@ -1555,7 +1555,7 @@ public class DynamicClassExtensionTest {
 
         for (Item item : items) {
             Item_Shippable extension = dynamicClassExtension.extension(item, Item_Shippable.class);
-            System.out.println(extension.toString());
+            out.println(extension.toString());
         }
         assertEquals("""
                     INFO: AFTER: Book["The Mythical Man-Month"] -> toString() = Book["The Mythical Man-Month"]
@@ -1591,7 +1591,7 @@ public class DynamicClassExtensionTest {
 
         for (Item item : items) {
             Item_Shippable extension = dynamicClassExtension.extension(item, Item_Shippable.class);
-            System.out.println(extension.toString());
+            out.println(extension.toString());
         }
 
         assertEquals("""
@@ -1620,7 +1620,7 @@ public class DynamicClassExtensionTest {
                 build();
         for (Item item : items) {
             Item_Shippable extension = dynamicClassExtension.extension(item, Item_Shippable.class);
-            System.out.println(extension.toString());
+            out.println(extension.toString());
         }
         assertEquals("", stringBuilderHandler.getStringBuilder().toString());
     }
@@ -1731,12 +1731,12 @@ public class DynamicClassExtensionTest {
 
         for (Item item : items) {
             Item_Shippable extension = dynamicClassExtension.extension(item, Item_Shippable.class);
-            System.out.println(extension.toString());
+            out.println(extension.toString());
         }
 
         for (Item item : items) {
             Item_Shippable extension = dynamicClassExtension.extension(item, Item_Shippable.class);
-            System.out.println(extension.toString());
+            out.println(extension.toString());
         }
 
         out.println(stringBuilderHandler.getStringBuilder().toString());
@@ -1787,6 +1787,7 @@ public class DynamicClassExtensionTest {
                     objectClass(Names.class).
                         operation("*").
                             around(new UnmodifiableValueAdvice(aO -> {
+                                // return a copy of string for the sake of the test only
                                 return aO instanceof String str ? new String(str) : null;
                             }, Logger.getLogger(getClass().getName()))).
                 build();
@@ -1798,8 +1799,10 @@ public class DynamicClassExtensionTest {
         } catch (UnsupportedOperationException ex) {
             // do nothing
         }
-        assertEquals(namesHolder.getID(), namesHolder.getID()); // should succeed but log error message
-        assertNotSame(namesHolder.getDescription(), namesHolder.getDescription()); // should succedd as each call produces a copy
+        // should succeed but log error message
+        assertEquals(namesHolder.getID(), namesHolder.getID());
+        // should succeed as each call produces a copy of string value
+        assertNotSame(namesHolder.getDescription(), namesHolder.getDescription());
     }
 
     static int circuitBreakfastedAttemptsCount = 0;
@@ -1999,7 +2002,7 @@ public class DynamicClassExtensionTest {
             Item_Shippable extension = dynamicClassExtension.extension(item, Item_Shippable.class);
             ShippingInfo shippingInfo = extension.ship();
             shippingLog.add(shippingInfo.toString());
-            System.out.println(shippingInfo);
+            out.println(shippingInfo);
         }
 
         assertEquals("""
@@ -2047,10 +2050,10 @@ public class DynamicClassExtensionTest {
             OptionalShippable extension = dynamicClassExtension.extension(item, OptionalShippable.class);
             ShippingInfo shippingInfo = extension.ship().orElseGet(() -> new ShippingInfo("Error shipping " + item.getName()));
             log.add(shippingInfo.toString());
-            System.out.println(shippingInfo);
+            out.println(shippingInfo);
             shippingInfo = extension.ship("").orElseGet(() -> new ShippingInfo("Error shipping " + item.getName()));
             log.add(shippingInfo.toString());
-            System.out.println(shippingInfo);
+            out.println(shippingInfo);
 
             TrackingInfo trackingInfo = extension.track();
             log.add(trackingInfo.toString());
@@ -2094,7 +2097,7 @@ public class DynamicClassExtensionTest {
             OptionalShippable extension = dynamicClassExtension.extension(item, OptionalShippable.class);
             ShippingInfo shippingInfo = extension.ship().get();
             log.add(shippingInfo.toString());
-            System.out.println(shippingInfo);
+            out.println(shippingInfo);
             TrackingInfo trackingInfo = extension.track();
             log.add(trackingInfo.toString());
             out.println(trackingInfo);
@@ -2110,6 +2113,44 @@ public class DynamicClassExtensionTest {
                           TrackingInfo[result=Tire item on its way]
                           ShippingInfo[result=Diamond ring item shipped]
                           TrackingInfo[result=Diamond ring item on its way]""", String.join("\n", log));
+    }
+
+    @Test
+    void testExtensionWithPayload() {
+        String payload = "Some textual payload";
+        Book book = new Book("The Mythical Man-Month");
+        ItemInterface extension = DynamicClassExtension.extensionWithPayload(book, ItemInterface.class, payload);
+
+        out.println(DynamicClassExtension.getPayloadForExtension(extension).orElse("No payload"));
+        out.println(extension.getName());
+
+        assertEquals("Some textual payload", DynamicClassExtension.getPayloadForExtension(extension).orElse("No payload"));
+        assertEquals("The Mythical Man-Month", extension.getName());
+    }
+
+    ShippingInfo ship(Item item) {
+        return ClassExtension.sharedExtension(item, Shippable.class).ship();
+    }
+
+    ShippingInfo shipFunctional(Item item) {
+        return switch (item) {
+            case Book book -> shipBook(book);
+            case Furniture furniture -> shipFurniture(furniture);
+            case ElectronicItem electronicItem -> shipElectronicItem(electronicItem);
+            default -> throw new IllegalStateException("Unexpected value: " + item);
+        };
+    }
+
+    private ShippingInfo shipElectronicItem(ElectronicItem aElectronicItem) {
+        return new ShippingInfo(aElectronicItem.getName() + " electronic item shipped");
+    }
+
+    private ShippingInfo shipFurniture(Furniture aFurniture) {
+        return new ShippingInfo(aFurniture.getName() + " furniture shipped");
+    }
+
+    private ShippingInfo shipBook(Book aBook) {
+        return new ShippingInfo(aBook.getName() + " book shipped");
     }
 
     private static void sleep() {
