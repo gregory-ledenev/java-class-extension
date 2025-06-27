@@ -38,8 +38,9 @@ This approach provides flexibility when you need to associate extra information 
 String payload = "Some textual payload";
 Book book = new Book("The Mythical Man-Month");
 ItemInterface extension = DynamicClassExtension.extensionWithPayload(book, ItemInterface.class, payload);
-
+// check if payload present and correct
 assertEquals("Some textual payload", DynamicClassExtension.getPayloadForExtension(extension).orElse("No payload"));
+// check if extension itself behave correctly
 assertEquals("The Mythical Man-Month", extension.getName());
 ```
 
