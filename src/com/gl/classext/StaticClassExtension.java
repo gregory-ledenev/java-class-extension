@@ -158,7 +158,7 @@ public class StaticClassExtension extends AbstractClassExtension {
         Objects.requireNonNull(anExtensionInterface);
 
         return isCacheEnabled(anExtensionInterface) ?
-                (T) extensionCache.getOrCreate(new ClassExtensionKey(anObject, anExtensionInterface), () -> extensionNoCache(anObject, anExtensionInterface, aPackageNames)) :
+                (T) getExtensionCache().getOrCreate(new ClassExtensionKey(anObject, anExtensionInterface), () -> extensionNoCache(anObject, anExtensionInterface, aPackageNames)) :
                 extensionNoCache(anObject, anExtensionInterface, aPackageNames);
     }
 

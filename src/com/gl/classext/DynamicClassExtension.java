@@ -545,7 +545,7 @@ public class DynamicClassExtension extends AbstractClassExtension {
         Objects.requireNonNull(anExtensionInterface);
 
         return isCacheEnabled(anExtensionInterface) ?
-                (T) extensionCache.getOrCreate(new ClassExtensionKey(anObject, anExtensionInterface), () ->
+                (T) getExtensionCache().getOrCreate(new ClassExtensionKey(anObject, anExtensionInterface), () ->
                         extensionNoCache(anObject, aMissingMethodsHandler, anExtensionInterface, aSupplementaryInterfaces)) :
                 extensionNoCache(anObject, aMissingMethodsHandler, anExtensionInterface, aSupplementaryInterfaces);
     }
@@ -1419,9 +1419,8 @@ public class DynamicClassExtension extends AbstractClassExtension {
                 operationName("toString").
                 operation(Object.class, o -> aDescription).
                 build();
-        dynamicClassExtension.setCacheEnabled(false);
         //noinspection unchecked
-        return (T) dynamicClassExtension.extension(aLambdaFunction, functionalInterface);
+        return (T) dynamicClassExtension.extensionNoCache(aLambdaFunction, null, functionalInterface);
     }
 
     /**
@@ -1463,9 +1462,8 @@ public class DynamicClassExtension extends AbstractClassExtension {
                 operationName("getID").
                 operation(Object.class, o -> anID).
                 build();
-        dynamicClassExtension.setCacheEnabled(false);
         //noinspection unchecked
-        return (T) dynamicClassExtension.extension(aLambdaFunction, functionalInterface, IdentityHolder.class);
+        return (T) dynamicClassExtension.extensionNoCache(aLambdaFunction, null, functionalInterface, IdentityHolder.class);
     }
 
     private class ExtensionInvocationHandler<T> implements InvocationHandler {
@@ -1507,13 +1505,12 @@ public class DynamicClassExtension extends AbstractClassExtension {
         Objects.requireNonNull(aPayload);
 
         final DynamicClassExtension dynamicClassExtension = new DynamicClassExtension();
-        dynamicClassExtension.setCacheEnabled(false);
         dynamicClassExtension.builder(PayloadHolder.class).
                 operationName("getPayload").
                 operation(Object.class, o -> aPayload).
                 build();
 
-        return dynamicClassExtension.extension(anObject, anExtensionInterface, PayloadHolder.class);
+        return dynamicClassExtension.extensionNoCache(anObject, null, anExtensionInterface, PayloadHolder.class);
     }
 
     /**

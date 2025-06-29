@@ -1044,8 +1044,7 @@ public class Aspects {
                 operation("*").
                 around(new LogPerformTimeAdvice()).
                 build();
-        dynamicClassExtension.setCacheEnabled(false);
-        return dynamicClassExtension.extension(anObject, anExtensionInterface);
+        return dynamicClassExtension.extensionNoCache(anObject, null, anExtensionInterface);
     }
 
     /**
@@ -1065,8 +1064,7 @@ public class Aspects {
                 before(new LogBeforeAdvice()).
                 after(new LogAfterAdvice()).
                 build();
-        dynamicClassExtension.setCacheEnabled(false);
-        return dynamicClassExtension.extension(anObject, anExtensionInterface);
+        return dynamicClassExtension.extensionNoCache(anObject, null, anExtensionInterface);
     }
 
 
@@ -1087,8 +1085,7 @@ public class Aspects {
                 operation("set*(*)").
                 around(new PropertyChangeAdvice(aPropertyChangeListener)).
                 build();
-        dynamicClassExtension.setCacheEnabled(false);
-        return dynamicClassExtension.extension(anObject, anExtensionInterface);
+        return dynamicClassExtension.extensionNoCache(anObject, null, anExtensionInterface);
     }
 
     /**

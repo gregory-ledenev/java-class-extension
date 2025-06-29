@@ -709,7 +709,7 @@ public class DynamicClassExtensionTest {
         Book book = new Book("The Mythical Man-Month");
         Item_Shippable extension = dynamicClassExtension.extension(book, Item_Shippable.class);
         assertSame(extension, dynamicClassExtension.extension(book, Item_Shippable.class));
-        dynamicClassExtension.extensionCache.remove(new ClassExtensionKey(book, Item_Shippable.class));
+        dynamicClassExtension.getExtensionCache().remove(new ClassExtensionKey(book, Item_Shippable.class));
         assertNotSame(extension, dynamicClassExtension.extension(book, Item_Shippable.class));
     }
 
@@ -2124,7 +2124,10 @@ public class DynamicClassExtensionTest {
         out.println(DynamicClassExtension.getPayloadForExtension(extension).orElse("No payload"));
         out.println(extension.getName());
 
-        assertEquals("Some textual payload", DynamicClassExtension.getPayloadForExtension(extension).orElse("No payload"));
+        // check to ensure the payload is present and valid
+        assertEquals("Some textual payload", DynamicClassExtension.getPayloadForExtension(extension).
+                orElse("No payload"));
+        // check to ensure the extension itself is functional
         assertEquals("The Mythical Man-Month", extension.getName());
     }
 

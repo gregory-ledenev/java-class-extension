@@ -21,8 +21,74 @@ import static java.text.MessageFormat.format;
 public abstract class AbstractClassExtension implements ClassExtension {
     //region Cache methods
     private boolean cacheEnabled = true;
+
+    private volatile ThreadSafeWeakCache extensionCache;
+
     @SuppressWarnings("rawtypes")
-    protected final ThreadSafeWeakCache extensionCache = new ThreadSafeWeakCache();
+    protected ThreadSafeWeakCache getExtensionCache() {
+        if (extensionCache == null) {
+            synchronized (this) {
+                if (extensionCache == null)
+                    extensionCache = new ThreadSafeWeakCache();
+            }
+        }
+        return extensionCache;
+    }
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public boolean isCacheEnabled() {
+        return cacheEnabled;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public void setCacheEnabled(boolean isCacheEnabled) {
+        if (cacheEnabled != isCacheEnabled) {
+            cacheEnabled = isCacheEnabled;
+            if (!isCacheEnabled)
+                cacheClear();
+        }
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public void cacheCleanup() {
+        getExtensionCache().cleanup();
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public void cacheClear() {
+        getExtensionCache().clear();
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public void scheduleCacheCleanup() {
+        getExtensionCache().scheduleCleanup();
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public void shutdownCacheCleanup() {
+        getExtensionCache().shutdownCleanup();
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public boolean cacheIsEmpty() {
+        return getExtensionCache().isEmpty();
+    }
+    //endregion
 
     protected static String formatAdvice(Object anObject, Object anAdvice, AdviceType anAdviceType) {
         return format("{0} -> {1} for {2}", anAdviceType, anAdvice, anObject);
@@ -68,62 +134,6 @@ public abstract class AbstractClassExtension implements ClassExtension {
 
         return result;
     }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public boolean isCacheEnabled() {
-        return cacheEnabled;
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public void setCacheEnabled(boolean isCacheEnabled) {
-        if (cacheEnabled != isCacheEnabled) {
-            cacheEnabled = isCacheEnabled;
-            if (!isCacheEnabled)
-                cacheClear();
-        }
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    public void cacheCleanup() {
-        extensionCache.cleanup();
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    public void cacheClear() {
-        extensionCache.clear();
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    public void scheduleCacheCleanup() {
-        extensionCache.scheduleCleanup();
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    public void shutdownCacheCleanup() {
-        extensionCache.shutdownCleanup();
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    public boolean cacheIsEmpty() {
-        return extensionCache.isEmpty();
-    }
-    //endregion
 
     //region Verbose Mode support methods
     boolean verbose;
