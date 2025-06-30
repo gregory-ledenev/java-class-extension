@@ -22,14 +22,13 @@ public abstract class AbstractClassExtension implements ClassExtension {
     //region Cache methods
     private boolean cacheEnabled = true;
 
-    private volatile ThreadSafeWeakCache extensionCache;
+    private volatile ThreadSafeWeakCache<ThreadSafeWeakCache.ClassExtensionKey, Object> extensionCache;
 
-    @SuppressWarnings("rawtypes")
-    protected ThreadSafeWeakCache getExtensionCache() {
+    protected ThreadSafeWeakCache<ThreadSafeWeakCache.ClassExtensionKey, Object> getExtensionCache() {
         if (extensionCache == null) {
             synchronized (this) {
                 if (extensionCache == null)
-                    extensionCache = new ThreadSafeWeakCache();
+                    extensionCache = new ThreadSafeWeakCache<>();
             }
         }
         return extensionCache;
@@ -58,14 +57,16 @@ public abstract class AbstractClassExtension implements ClassExtension {
      * {@inheritDoc}
      */
     public void cacheCleanup() {
-        getExtensionCache().cleanup();
+        if (extensionCache != null)
+            extensionCache.cleanup();
     }
 
     /**
      * {@inheritDoc}
      */
     public void cacheClear() {
-        getExtensionCache().clear();
+        if (extensionCache != null)
+            extensionCache.clear();
     }
 
     /**
@@ -79,14 +80,15 @@ public abstract class AbstractClassExtension implements ClassExtension {
      * {@inheritDoc}
      */
     public void shutdownCacheCleanup() {
-        getExtensionCache().shutdownCleanup();
+        if (extensionCache != null)
+            extensionCache.shutdownCleanup();
     }
 
     /**
      * {@inheritDoc}
      */
     public boolean cacheIsEmpty() {
-        return getExtensionCache().isEmpty();
+        return extensionCache == null || extensionCache.isEmpty();
     }
     //endregion
 

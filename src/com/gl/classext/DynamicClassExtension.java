@@ -35,6 +35,7 @@ import java.util.function.*;
 import java.util.stream.Collectors;
 
 import static com.gl.classext.Aspects.*;
+import static com.gl.classext.ThreadSafeWeakCache.*;
 import static java.text.MessageFormat.*;
 
 /**

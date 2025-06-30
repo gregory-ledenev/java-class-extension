@@ -24,6 +24,8 @@ SOFTWARE.
 
 package com.gl.classext;
 
+import com.gl.classext.ThreadSafeWeakCache.ClassExtensionKey;
+
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;

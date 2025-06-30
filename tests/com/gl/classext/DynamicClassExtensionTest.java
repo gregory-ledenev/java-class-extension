@@ -1,6 +1,7 @@
 package com.gl.classext;
 
 
+import com.gl.classext.ThreadSafeWeakCache.ClassExtensionKey;
 import org.junit.jupiter.api.Test;
 
 import java.text.MessageFormat;
