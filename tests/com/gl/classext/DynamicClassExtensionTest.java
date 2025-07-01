@@ -2159,21 +2159,31 @@ public class DynamicClassExtensionTest {
 
     interface Cat {
         String meow();
+        String say();
     }
 
     interface Dog {
         String bark();
+        String say();
     }
 
     static class CatImpl implements Cat {
         public String meow() {
             return "Meow!";
         }
+
+        public String say() {
+            return meow();
+        }
     }
 
     static class DogImpl implements Dog {
         public String bark() {
             return "Woof!";
+        }
+
+        public String say() {
+            return bark();
         }
     }
 
@@ -2191,6 +2201,7 @@ public class DynamicClassExtensionTest {
 
         assertEquals("Meow!", catDog.meow());
         assertEquals("Woof!", catDog.bark());
+        assertEquals("Meow!", catDog.say());
     }
 
     private static void sleep() {
