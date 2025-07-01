@@ -119,7 +119,7 @@ Book book = new Book("The Mythical Man-Month");
 System.out.println(book.getName());
 System.out.println(DynamicClassExtension.sharedExtension(book, ItemShippable.class).getName());
 ```
-#### Composition Support
+#### Interfaces Composition Support
 `DynamicClassExtension` enables dynamic composition of multiple interfaces, complementing static inheritance. Key features:
 * Combines several interfaces at runtime
 * Useful when static composition is impractical or impossible
@@ -134,8 +134,26 @@ Book book = new Book("The Mythical Man-Month");
 Shippable shippable = DynamicClassExtension.sharedExtension(book, Shippable.class, ItemInterface.class);
 shippable.ship(); // use it for shipping
 out.println(((ItemInterface) shippable).getName()); // use it as a Book itself
-
 ```
+
+#### Objects Composition Support
+`DynamicClassExtension` enables you to dynamically compose multiple objects under a single, unified interface. This approach eliminates the need for static implementations and the associated boilerplate code required to delegate methods manually. It effectively allows for pure composition, even providing a way to emulate multiple inheritance when necessary.
+
+To use object composition, simply obtain an extension as usual, but pass all components as a composition object using the new `ClassExtension.Composition` record.
+
+```java
+Dog dog = new DogImpl();
+Cat cat = new CatImpl();
+
+CatDog catDog = DynamicClassExtension.sharedExtension(
+    new ClassExtension.Composition(cat, dog), 
+    CatDog.class
+);
+out.println(catDog.meow());
+out.println(catDog.bark());
+```
+
+This pattern lets you seamlessly combine behaviors from different classes into a single composite interface.
 
 #### Unions Support
 Dynamic Extensions provide a powerful mechanism to unify objects of different, unrelated types under a common interface. This approach is particularly useful when dealing with objects that lack a shared superclass or interface.

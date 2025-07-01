@@ -616,7 +616,23 @@ public class DynamicClassExtension extends AbstractClassExtension {
         } else {
             if (anObject == null)
                 throw new NullPointerException(format("There''s no ''{0}'' operation registered for ''null'' objects", method.getName()));
-            result = performStaticOperation(aClassExtension, anObject, anExtensionInterface, aMissingMethodsHandler, method, args);
+
+            result = null;
+            boolean success = false;
+            List<?> objects = anObject instanceof Composition ? ((Composition) anObject).objects() : List.of(anObject);
+            for (Object object : objects) {
+                OperationResult operationResult = performStaticOperation(aClassExtension, object, anExtensionInterface, aMissingMethodsHandler, method, args);
+                success = operationResult.isSuccess();
+                if ( success) {
+                    result = operationResult.result();
+                    break;
+                }
+            }
+            if (! success)
+                throw new IllegalArgumentException(format("No \"{0}\" operation of \"{1}\" for \"{2}\"",
+                        displayOperationName(method.getName(), void.class.equals(method.getReturnType()), args),
+                        anExtensionInterface.getName(),
+                        anObject));
         }
 
         return result;
@@ -663,10 +679,13 @@ public class DynamicClassExtension extends AbstractClassExtension {
         return result;
     }
 
-    private static <T> Object performStaticOperation(DynamicClassExtension aClassExtension, Object anObject,
-                                                     Class<T> anExtensionInterface,
-                                                     Function<Method, Object> aMissingMethodsHandler,
-                                                     Method method, Object[] args) throws IllegalAccessException, InvocationTargetException {
+    record OperationResult(Object result, boolean isSuccess) {}
+
+    private static <T> OperationResult performStaticOperation(DynamicClassExtension aClassExtension,
+                                                              Object anObject,
+                                                              Class<T> anExtensionInterface,
+                                                              Function<Method, Object> aMissingMethodsHandler,
+                                                              Method method, Object[] args) throws IllegalAccessException, InvocationTargetException {
         Object result;
 
         Pointcut aroundPointcut = null;
@@ -713,13 +732,10 @@ public class DynamicClassExtension extends AbstractClassExtension {
             if (aMissingMethodsHandler != null && method.isAnnotationPresent(OptionalMethod.class))
                 result = aMissingMethodsHandler.apply(method);
             else
-                throw new IllegalArgumentException(format("No \"{0}\" operation of \"{1}\" for \"{2}\"",
-                        displayOperationName(method.getName(), void.class.equals(method.getReturnType()), args),
-                        anExtensionInterface.getName(),
-                        anObject));
+                return new OperationResult(null, false);
         }
 
-        return transformOperationResult(aClassExtension, method, result);
+        return new OperationResult(transformOperationResult(aClassExtension, method, result), true);
     }
 
     private static <T> Object performOperation(DynamicClassExtension aClassExtension,

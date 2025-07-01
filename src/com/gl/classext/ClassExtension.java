@@ -24,6 +24,9 @@ SOFTWARE.
 
 package com.gl.classext;
 
+import java.util.Arrays;
+import java.util.List;
+
 /**
  * This interface provides core methods to allow getting class extensions, manage cache and logging. The main method is
  * {@code extension(Object, Class)} that allows to find and return an extension objects according to a supplied
@@ -327,5 +330,15 @@ public interface ClassExtension {
          * @return identity
          */
         Object getID();
+    }
+
+    record Composition(List<?> objects) {
+        public Composition(List<?> objects) {
+            this.objects = objects;
+        }
+
+        public Composition(Object... objects) {
+            this(Arrays.asList(objects));
+        }
     }
 }

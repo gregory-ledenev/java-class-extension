@@ -2157,6 +2157,42 @@ public class DynamicClassExtensionTest {
         return new ShippingInfo(aBook.getName() + " book shipped");
     }
 
+    interface Cat {
+        String meow();
+    }
+
+    interface Dog {
+        String bark();
+    }
+
+    static class CatImpl implements Cat {
+        public String meow() {
+            return "Meow!";
+        }
+    }
+
+    static class DogImpl implements Dog {
+        public String bark() {
+            return "Woof!";
+        }
+    }
+
+    interface CatDog extends Cat, Dog {
+    }
+
+    @Test
+    void testObjectsComposition() {
+        Dog dog = new DogImpl();
+        Cat cat = new CatImpl();
+
+        CatDog catDog = DynamicClassExtension.sharedExtension(new ClassExtension.Composition(cat, dog), CatDog.class);
+        out.println(catDog.meow());
+        out.println(catDog.bark());
+
+        assertEquals("Meow!", catDog.meow());
+        assertEquals("Woof!", catDog.bark());
+    }
+
     private static void sleep() {
         sleep(1000);
     }
