@@ -9,6 +9,7 @@ import java.time.Duration;
 import java.util.*;
 import java.util.function.Supplier;
 import java.util.logging.*;
+import java.util.stream.Collectors;
 
 import static com.gl.classext.Aspects.*;
 import static com.gl.classext.Aspects.AroundAdvice.applyDefault;
@@ -2192,16 +2193,28 @@ public class DynamicClassExtensionTest {
 
     @Test
     void testObjectsComposition() {
+        DynamicClassExtension dynamicClassExtension = new DynamicClassExtension().builder(CatDog.class).
+                // define value for conflicting operation present on both objects
+                operationName("say").
+                    operation(ClassExtension.Composition.class, (aComposition) -> {
+                        return aComposition.objects().stream().map(aO -> switch (aO) {
+                            case Cat cat -> cat.say();
+                            case Dog dog -> dog.say();
+                            default -> throw new IllegalStateException("Unexpected value: " + aO);
+                        }).collect(Collectors.joining(" and "));
+                    }).
+                build();
         Dog dog = new DogImpl();
         Cat cat = new CatImpl();
 
-        CatDog catDog = DynamicClassExtension.sharedExtension(new ClassExtension.Composition(cat, dog), CatDog.class);
+        CatDog catDog = dynamicClassExtension.extension(new ClassExtension.Composition(cat, dog), CatDog.class);
         out.println(catDog.meow());
         out.println(catDog.bark());
+        out.println(catDog.say());
 
         assertEquals("Meow!", catDog.meow());
         assertEquals("Woof!", catDog.bark());
-        assertEquals("Meow!", catDog.say());
+        assertEquals("Meow! and Woof!", catDog.say());
     }
 
     private static void sleep() {

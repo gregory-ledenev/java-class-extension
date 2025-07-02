@@ -157,7 +157,7 @@ This pattern lets you seamlessly combine behaviors from different classes into a
 
 **Key Notes:**
 * **Extension Interface:** The composite interface (e.g., `CatDog`) must extend the interfaces of all objects (e.g. `Cat` and `Dog`) included in the composition.
-* **Method Resolution:** If multiple objects in the composition (e.g. `say()`) share the same method signature, the method from the first object in the composition will be invoked.
+* **Method Resolution:** When multiple objects within a composition define methods with the same signature, the method from the first object in the composition is invoked by default. To customize this behavior, you can register a conflicting operation for the `ClassExtension.Composition` class and the relevant extension interface, allowing you to specify and return the desired value.
 
 #### Unions Support
 Dynamic Extensions provide a powerful mechanism to unify objects of different, unrelated types under a common interface. This approach is particularly useful when dealing with objects that lack a shared superclass or interface.
