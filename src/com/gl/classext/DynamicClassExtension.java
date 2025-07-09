@@ -31,12 +31,15 @@ import java.lang.reflect.Proxy;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.function.*;
+import java.util.function.BiConsumer;
+import java.util.function.BiFunction;
+import java.util.function.Consumer;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import static com.gl.classext.Aspects.*;
-import static com.gl.classext.ThreadSafeWeakCache.*;
-import static java.text.MessageFormat.*;
+import static com.gl.classext.ThreadSafeWeakCache.ClassExtensionKey;
+import static java.text.MessageFormat.format;
 
 /**
  * <p>Class {@code DynamicClassExtension} provides a way to simulate class extensions (categories) by composing extensions
@@ -1504,7 +1507,16 @@ public class DynamicClassExtension extends AbstractClassExtension {
         }
     }
 
+    /**
+     * Represents an entity capable of holding a payload.
+     * The payload can be retrieved using the provided method.
+     */
     interface PayloadHolder {
+        /**
+         * Retrieves the payload contained within the implementing entity.
+         *
+         * @return the payload object, or null if no payload is present
+         */
         Object getPayload();
     }
 
@@ -1521,13 +1533,12 @@ public class DynamicClassExtension extends AbstractClassExtension {
     public static <T> T extensionWithPayload(Object anObject, Class<T> anExtensionInterface, final Object aPayload) {
         Objects.requireNonNull(aPayload);
 
-        final DynamicClassExtension dynamicClassExtension = new DynamicClassExtension();
-        dynamicClassExtension.builder(PayloadHolder.class).
-                operationName("getPayload").
-                operation(Object.class, o -> aPayload).
-                build();
-
-        return dynamicClassExtension.extensionNoCache(anObject, null, anExtensionInterface, PayloadHolder.class);
+        return new DynamicClassExtension().
+                builder(PayloadHolder.class).
+                    operationName("getPayload").
+                       operation(Object.class, o -> aPayload).
+                build().
+                extensionNoCache(anObject, null, anExtensionInterface, PayloadHolder.class);
     }
 
     /**
@@ -1538,8 +1549,9 @@ public class DynamicClassExtension extends AbstractClassExtension {
     public static Optional<Object> getPayloadForExtension(Object anExtension) {
         Objects.requireNonNull(anExtension);
 
-        return Optional.ofNullable(
-                (anExtension instanceof PayloadHolder payloadHolder) ? payloadHolder.getPayload() : null);
+        return anExtension instanceof PayloadHolder payloadHolder ?
+                Optional.ofNullable(payloadHolder.getPayload()) :
+                Optional.empty();
     }
 }
 

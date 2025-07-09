@@ -2217,6 +2217,67 @@ public class DynamicClassExtensionTest {
         assertEquals("Meow! and Woof!", catDog.say());
     }
 
+    @Test
+    void testOverriddenMethod() {
+        DynamicClassExtension dynamicClassExtension = new DynamicClassExtension().builder(ItemInterface.class).
+                operationName("toString").
+                    operation(Object.class, (o) -> o.toString() + " OVERRIDDEN").
+                    operation(Jewelery.class, (o) -> o.toString() + " Jewelery OVERRIDDEN").
+                build();
+
+        Item[] items = {
+                new Book("The Mythical Man-Month"),
+                new Furniture("Sofa"),
+                new ElectronicItem("Soundbar"),
+                new AutoPart("Tire"),
+                new Jewelery("Diamond ring"),
+        };
+        List<String> result = new ArrayList<>();
+
+        for (Item item : items) {
+            ItemInterface extension = dynamicClassExtension.extension(item, ItemInterface.class);
+            result.add(extension.toString());
+        }
+
+        String joinedResult = String.join("\n", result);
+        assertEquals("""
+                     Book["The Mythical Man-Month"] OVERRIDDEN
+                     Furniture["Sofa"] OVERRIDDEN
+                     ElectronicItem["Soundbar"] OVERRIDDEN
+                     AutoPart["Tire"] OVERRIDDEN
+                     Jewelery["Diamond ring"] Jewelery OVERRIDDEN""", joinedResult);
+        out.println(joinedResult);
+    }
+
+    @Test
+    void testObjectsCompositionWithMultipleInterfaces() {
+        DynamicClassExtension dynamicClassExtension = new DynamicClassExtension().builder(Dog.class).
+                // define value for conflicting operation present on both objects
+                        operationName("say").
+                operation(ClassExtension.Composition.class, (aComposition) -> {
+                    return aComposition.objects().stream().map(aO -> switch (aO) {
+                        case Cat cat -> cat.say();
+                        case Dog dog -> dog.say();
+                        default -> throw new IllegalStateException("Unexpected value: " + aO);
+                    }).collect(Collectors.joining(" and "));
+                }).
+                build();
+        Dog dog = new DogImpl();
+        Cat cat = new CatImpl();
+
+        Cat catI = dynamicClassExtension.extension(new ClassExtension.Composition(cat, dog), Cat.class, Dog.class);
+        out.println(catI.meow());
+        out.println(catI.say());
+
+        Dog dogI = (Dog) catI;
+        out.println(dogI.bark());
+        out.println(dogI.say());
+
+//        assertEquals("Meow!", catI.meow());
+//        assertEquals("Woof!", catI.bark());
+//        assertEquals("Meow! and Woof!", catI.say());
+    }
+
     private static void sleep() {
         sleep(1000);
     }

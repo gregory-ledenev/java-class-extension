@@ -332,11 +332,15 @@ public interface ClassExtension {
         Object getID();
     }
 
+    /**
+     * Represents a composition that encapsulates a list of objects.
+     */
     record Composition(List<?> objects) {
-        public Composition(List<?> objects) {
-            this.objects = objects;
-        }
-
+        /**
+         * Constructs a Composition with the specified objects.
+         *
+         * @param objects the objects to be encapsulated in the composition
+         */
         public Composition(Object... objects) {
             this(Arrays.asList(objects));
         }
