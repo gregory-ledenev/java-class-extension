@@ -79,7 +79,7 @@ public class ThreadSafeWeakCache<K, V> implements Closeable {
     }
 
     /**
-     * Creates a new ThreadSafeWeakCache with specified maximum size.
+     * Creates a new ThreadSafeWeakCache with a specified maximum size.
      *
      * @param maxSize maximum number of entries the cache can hold
      */
@@ -88,12 +88,12 @@ public class ThreadSafeWeakCache<K, V> implements Closeable {
         this.maxSize = maxSize;
     }
 
-    @SuppressWarnings("unused")
     /**
      * Sets the maximum size of the cache.
      * @param aMaxSize new maximum size (must be >= 100)
      * @throws IllegalArgumentException if aMaxSize is less than 100
      */
+    @SuppressWarnings("unused")
     public void setMaxSize(int aMaxSize) {
         if (aMaxSize < 100)
             throw new IllegalArgumentException(MessageFormat.format("Invalid max cache size value: {0}. It must be >= 100", aMaxSize));
@@ -101,11 +101,11 @@ public class ThreadSafeWeakCache<K, V> implements Closeable {
         maxSize = aMaxSize;
     }
 
-    @SuppressWarnings("unused")
     /**
      * Returns the current maximum size of the cache.
      * @return maximum number of entries the cache can hold
      */
+    @SuppressWarnings("unused")
     public int getMaxSize() {
         return maxSize;
     }
@@ -118,11 +118,11 @@ public class ThreadSafeWeakCache<K, V> implements Closeable {
         cleanupExecutor.scheduleAtFixedRate(this::cleanup, 1, 1, TimeUnit.MINUTES);
     }
 
-    @SuppressWarnings("unchecked")
     /**
      * Performs immediate cleanup of stale cache entries.
      * Removes entries whose values have been garbage collected.
      */
+    @SuppressWarnings("unchecked")
     public void cleanup() {
         WeakReference<V> ref;
         synchronized (cache) {
@@ -217,6 +217,9 @@ public class ThreadSafeWeakCache<K, V> implements Closeable {
         return cache.isEmpty();
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public void close() throws IOException {
         shutdownCleanup();
