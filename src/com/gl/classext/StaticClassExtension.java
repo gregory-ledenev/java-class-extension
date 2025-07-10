@@ -24,6 +24,8 @@ SOFTWARE.
 
 package com.gl.classext;
 
+import com.gl.classext.ThreadSafeWeakCache.ClassExtensionKey;
+
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
@@ -136,7 +138,7 @@ public class StaticClassExtension extends AbstractClassExtension {
      * redundant objects creation. If no cache should be used - turn it OFF via the {@code setCacheEnabled(false)} call
      *
      * @param anObject             object to return an extension object for
-     * @param anExtensionInterface interface of extension object to be returned
+     * @param anExtensionInterface interface of an extension object to be returned
      * @return an extension object
      */
     public static <T> T sharedExtension(Object anObject, Class<T> anExtensionInterface) {
@@ -158,7 +160,7 @@ public class StaticClassExtension extends AbstractClassExtension {
         Objects.requireNonNull(anExtensionInterface);
 
         return isCacheEnabled(anExtensionInterface) ?
-                (T) extensionCache.getOrCreate(new ClassExtensionKey(anObject, anExtensionInterface), () -> extensionNoCache(anObject, anExtensionInterface, aPackageNames)) :
+                (T) getExtensionCache().getOrCreate(new ClassExtensionKey(anObject, anExtensionInterface), () -> extensionNoCache(anObject, anExtensionInterface, aPackageNames)) :
                 extensionNoCache(anObject, anExtensionInterface, aPackageNames);
     }
 
@@ -197,21 +199,21 @@ public class StaticClassExtension extends AbstractClassExtension {
         packageNames.addAll(extensionPackages(extensionInterface));
 
         Class<?> extensionClass = extensionClassForObject(anObject, extensionInterface, packageNames);
-        if (extensionClass == null)
+        if (extensionClass == null && extensionFactory == null)
             throw new IllegalArgumentException(MessageFormat.format("No extension {0} for a {1} class",
                     extensionNames(packageNames, anObject.getClass().getSimpleName(), extensionInterface.getSimpleName()),
                     anObject.getClass().getName()));
         try {
-            if (!extensionInterface.isAssignableFrom(extensionClass))
-                throw new IllegalStateException(MessageFormat.format("Extension \"{0}\"class does not implement the \"{1}\" interface",
-                        extensionClass.getName(), extensionInterface.getName()));
+            if (extensionClass != null)
+                checkExtensionClass(extensionClass, extensionInterface);
 
-            Object extension = createExtension(anObject, extensionClass);
+            Object extension = createExtension(anObject, anExtensionInterface, extensionClass);
 
             if (instantiationStrategy != Type.STATIC_DIRECT) {
+                Class<?> finalExtensionInterface = extensionInterface;
                 return (T) Proxy.newProxyInstance(extensionInterface.getClassLoader(),
                         new Class<?>[]{anExtensionInterface, PrivateDelegateHolder.class},
-                        (proxy, method, args) -> performOperation(this, extension, anObject, method, args));
+                        (proxy, method, args) -> performOperation(this, finalExtensionInterface, extension, anObject, method, args));
             } else {
                 if (isVerbose() && ! anExtensionInterface.isAssignableFrom(extensionClass))
                     logger.severe(MessageFormat.format("""
@@ -226,10 +228,63 @@ public class StaticClassExtension extends AbstractClassExtension {
         }
     }
 
+    private static void checkExtensionClass(Class<?> extensionClass, Class<?> extensionInterface) {
+        if (! extensionInterface.isAssignableFrom(extensionClass))
+            throw new IllegalStateException(MessageFormat.format("Extension \"{0}\"class does not implement the \"{1}\" interface",
+                    extensionClass.getName(), extensionInterface.getName()));
+    }
+
+    /**
+     * Factory interface responsible for creation of extensions.
+     */
+    @FunctionalInterface
+    public interface ExtensionFactory {
+        /** Creates an extension for a supplied object, an extension interface and an extension class (if located)
+         * @param anObject             object to return an extension object for
+         * @param anExtensionInterface interface of an extension object to be returned
+         * @param anExtensionClass     extension class. It can be {@code null} if not located, and it can be ignored if not needed.
+         * @return an extension object or {@code null} to let {@code StaticClassExtension} create an extension object itself
+         */
+        Object createExtension(Object anObject, Class<?> anExtensionInterface, Class<?> anExtensionClass);
+    }
+
+    /**
+     * @return extension factory
+     */
+    public ExtensionFactory getExtensionFactory() {
+        return extensionFactory;
+    }
+
+    /**
+     * Specifies extension factory should be used to create extensions
+     * @param aExtensionFactory extension factory
+     */
+    public void setExtensionFactory(ExtensionFactory aExtensionFactory) {
+        extensionFactory = aExtensionFactory;
+    }
+
+    private ExtensionFactory extensionFactory;
+
     @SuppressWarnings({"rawtypes", "unchecked"})
-    private static Object createExtension(Object anObject, Class<?> anExtensionClass) throws NoSuchMethodException, InstantiationException, IllegalAccessException, InvocationTargetException {
-        Constructor<?> constructor = getDeclaredConstructor(anExtensionClass, anObject.getClass());
+    private Object createExtension(Object anObject, Class<?> anExtensionInterface, Class<?> anExtensionClass)
+            throws NoSuchMethodException, InstantiationException, IllegalAccessException, InvocationTargetException {
+        Object result = null;
+
+        if (extensionFactory != null) {
+            result = extensionFactory.createExtension(anObject, anExtensionInterface, anExtensionClass);
+            if (result != null)
+                checkExtensionClass(result.getClass(), anExtensionInterface);
+        }
+
+        if (result == null)
+            result = defaultCreateExtension(anObject, anExtensionClass);
+
+        return result;
+    }
+
+    private static Object defaultCreateExtension(Object anObject, Class<?> anExtensionClass) throws NoSuchMethodException, InstantiationException, IllegalAccessException, InvocationTargetException {
         Object result;
+        Constructor<?> constructor = getDeclaredConstructor(anExtensionClass, anObject.getClass());
         if (constructor.getParameterCount() == 1) {
             result = constructor.newInstance(anObject);
         } else {
@@ -241,7 +296,6 @@ public class StaticClassExtension extends AbstractClassExtension {
                         anExtensionClass, anExtensionClass.getSimpleName(), DelegateHolder.class));
             }
         }
-
         return result;
     }
 
@@ -262,16 +316,16 @@ public class StaticClassExtension extends AbstractClassExtension {
         return packageNames;
     }
 
-    private static <T> Object performOperation(StaticClassExtension aClassExtension,
-                                               T anExtension,
-                                               Object anObject, Method aMethod, Object[] anArgs) {
+    private static <T, I> Object performOperation(StaticClassExtension aClassExtension,
+                                                  Class<I> anExtensionInterface, T anExtension,
+                                                  Object anObject, Method aMethod, Object[] anArgs) {
         Object result;
         Aspects.Pointcut aroundPointcut = null;
         Aspects.Pointcut beforePointcut = null;
         Aspects.Pointcut afterPointcut = null;
 
         String methodName = aMethod.getName();
-        if (aClassExtension.isAspectsEnabled()) {
+        if (aClassExtension.isAspectsEnabled(anExtensionInterface)) {
             aroundPointcut = aClassExtension.getPointcut(anExtension.getClass(), anObject.getClass(), methodName, aMethod.getParameterTypes(), Aspects.AdviceType.AROUND);
             beforePointcut = aroundPointcut == null ? aClassExtension.getPointcut(anExtension.getClass(), anObject.getClass(), methodName, aMethod.getParameterTypes(), Aspects.AdviceType.BEFORE) : null;
             afterPointcut = aroundPointcut == null ? aClassExtension.getPointcut(anExtension.getClass(), anObject.getClass(), methodName, aMethod.getParameterTypes(), Aspects.AdviceType.AFTER) : null;
@@ -314,7 +368,7 @@ public class StaticClassExtension extends AbstractClassExtension {
             afterPointcut.after(result, methodName, anObject, anArgs);
         }
 
-        return classExtensionForOperationResult(aClassExtension, aMethod, result);
+        return transformOperationResult(aClassExtension, aMethod, result);
     }
 
     private static Object performOperation(StaticClassExtension aClassExtension, Object anObject, Method aMethod, Object[] anArgs, Aspects.Pointcut aroundPointcut) {

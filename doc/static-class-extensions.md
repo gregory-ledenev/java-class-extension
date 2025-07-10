@@ -46,9 +46,9 @@ for (Item item : items) {
 ```
 ### Details
 The following are requirements for all the static extension classes:
-1. **Naming Convention:** they must be named as _\[ClassName]\[ExtensionName]_ - a class name followed by an extension name (extension interface name). For example, `BookShippable` where `Book` is the name of the class and `Shippable` is the name of extension.
+1. **Naming Convention:** they must be named as _\[ClassName]\[ExtensionName]_ - a class name followed by an extension name (extension interface name). For example, `BookShippable` where `Book` is the name of the class and `Shippable` is the name of extension. Note: this requirement can be omitted if `extensionFactory` is used.
 2. **Delegate Management:** they must provide a way for `StaticClassExtension`to supply delegate objects to work with. It can be done either:
-* By providing a single parameter constructor that takes a delegate object to work with as an argument.
+* By providing a single parameter constructor that takes a delegate object to work with as an argument. Note: this requirement can be omitted if `extensionFactory` is used.
 * By implementing the `DelegateHolder` interface. The `DelegateHolder.setDelegate(Object)` method is used to supply extensions with delegate objects to work with. Usually, it is fine to implement the `DelegateHolder` interface in a common root of some classes' hierarchy.
 
 By default, `StaticClassExtension` searches for extension classes in the same package as the extension interface. To register extension classes located in different packages, use the `addExtensionPackage(Class, String)` method of `StaticClassExtension`. For example:
@@ -70,10 +70,20 @@ Book book = new Book("The Mythical Man-Month");
 Shippable shippable = Shippable.extensionFor(book);
 assertSame(book, ClassExtension.getDelegate(shippable));
 ```
+By default, `StaticClassExtension` locates extension classes, loads them, and uses a compatible constructor to create extension instances. It is possible to change that behavior by supplying an extension factory to `StaticClassExtension` via the `extensionFactory` property. If supplied, this factory will be used to create extensions.
+```java
+StaticClassExtension classExtension = new StaticClassExtension();
+classExtension.setExtensionFactory((anObject, anExtensionInterface, anExtensionClass) -> {
+    Object result = null;
+    if (anObject instanceof AutoPart)
+        result = new ItemShippable((Item) anObject, instructions);
+    return result;
+});
+```
 
 #### Adding New Extension Classes
 To support new extension classes:
-1. Code all the required classes that implement desired extension interface.
+1. Code all the required classes that implement a desired extension interface.
 2. Register packages for new extensions if new classes reside in the packages not known to `StaticClassExtension`
 
 For example:

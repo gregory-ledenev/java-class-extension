@@ -1,6 +1,7 @@
 package com.gl.classext;
 
 
+import com.gl.classext.ThreadSafeWeakCache.ClassExtensionKey;
 import org.junit.jupiter.api.Test;
 
 import java.text.MessageFormat;
@@ -8,6 +9,7 @@ import java.time.Duration;
 import java.util.*;
 import java.util.function.Supplier;
 import java.util.logging.*;
+import java.util.stream.Collectors;
 
 import static com.gl.classext.Aspects.*;
 import static com.gl.classext.Aspects.AroundAdvice.applyDefault;
@@ -92,7 +94,6 @@ public class DynamicClassExtensionTest {
             cost = aCost;
         }
     }
-
 
     interface Shippable {
         ShippingInfo ship();
@@ -592,7 +593,11 @@ public class DynamicClassExtensionTest {
     }
 
     private static DynamicClassExtension setupDynamicClassExtension(StringBuilder shippingLog) {
-        DynamicClassExtension result = new DynamicClassExtension().builder().
+        return setupDynamicClassExtension(new DynamicClassExtension(), shippingLog);
+    }
+
+    private static DynamicClassExtension setupDynamicClassExtension(DynamicClassExtension aDynamicClassExtension, StringBuilder aShippingLog) {
+        return aDynamicClassExtension.builder().
                 extensionInterface(Item_Shippable.class).
                     operationName("ship").
                         operation(Item.class, book -> new ShippingInfo(book.getName() + " item NOT shipped")).
@@ -602,14 +607,14 @@ public class DynamicClassExtensionTest {
                         operation((Class<?>) null, e -> new ShippingInfo("Nothing to ship")).
                     operationName("log").
                         voidOperation(Item.class, (Item item, Boolean isVerbose) -> {
-                                if (!shippingLog.isEmpty())
-                                    shippingLog.append("\n");
-                                shippingLog.append(item.getName()).append(" is about to be shipped in 1 hour");
+                                if (!aShippingLog.isEmpty())
+                                    aShippingLog.append("\n");
+                                aShippingLog.append(item.getName()).append(" is about to be shipped in 1 hour");
                             }).
                         voidOperation(Item.class, item -> {
-                                if (!shippingLog.isEmpty())
-                                    shippingLog.append("\n");
-                                shippingLog.append(item.getName()).append(" is about to be shipped");
+                                if (!aShippingLog.isEmpty())
+                                    aShippingLog.append("\n");
+                                aShippingLog.append(item.getName()).append(" is about to be shipped");
                             }).
                     operationName("track").
                         operation(Item.class, item -> new TrackingInfo(item.getName() + " item on its way")).
@@ -617,14 +622,10 @@ public class DynamicClassExtensionTest {
                                     " item on its way" + (isVerbose ? "Status: SHIPPED" : ""))).
                     operationName("getName").
                         operation(AutoPart.class, item -> item.getName()  + "[OVERRIDDEN]").
+                build().builder(ClassExtension.DelegateHolder.class).
+                    operationName("getDelegate").
+                        operation(String.class, item -> null).
                 build();
-
-        result = result.builder(ClassExtension.DelegateHolder.class).
-                operationName("getDelegate").
-                operation(String.class, item -> null).
-                build();
-
-        return result;
     }
 
     private static DynamicClassExtension setupDynamicClassExtensionWithDifferentComposition(StringBuilder shippingLog) {
@@ -710,7 +711,7 @@ public class DynamicClassExtensionTest {
         Book book = new Book("The Mythical Man-Month");
         Item_Shippable extension = dynamicClassExtension.extension(book, Item_Shippable.class);
         assertSame(extension, dynamicClassExtension.extension(book, Item_Shippable.class));
-        dynamicClassExtension.extensionCache.remove(new ClassExtensionKey(book, Item_Shippable.class));
+        dynamicClassExtension.getExtensionCache().remove(new ClassExtensionKey(book, Item_Shippable.class));
         assertNotSame(extension, dynamicClassExtension.extension(book, Item_Shippable.class));
     }
 
@@ -1097,6 +1098,9 @@ public class DynamicClassExtensionTest {
                     RESULT: Book["The Mythical Man-Month"]""", stringBuilder.toString());
     }
 
+    @ExtensionInterface(aspectsPolicy = ClassExtension.AspectsPolicy.DISABLED)
+    interface Item_ShippableNoAspects extends Item_Shippable {}
+
     @Test
     void testAspectUsingBuilder() {
         List<String> out = new ArrayList<>();
@@ -1182,6 +1186,27 @@ public class DynamicClassExtensionTest {
                      Soundbar is about to be shipped in 1 hour
                      Tire is about to be shipped
                      Tire is about to be shipped in 1 hour""", outString);
+
+        dynamicClassExtension.setAspectsEnabled(true);
+        out.clear();
+        for (Item item : items) {
+            Item_Shippable extension = dynamicClassExtension.extension(item, Item_ShippableNoAspects.class);
+            System.out.println(extension.toString());
+            extension.log();
+            extension.log(true);
+        }
+        System.out.println("----------- Aspects Disabled by annotation");
+        outString = String.join("\n", out);
+        System.out.println(outString);
+        assertEquals("""
+                     The Mythical Man-Month is about to be shipped
+                     The Mythical Man-Month is about to be shipped in 1 hour
+                     Sofa is about to be shipped
+                     Sofa is about to be shipped in 1 hour
+                     Soundbar is about to be shipped
+                     Soundbar is about to be shipped in 1 hour
+                     Tire is about to be shipped
+                     Tire is about to be shipped in 1 hour""", outString);
     }
 
     @Test
@@ -1194,8 +1219,8 @@ public class DynamicClassExtensionTest {
         };
 
         for (Item item : items) {
-            Item_Shippable extension = Aspects.logPerformanceExtension(item, Item_Shippable.class);
-            System.out.println(extension.toString());
+            Item_Shippable extension = logPerformanceExtension(item, Item_Shippable.class);
+            out.println(extension.toString());
         }
     }
 
@@ -1221,7 +1246,7 @@ public class DynamicClassExtensionTest {
     @Test
     void propertyChangeUtilityTest() {
         Book book = new Book("The Mythical Man-Month");
-        Item_Shippable extension = Aspects.propertyChangeExtension(book, Item_Shippable.class,
+        Item_Shippable extension = propertyChangeExtension(book, Item_Shippable.class,
                 evt -> out.println(evt.toString()));
         out.println(extension.getName());
         extension.setName("Shining");
@@ -1267,7 +1292,7 @@ public class DynamicClassExtensionTest {
 
         for (Item item : items) {
             Item_Shippable extension = dynamicClassExtension.extension(item, Item_Shippable.class);
-            System.out.println(extension.toString());
+            out.println(extension.toString());
         }
     }
 
@@ -1320,7 +1345,7 @@ public class DynamicClassExtensionTest {
 
         Book book = new Book("The Mythical Man-Month");
         Item_Shippable extension = dynamicClassExtension.extension(book, Item_Shippable.class);
-        System.out.println(extension.ship());
+        out.println(extension.ship());
 
         try {
             Thread.sleep(5000);
@@ -1357,7 +1382,7 @@ public class DynamicClassExtensionTest {
                             operation("*").
                                 around(new CachedValueAdvice(cache, logger)).
                                 around((performer, operation, object, args) -> "AROUND: " +
-                                        AroundAdvice.applyDefault(performer, operation, object, args)).
+                                        applyDefault(performer, operation, object, args)).
                 build();
 
         Item[] items = {
@@ -1369,12 +1394,12 @@ public class DynamicClassExtensionTest {
 
         for (Item item : items) {
             Item_Shippable extension = dynamicClassExtension.extension(item, Item_Shippable.class);
-            System.out.println(extension.toString());
+            out.println(extension.toString());
         }
 
         for (Item item : items) {
             Item_Shippable extension = dynamicClassExtension.extension(item, Item_Shippable.class);
-            System.out.println(extension.toString());
+            out.println(extension.toString());
         }
 
         out.println(stringBuilderHandler.getStringBuilder().toString());
@@ -1394,11 +1419,11 @@ public class DynamicClassExtensionTest {
                         objectClass(Item.class).
                             operation("*").
                                 advices(builder -> {
-                                    builder.around((performer, operation, object, args) -> "AROUND 1: " + AroundAdvice.applyDefault(performer, operation, object, args)).
-                                            around((performer, operation, object, args) -> "AROUND 2: " + AroundAdvice.applyDefault(performer, operation, object, args)).
-                                            around((performer, operation, object, args) -> "AROUND 3: " + AroundAdvice.applyDefault(performer, operation, object, args)).
-                                            around((performer, operation, object, args) -> "AROUND 4: " + AroundAdvice.applyDefault(performer, operation, object, args)).
-                                            around((performer, operation, object, args) -> "AROUND 5: " + AroundAdvice.applyDefault(performer, operation, object, args));
+                                    builder.around((performer, operation, object, args) -> "AROUND 1: " + applyDefault(performer, operation, object, args)).
+                                            around((performer, operation, object, args) -> "AROUND 2: " + applyDefault(performer, operation, object, args)).
+                                            around((performer, operation, object, args) -> "AROUND 3: " + applyDefault(performer, operation, object, args)).
+                                            around((performer, operation, object, args) -> "AROUND 4: " + applyDefault(performer, operation, object, args)).
+                                            around((performer, operation, object, args) -> "AROUND 5: " + applyDefault(performer, operation, object, args));
                                 }).
                 build();
 
@@ -1451,7 +1476,7 @@ public class DynamicClassExtensionTest {
 
         for (Item item : items) {
             Item_Shippable extension = dynamicClassExtension.extension(item, Item_Shippable.class);
-            System.out.println(extension.toString());
+            out.println(extension.toString());
         }
 
         assertEquals("""
@@ -1482,7 +1507,7 @@ public class DynamicClassExtensionTest {
 
         for (Item item : items) {
             Item_Shippable extension = dynamicClassExtension.extension(item, Item_Shippable.class);
-            System.out.println(extension.toString());
+            out.println(extension.toString());
         }
         assertEquals("""
                     INFO: BEFORE: Book["The Mythical Man-Month"] -> toString()
@@ -1507,7 +1532,7 @@ public class DynamicClassExtensionTest {
 
         for (Item item : items) {
             Item_Shippable extension = dynamicClassExtension.extension(item, Item_Shippable.class);
-            System.out.println(extension.toString());
+            out.println(extension.toString());
         }
         assertEquals("""
                     INFO: BEFORE: Book["The Mythical Man-Month"] -> toString()
@@ -1532,7 +1557,7 @@ public class DynamicClassExtensionTest {
 
         for (Item item : items) {
             Item_Shippable extension = dynamicClassExtension.extension(item, Item_Shippable.class);
-            System.out.println(extension.toString());
+            out.println(extension.toString());
         }
         assertEquals("""
                     INFO: AFTER: Book["The Mythical Man-Month"] -> toString() = Book["The Mythical Man-Month"]
@@ -1568,7 +1593,7 @@ public class DynamicClassExtensionTest {
 
         for (Item item : items) {
             Item_Shippable extension = dynamicClassExtension.extension(item, Item_Shippable.class);
-            System.out.println(extension.toString());
+            out.println(extension.toString());
         }
 
         assertEquals("""
@@ -1597,7 +1622,7 @@ public class DynamicClassExtensionTest {
                 build();
         for (Item item : items) {
             Item_Shippable extension = dynamicClassExtension.extension(item, Item_Shippable.class);
-            System.out.println(extension.toString());
+            out.println(extension.toString());
         }
         assertEquals("", stringBuilderHandler.getStringBuilder().toString());
     }
@@ -1708,12 +1733,12 @@ public class DynamicClassExtensionTest {
 
         for (Item item : items) {
             Item_Shippable extension = dynamicClassExtension.extension(item, Item_Shippable.class);
-            System.out.println(extension.toString());
+            out.println(extension.toString());
         }
 
         for (Item item : items) {
             Item_Shippable extension = dynamicClassExtension.extension(item, Item_Shippable.class);
-            System.out.println(extension.toString());
+            out.println(extension.toString());
         }
 
         out.println(stringBuilderHandler.getStringBuilder().toString());
@@ -1731,33 +1756,55 @@ public class DynamicClassExtensionTest {
 
     private interface NamesHolder {
         List<String> getNames();
+        int getID();
+        String getDescription();
     }
 
     private static class Names implements NamesHolder {
+        int ID = 12345;
+        String description = "Some description";
         private final List<String> names = new ArrayList<>();
+
         @Override
         public List<String> getNames() {
             return names;
         }
+
+        @Override
+        public String getDescription() {
+            return description;
+        }
+
+        @Override
+        public int getID() {
+            return ID;
+        }
     }
 
     @Test
-    void readOnlyCollectionsAdviceTest() {
+    void unmodifiedValueAdviceTest() {
         DynamicClassExtension dynamicClassExtension = new DynamicClassExtension().
                 aspectBuilder().
                 extensionInterface(NamesHolder.class).
                     objectClass(Names.class).
-                        operation("getNames()").
-                            around(new ReadOnlyCollectionOrMapAdvice()).
+                        operation("*").
+                            around(new UnmodifiableValueAdvice(aO -> {
+                                // return a copy of string for the sake of the test only
+                                return aO instanceof String str ? new String(str) : null;
+                            }, Logger.getLogger(getClass().getName()))).
                 build();
         Names names = new Names();
+        NamesHolder namesHolder = dynamicClassExtension.extension(names, NamesHolder.class);
         try {
-            NamesHolder namesHolder = dynamicClassExtension.extension(names, NamesHolder.class);
             namesHolder.getNames().add("test"); // cant add because list is read-only
             fail("Unexpected success on list modification");
         } catch (UnsupportedOperationException ex) {
             // do nothing
         }
+        // should succeed but log error message
+        assertEquals(namesHolder.getID(), namesHolder.getID());
+        // should succeed as each call produces a copy of string value
+        assertNotSame(namesHolder.getDescription(), namesHolder.getDescription());
     }
 
     static int circuitBreakfastedAttemptsCount = 0;
@@ -1923,6 +1970,314 @@ public class DynamicClassExtensionTest {
         assertEquals("ShippingInfo[result=Nothing to ship]", result.toString());
     }
 
+    private static final StringBuilder sharedShippingLog = new StringBuilder();
+
+    static {
+        setupDynamicClassExtension(DynamicClassExtension.sharedInstance(), sharedShippingLog);
+    }
+
+    static class Jewelery extends Item {
+        public Jewelery(String aName) {
+            super(aName);
+        }
+    }
+
+    @Test
+    void testAdhocNewItem() {
+        DynamicClassExtension dynamicClassExtension = setupDynamicClassExtension(new StringBuilder()).builder().
+                extensionInterface(Item_Shippable.class).
+                    operationName("ship").
+                        operation(Jewelery.class, jewelery -> new ShippingInfo(jewelery.getName() + " jewelery shipped")).
+                build();
+
+        Item[] items = {
+                new Book("The Mythical Man-Month"),
+                new Furniture("Sofa"),
+                new ElectronicItem("Soundbar"),
+                new AutoPart("Tire"),
+                new Jewelery("Diamond ring"),
+        };
+
+        List<String> shippingLog = new ArrayList<>();
+
+        for (Item item : items) {
+            Item_Shippable extension = dynamicClassExtension.extension(item, Item_Shippable.class);
+            ShippingInfo shippingInfo = extension.ship();
+            shippingLog.add(shippingInfo.toString());
+            out.println(shippingInfo);
+        }
+
+        assertEquals("""
+                     ShippingInfo[result=The Mythical Man-Month book shipped]
+                     ShippingInfo[result=Sofa furniture shipped]
+                     ShippingInfo[result=Soundbar electronic item shipped]
+                     ShippingInfo[result=Tire item NOT shipped]
+                     ShippingInfo[result=Diamond ring jewelery shipped]""", String.join("\n", shippingLog));
+    }
+
+    @ExtensionInterface
+    interface OptionalShippable {
+        Optional<ShippingInfo> ship();
+        TrackingInfo track();
+
+        Optional<ShippingInfo> ship(String anInstructions);
+        TrackingInfo track(String anInstructions);
+    }
+
+    @Test
+    void testOptionalBoxing() {
+        // setup for boxing and unboxing
+        DynamicClassExtension dynamicClassExtension = new DynamicClassExtension().builder(OptionalShippable.class).
+                operationName("ship").
+                    // requires boxing
+                    operation(Item.class, item -> new ShippingInfo(item.getName() + " item shipped")).
+                    operation(Item.class, (aItem, aO) -> null).
+                operationName("track").
+                    // requires unboxing
+                    operation(Item.class, item -> Optional.of(new TrackingInfo(item.getName() + " item on its way"))).
+                    operation(Item.class, (aItem, aO) -> Optional.empty()).
+                build();
+
+        Item[] items = {
+                new Book("The Mythical Man-Month"),
+                new Furniture("Sofa"),
+                new ElectronicItem("Soundbar"),
+                new AutoPart("Tire"),
+                new Jewelery("Diamond ring"),
+        };
+
+        List<String> log = new ArrayList<>();
+
+        for (Item item : items) {
+            OptionalShippable extension = dynamicClassExtension.extension(item, OptionalShippable.class);
+            ShippingInfo shippingInfo = extension.ship().orElseGet(() -> new ShippingInfo("Error shipping " + item.getName()));
+            log.add(shippingInfo.toString());
+            out.println(shippingInfo);
+            shippingInfo = extension.ship("").orElseGet(() -> new ShippingInfo("Error shipping " + item.getName()));
+            log.add(shippingInfo.toString());
+            out.println(shippingInfo);
+
+            TrackingInfo trackingInfo = extension.track();
+            log.add(trackingInfo.toString());
+            out.println(trackingInfo);
+            trackingInfo = extension.track("");
+            if (trackingInfo != null) {
+                log.add(trackingInfo.toString());
+                out.println(trackingInfo);
+            }
+        }
+
+        String expected = """
+                         ShippingInfo[result=The Mythical Man-Month item shipped]
+                         ShippingInfo[result=Error shipping The Mythical Man-Month]
+                         TrackingInfo[result=The Mythical Man-Month item on its way]
+                         ShippingInfo[result=Sofa item shipped]
+                         ShippingInfo[result=Error shipping Sofa]
+                         TrackingInfo[result=Sofa item on its way]
+                         ShippingInfo[result=Soundbar item shipped]
+                         ShippingInfo[result=Error shipping Soundbar]
+                         TrackingInfo[result=Soundbar item on its way]
+                         ShippingInfo[result=Tire item shipped]
+                         ShippingInfo[result=Error shipping Tire]
+                         TrackingInfo[result=Tire item on its way]
+                         ShippingInfo[result=Diamond ring item shipped]
+                         ShippingInfo[result=Error shipping Diamond ring]
+                         TrackingInfo[result=Diamond ring item on its way]""";
+
+        assertEquals(expected, String.join("\n", log));
+
+        // setup with no need of boxing and unboxing
+        dynamicClassExtension = new DynamicClassExtension().builder(OptionalShippable.class).
+                operationName("ship").
+                operation(Item.class, item -> Optional.of(new ShippingInfo(item.getName() + " item shipped"))).
+                operationName("track").
+                operation(Item.class, item -> new TrackingInfo(item.getName() + " item on its way")).
+                build();
+
+        log.clear();
+        for (Item item : items) {
+            OptionalShippable extension = dynamicClassExtension.extension(item, OptionalShippable.class);
+            ShippingInfo shippingInfo = extension.ship().get();
+            log.add(shippingInfo.toString());
+            out.println(shippingInfo);
+            TrackingInfo trackingInfo = extension.track();
+            log.add(trackingInfo.toString());
+            out.println(trackingInfo);
+        }
+        assertEquals("""
+                          ShippingInfo[result=The Mythical Man-Month item shipped]
+                          TrackingInfo[result=The Mythical Man-Month item on its way]
+                          ShippingInfo[result=Sofa item shipped]
+                          TrackingInfo[result=Sofa item on its way]
+                          ShippingInfo[result=Soundbar item shipped]
+                          TrackingInfo[result=Soundbar item on its way]
+                          ShippingInfo[result=Tire item shipped]
+                          TrackingInfo[result=Tire item on its way]
+                          ShippingInfo[result=Diamond ring item shipped]
+                          TrackingInfo[result=Diamond ring item on its way]""", String.join("\n", log));
+    }
+
+    @Test
+    void testExtensionWithPayload() {
+        String payload = "Some textual payload";
+        Book book = new Book("The Mythical Man-Month");
+        ItemInterface extension = DynamicClassExtension.extensionWithPayload(book, ItemInterface.class, payload);
+
+        out.println(DynamicClassExtension.getPayloadForExtension(extension).orElse("No payload"));
+        out.println(extension.getName());
+
+        // check to ensure the payload is present and valid
+        assertEquals("Some textual payload", DynamicClassExtension.getPayloadForExtension(extension).
+                orElse("No payload"));
+        // check to ensure the extension itself is functional
+        assertEquals("The Mythical Man-Month", extension.getName());
+    }
+
+    ShippingInfo ship(Item item) {
+        return ClassExtension.sharedExtension(item, Shippable.class).ship();
+    }
+
+    ShippingInfo shipFunctional(Item item) {
+        return switch (item) {
+            case Book book -> shipBook(book);
+            case Furniture furniture -> shipFurniture(furniture);
+            case ElectronicItem electronicItem -> shipElectronicItem(electronicItem);
+            default -> throw new IllegalStateException("Unexpected value: " + item);
+        };
+    }
+
+    private ShippingInfo shipElectronicItem(ElectronicItem aElectronicItem) {
+        return new ShippingInfo(aElectronicItem.getName() + " electronic item shipped");
+    }
+
+    private ShippingInfo shipFurniture(Furniture aFurniture) {
+        return new ShippingInfo(aFurniture.getName() + " furniture shipped");
+    }
+
+    private ShippingInfo shipBook(Book aBook) {
+        return new ShippingInfo(aBook.getName() + " book shipped");
+    }
+
+    interface Cat {
+        String meow();
+        String say();
+    }
+
+    interface Dog {
+        String bark();
+        String say();
+    }
+
+    static class CatImpl implements Cat {
+        public String meow() {
+            return "Meow!";
+        }
+
+        public String say() {
+            return meow();
+        }
+    }
+
+    static class DogImpl implements Dog {
+        public String bark() {
+            return "Woof!";
+        }
+
+        public String say() {
+            return bark();
+        }
+    }
+
+    interface CatDog extends Cat, Dog {
+    }
+
+    @Test
+    void testObjectsComposition() {
+        DynamicClassExtension dynamicClassExtension = new DynamicClassExtension().builder(CatDog.class).
+                // define value for conflicting operation present on both objects
+                operationName("say").
+                    operation(ClassExtension.Composition.class, (aComposition) -> {
+                        return aComposition.objects().stream().map(aO -> switch (aO) {
+                            case Cat cat -> cat.say();
+                            case Dog dog -> dog.say();
+                            default -> throw new IllegalStateException("Unexpected value: " + aO);
+                        }).collect(Collectors.joining(" and "));
+                    }).
+                build();
+        Dog dog = new DogImpl();
+        Cat cat = new CatImpl();
+
+        CatDog catDog = dynamicClassExtension.extension(new ClassExtension.Composition(cat, dog), CatDog.class);
+        out.println(catDog.meow());
+        out.println(catDog.bark());
+        out.println(catDog.say());
+
+        assertEquals("Meow!", catDog.meow());
+        assertEquals("Woof!", catDog.bark());
+        assertEquals("Meow! and Woof!", catDog.say());
+    }
+
+    @Test
+    void testOverriddenMethod() {
+        DynamicClassExtension dynamicClassExtension = new DynamicClassExtension().builder(ItemInterface.class).
+                operationName("toString").
+                    operation(Object.class, (o) -> o.toString() + " OVERRIDDEN").
+                    operation(Jewelery.class, (o) -> o.toString() + " Jewelery OVERRIDDEN").
+                build();
+
+        Item[] items = {
+                new Book("The Mythical Man-Month"),
+                new Furniture("Sofa"),
+                new ElectronicItem("Soundbar"),
+                new AutoPart("Tire"),
+                new Jewelery("Diamond ring"),
+        };
+        List<String> result = new ArrayList<>();
+
+        for (Item item : items) {
+            ItemInterface extension = dynamicClassExtension.extension(item, ItemInterface.class);
+            result.add(extension.toString());
+        }
+
+        String joinedResult = String.join("\n", result);
+        assertEquals("""
+                     Book["The Mythical Man-Month"] OVERRIDDEN
+                     Furniture["Sofa"] OVERRIDDEN
+                     ElectronicItem["Soundbar"] OVERRIDDEN
+                     AutoPart["Tire"] OVERRIDDEN
+                     Jewelery["Diamond ring"] Jewelery OVERRIDDEN""", joinedResult);
+        out.println(joinedResult);
+    }
+
+    @Test
+    void testObjectsCompositionWithMultipleInterfaces() {
+        DynamicClassExtension dynamicClassExtension = new DynamicClassExtension().builder(Dog.class).
+                // define value for conflicting operation present on both objects
+                        operationName("say").
+                operation(ClassExtension.Composition.class, (aComposition) -> {
+                    return aComposition.objects().stream().map(aO -> switch (aO) {
+                        case Cat cat -> cat.say();
+                        case Dog dog -> dog.say();
+                        default -> throw new IllegalStateException("Unexpected value: " + aO);
+                    }).collect(Collectors.joining(" and "));
+                }).
+                build();
+        Dog dog = new DogImpl();
+        Cat cat = new CatImpl();
+
+        Cat catI = dynamicClassExtension.extension(new ClassExtension.Composition(cat, dog), Cat.class, Dog.class);
+        out.println(catI.meow());
+        out.println(catI.say());
+
+        Dog dogI = (Dog) catI;
+        out.println(dogI.bark());
+        out.println(dogI.say());
+
+//        assertEquals("Meow!", catI.meow());
+//        assertEquals("Woof!", catI.bark());
+//        assertEquals("Meow! and Woof!", catI.say());
+    }
+
     private static void sleep() {
         sleep(1000);
     }
@@ -1957,6 +2312,18 @@ public class DynamicClassExtensionTest {
         @Override
         public void close() throws SecurityException {}
     }
+
+//    interface Persistable {
+//        void load();
+//        void load(String aFileName);
+//        void save();
+//        void save(String aFileName);
+//    }
+//
+//    @Test
+//    void testPersistable() {
+//        initialize an instance of `DynamicClassExtension`for all methods of `Persistable` interface and for the following classes: `Item`, `Book`, `Furniture`, `AutoPart`
+//    }
 }
 
 

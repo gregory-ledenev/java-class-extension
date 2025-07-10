@@ -1,5 +1,6 @@
 package com.gl.classext;
 
+import javax.swing.text.html.Option;
 import java.lang.reflect.Method;
 import java.util.*;
 import java.util.logging.Level;
@@ -20,34 +21,18 @@ import static java.text.MessageFormat.format;
 public abstract class AbstractClassExtension implements ClassExtension {
     //region Cache methods
     private boolean cacheEnabled = true;
-    @SuppressWarnings("rawtypes")
-    protected final ThreadSafeWeakCache extensionCache = new ThreadSafeWeakCache();
 
-    protected static String formatAdvice(Object anObject, Object anAdvice, AdviceType anAdviceType) {
-        return format("{0} -> {1} for {2}", anAdviceType, anAdvice, anObject);
-    }
+    private volatile ThreadSafeWeakCache<ThreadSafeWeakCache.ClassExtensionKey, Object> extensionCache;
 
-    protected static Object classExtensionForOperationResult(ClassExtension aClassExtension, Method aMethod, Object aResult) {
-        Object result = aResult;
-
-        if (aResult != null) {
-            ObtainExtension annotation = aMethod.getAnnotation(ObtainExtension.class);
-            if (annotation != null) {
-                Type type = annotation.type();
-                Class<?> extensionInterface = aMethod.getReturnType();
-                ExtensionInterface extensionInterfaceAnnotation = extensionInterface.getAnnotation(ExtensionInterface.class);
-                if (extensionInterfaceAnnotation!= null)
-                    type = extensionInterfaceAnnotation .type();
-                if (type == Type.UNKNOWN || aClassExtension.compatible(type))
-                    result = aClassExtension.extension(result, extensionInterface);
-                else
-                    result = ClassExtension.sharedExtension(result, extensionInterface, type);
+    protected ThreadSafeWeakCache<ThreadSafeWeakCache.ClassExtensionKey, Object> getExtensionCache() {
+        if (extensionCache == null) {
+            synchronized (this) {
+                if (extensionCache == null)
+                    extensionCache = new ThreadSafeWeakCache<>();
             }
         }
-
-        return result;
+        return extensionCache;
     }
-
     /**
      * {@inheritDoc}
      */
@@ -72,37 +57,85 @@ public abstract class AbstractClassExtension implements ClassExtension {
      * {@inheritDoc}
      */
     public void cacheCleanup() {
-        extensionCache.cleanup();
+        if (extensionCache != null)
+            extensionCache.cleanup();
     }
 
     /**
      * {@inheritDoc}
      */
     public void cacheClear() {
-        extensionCache.clear();
+        if (extensionCache != null)
+            extensionCache.clear();
     }
 
     /**
      * {@inheritDoc}
      */
     public void scheduleCacheCleanup() {
-        extensionCache.scheduleCleanup();
+        getExtensionCache().scheduleCleanup();
     }
 
     /**
      * {@inheritDoc}
      */
     public void shutdownCacheCleanup() {
-        extensionCache.shutdownCleanup();
+        if (extensionCache != null)
+            extensionCache.shutdownCleanup();
     }
 
     /**
      * {@inheritDoc}
      */
     public boolean cacheIsEmpty() {
-        return extensionCache.isEmpty();
+        return extensionCache == null || extensionCache.isEmpty();
     }
     //endregion
+
+    protected static String formatAdvice(Object anObject, Object anAdvice, AdviceType anAdviceType) {
+        return format("{0} -> {1} for {2}", anAdviceType, anAdvice, anObject);
+    }
+
+    protected static Object transformOperationResult(ClassExtension aClassExtension, Method aMethod, Object aResult) {
+        Object result = aResult;
+
+        if (aResult != null) {
+            ObtainExtension annotation = aMethod.getAnnotation(ObtainExtension.class);
+            if (annotation != null)
+                result = classExtensionForOperationResult(aClassExtension, aMethod, annotation, result);
+        }
+
+        result = optionalForOperationResult(aClassExtension, aMethod, result);
+
+        return result;
+    }
+
+    private static Object classExtensionForOperationResult(ClassExtension aClassExtension, Method aMethod, ObtainExtension annotation, Object result) {
+        Type type = annotation.type();
+        Class<?> extensionInterface = aMethod.getReturnType();
+        ExtensionInterface extensionInterfaceAnnotation = extensionInterface.getAnnotation(ExtensionInterface.class);
+        if (extensionInterfaceAnnotation!= null)
+            type = extensionInterfaceAnnotation .type();
+        if (type == Type.UNKNOWN || aClassExtension.compatible(type))
+            result = aClassExtension.extension(result, extensionInterface);
+        else
+            result = ClassExtension.sharedExtension(result, extensionInterface, type);
+        return result;
+    }
+
+    protected static Object optionalForOperationResult(ClassExtension aClassExtension, Method aMethod, Object aResult) {
+        Object result = aResult;
+
+        if (Optional.class.isAssignableFrom(aMethod.getReturnType())) {
+            if (! (result instanceof Optional))
+                result = Optional.ofNullable(result);
+        } else {
+            if (result instanceof Optional)
+                result = ((Optional<?>) result).orElse(null);
+        }
+
+        return result;
+    }
 
     //region Verbose Mode support methods
     boolean verbose;
@@ -139,19 +172,17 @@ public abstract class AbstractClassExtension implements ClassExtension {
     protected final List<SinglePointcut> pointcuts = Collections.synchronizedList(new ArrayList<>());
 
     /**
-     * Determines if the aspects functionality is enabled for this extension.
-     *
-     * @return {@code true} if aspects are enabled, {@code false} otherwise
+     * {@inheritDoc}
      */
+    @Override
     public boolean isAspectsEnabled() {
         return aspectsEnabled;
     }
 
     /**
-     * Toggles the activation of the aspects functionality for this extension.
-     *
-     * @param aAspectsEnabled {@code true} to enable aspects, or {@code false} to disable aspects
+     * {@inheritDoc}
      */
+    @Override
     public void setAspectsEnabled(boolean aAspectsEnabled) {
         aspectsEnabled = aAspectsEnabled;
     }
@@ -293,6 +324,25 @@ public abstract class AbstractClassExtension implements ClassExtension {
             CachePolicy cachePolicy = anExtensionInterface.getAnnotation(ExtensionInterface.class).cachePolicy();
             if (cachePolicy != CachePolicy.DEFAULT)
                 result = cachePolicy == CachePolicy.ENABLED;
+        }
+        return result;
+    }
+
+    /**
+     * Determines whether aspects are enabled for the given extension interface. If the extension
+     * interface is annotated with {@code ExtensionInterface}, its specified aspects policy will
+     * be considered. Otherwise, the default aspects policy applies.
+     *
+     * @param <T> the type of the extension interface
+     * @param anExtensionInterface the extension interface to check for aspects policy
+     * @return {@code true} if aspects are enabled, {@code false} otherwise
+     */
+    public <T> boolean isAspectsEnabled(Class<T> anExtensionInterface) {
+        boolean result = isAspectsEnabled();
+        if (anExtensionInterface.isAnnotationPresent(ExtensionInterface.class)) {
+            AspectsPolicy aspectsPolicy = anExtensionInterface.getAnnotation(ExtensionInterface.class).aspectsPolicy();
+            if (aspectsPolicy != AspectsPolicy.DEFAULT)
+                result = aspectsPolicy == AspectsPolicy.ENABLED;
         }
         return result;
     }

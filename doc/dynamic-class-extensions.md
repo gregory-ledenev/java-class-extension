@@ -75,7 +75,7 @@ for (Item item : items) {
 Supporting a new `Item` class using the Java Class Extension library requires just adding the operations for that new `Item` class. No need to change any other code that does shipping with help of `Shippable` interface. That is it.
 
 ### Details
-For the most of the cases a shared instance of `DynamicClassExtension` should be used. But if there is a need to have different implementations of extensions in different places or domains it is possible to create and utilize new instances of `DynamicClassExtension`.
+For the most of the cases a shared instance of `DynamicClassExtension` can be used. But if there is a need to have different implementations of extensions in different places or domains, it is possible to create and utilize dedicated instances of `DynamicClassExtension`. Context-specific providers or Dependency Injection can be used to distribute dedicated instances of `DynamicClassExtension` to its consumers.
 
 **Note:** Extensions returned by `DynamicClassExtension` do not directly correspond to certain classes themselves. Therefore, it is crucial not to cast these extensions. Instead, always utilize only the methods provided by the extension interface. For example, an extension obtained for the `ItemShippable` interface that combines both `Shippable` and `ItemInterface` can not be cast to the `Item`.
 
@@ -86,7 +86,7 @@ Shippable extension = Shippable.extensionFor(book);
 assertTrue(ClassExtension.equals(book, extension));
 ```
 
-If you need to get a delegate object for an extension you may use the `ClassExtension.getDelegate()` method:
+If you need to get a delegate object for an extension, you may use the `ClassExtension.getDelegate()` method:
 ```java
 Book book = new Book("The Mythical Man-Month");
 Shippable shippable = Shippable.extensionFor(book);
@@ -119,7 +119,7 @@ Book book = new Book("The Mythical Man-Month");
 System.out.println(book.getName());
 System.out.println(DynamicClassExtension.sharedExtension(book, ItemShippable.class).getName());
 ```
-#### Composition Support
+#### Interfaces Composition Support
 `DynamicClassExtension` enables dynamic composition of multiple interfaces, complementing static inheritance. Key features:
 * Combines several interfaces at runtime
 * Useful when static composition is impractical or impossible
@@ -134,8 +134,30 @@ Book book = new Book("The Mythical Man-Month");
 Shippable shippable = DynamicClassExtension.sharedExtension(book, Shippable.class, ItemInterface.class);
 shippable.ship(); // use it for shipping
 out.println(((ItemInterface) shippable).getName()); // use it as a Book itself
-
 ```
+
+#### Objects Composition Support
+`DynamicClassExtension` enables you to dynamically compose multiple objects under a single, unified interface. This approach eliminates the need for static implementations and the associated boilerplate code required to delegate methods manually. It effectively allows for pure composition, even providing a way to emulate multiple inheritance when necessary.
+
+To use object composition, simply obtain an extension as usual, but pass all components as a composition object using the new `ClassExtension.Composition` record.
+
+```java
+Dog dog = new DogImpl();
+Cat cat = new CatImpl();
+
+CatDog catDog = DynamicClassExtension.sharedExtension(
+    new ClassExtension.Composition(cat, dog), 
+    CatDog.class
+);
+out.println(catDog.meow());
+out.println(catDog.bark());
+out.println(catDog.say());
+```
+This pattern lets you seamlessly combine behaviors from different classes into a single composite interface.
+
+**Key Notes:**
+* **Extension Interface:** The composite interface (e.g., `CatDog`) must extend the interfaces of all objects (e.g. `Cat` and `Dog`) included in the composition.
+* **Method Resolution:** When multiple objects within a composition define methods with the same signature, the method from the first object in the composition is invoked by default. To customize this behavior, you can register a conflicting operation for the `ClassExtension.Composition` class and the relevant extension interface, allowing you to specify and return the desired value.
 
 #### Unions Support
 Dynamic Extensions provide a powerful mechanism to unify objects of different, unrelated types under a common interface. This approach is particularly useful when dealing with objects that lack a shared superclass or interface.
@@ -273,7 +295,7 @@ Cashing of extension objects are supported out of the box, and it can be control
 
 If there is a need to explicitly get some non-cached extensions - use the `DynamicClassExtension.extensionNoCache(...)` method to get them.
 
-It is possible to explicitly define cache policy per each extension interface. It can be done using the `@ExtensionInterface` annotation amd specifying the `cachePolicy` field. 
+It is possible to explicitly define cache policy per each extension interface. It can be done using the `@ExtensionInterface` annotation and specifying the `cachePolicy` field. 
 
 #### Integrity and Validation
 `DynamicClassExtension` offers a capability to validate extensions for a given class through its `checkValid(...)` method. An extension is deemed valid when corresponding operations are registered for all its methods. However, in certain scenarios, it's desirable to maintain extension validity while supporting only a subset of operations. This flexibility can be achieved by annotating specific methods in the extension interface with `@OptionalMethods` annotation.
@@ -316,6 +338,43 @@ try {
     out.println(ex.getMessage());
 }
 ```
+
+#### Boxing/Unboxing Optional Results
+`DynamicClassExtension` supports automatic boxing/unboxing of `Optional` operation results. This means if extension interfaces or underlying code start/stop returning `Optional`, they’ll be handled automatically—no code changes required.
+```java
+@ExtensionInterface
+interface OptionalShippable { 
+    Optional<ShippingInfo> ship();
+    TrackingInfo track();
+}
+
+@Test
+void testOptionalBoxing() {
+    DynamicClassExtension dynamicClassExtension = new DynamicClassExtension().builder(OptionalShippable.class).
+            operationName("ship").
+                // requires boxing
+                operation(Item.class, item -> new ShippingInfo(item.getName() + " item shipped")).
+            operationName("track").
+                // requires unboxing
+                operation(Item.class, item -> Optional.of(new TrackingInfo(item.getName() + " item on its way"))).
+            build();
+    ...
+}
+```
+
+#### Testing
+Testing can be organized:
+* Using a shared `DynamicClassExtension` instance. In that case that instance should be reset to its 
+initial state:
+  * Explicitly in the test cases after/before each test via `DynamicClassExtension.getInstance().clear`.
+  * Using JUnit 5 extensions:
+  ```java
+      @BeforeEach
+    void setUp(TestInfo testInfo) {
+        DynamicClassExtension.sharedInstance().clear();
+    }```
+* Using a dedicated `DynamicClassExtension` instance. In that case each test should create its own
+  `DynamicClassExtension` to work with.
 
 #### Limitations
 The following are limitations of `DynamicClassExtension`:

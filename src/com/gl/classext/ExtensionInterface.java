@@ -35,14 +35,25 @@ import java.lang.annotation.Target;
  * <ol>
  * <li>Compose proper extension class names</li>
  * <li>Determine packages to lookup for extension classes via the {@code packages} parameter</li>
- * <li>Determine an extension type via the {@code type} parameter</li>
- * <li>Determine an extension caching policy via the {@code cachePolicy} parameter</li>
  * </ol>
+ * Both dynamic ands static extensions use that annotation to determine:
+ * <ol>
+ * <li>An extension type via the {@code type} parameter</li>
+ * <li>An extension caching policy via the {@code cachePolicy} parameter</li>
+ * <li>An aspects handling policy via the {@code aspectsPolicy} parameter</li>
+ * </ol>
+ * <p>
+ * Dynamic nature of the {@code DynamicClassExtension} prevents detecting some errors at compile time, so be careful
+ * during refactoring of extension interfaces and check operation handling after any refactorings. It is recommended to
+ * mark any extension interfaces with {@code @ExtensionInterface} annotation to let developers know that they should check and
+ * test dynamic operations after any refactorings.
+ * </p>
  */
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.TYPE)
 public @interface ExtensionInterface {
     ClassExtension.Type type() default ClassExtension.Type.STATIC_PROXY;
     ClassExtension.CachePolicy cachePolicy() default ClassExtension.CachePolicy.DEFAULT;
+    ClassExtension.AspectsPolicy aspectsPolicy() default ClassExtension.AspectsPolicy.DEFAULT;
     String[] packages() default {};
 }

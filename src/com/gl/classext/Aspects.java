@@ -6,10 +6,7 @@ import java.lang.reflect.Method;
 import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.function.BiPredicate;
-import java.util.function.Consumer;
-import java.util.function.Predicate;
-import java.util.function.Supplier;
+import java.util.function.*;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.regex.Pattern;
@@ -1047,8 +1044,7 @@ public class Aspects {
                 operation("*").
                 around(new LogPerformTimeAdvice()).
                 build();
-        dynamicClassExtension.setCacheEnabled(false);
-        return dynamicClassExtension.extension(anObject, anExtensionInterface);
+        return dynamicClassExtension.extensionNoCache(anObject, null, anExtensionInterface);
     }
 
     /**
@@ -1068,8 +1064,7 @@ public class Aspects {
                 before(new LogBeforeAdvice()).
                 after(new LogAfterAdvice()).
                 build();
-        dynamicClassExtension.setCacheEnabled(false);
-        return dynamicClassExtension.extension(anObject, anExtensionInterface);
+        return dynamicClassExtension.extensionNoCache(anObject, null, anExtensionInterface);
     }
 
 
@@ -1090,8 +1085,7 @@ public class Aspects {
                 operation("set*(*)").
                 around(new PropertyChangeAdvice(aPropertyChangeListener)).
                 build();
-        dynamicClassExtension.setCacheEnabled(false);
-        return dynamicClassExtension.extension(anObject, anExtensionInterface);
+        return dynamicClassExtension.extensionNoCache(anObject, null, anExtensionInterface);
     }
 
     /**
@@ -1170,7 +1164,7 @@ public class Aspects {
      * Advice (around) that allows turning all the Collection or Map results to their unmodifiable views
      */
     public static class ReadOnlyCollectionOrMapAdvice implements AroundAdvice {
-        private final Logger logger;
+        protected final Logger logger;
 
         /**
          * Creates a new {@code ReadOnlyCollectionOrMapAdvice} instance
@@ -1195,22 +1189,77 @@ public class Aspects {
         public Object apply(Object performer, String operation, Object object, Object[] args) {
             Object result = AroundAdvice.applyDefault(performer, operation, object, args);
 
-            if (result instanceof List<?> list)
-                return Collections.unmodifiableList(list);
-            else if (result instanceof Set<?> set)
-                return Collections.unmodifiableSet(set);
-            else if (result instanceof Map<?, ?> map)
-                return Collections.unmodifiableMap(map);
-            else if (result instanceof Collection<?> c)
-                return Collections.unmodifiableCollection(c);
+            Object unmodifiableValue = unmodifiableValue(result);
+            if (unmodifiableValue != null)
+                return unmodifiableValue;
 
             if (result != null && logger != null)
                 logger.severe("Result is not a Collection or Map: " + result);
 
             return result;
         }
+
+        protected Object unmodifiableValue(Object aValue) {
+            return switch (aValue) {
+                case List<?> list -> Collections.unmodifiableList(list);
+                case Set<?> set -> Collections.unmodifiableSet(set);
+                case Map<?, ?> map -> Collections.unmodifiableMap(map);
+                case Collection<?> c -> Collections.unmodifiableCollection(c);
+                case null, default -> null;
+            };
+        }
     }
 
+    /**
+     * Advice (around) that allows turning results to their unmodifiable views
+     */
+    public static class UnmodifiableValueAdvice extends ReadOnlyCollectionOrMapAdvice {
+        Function<Object, Object> unmodifiableValueProvider;
+
+        /**
+         * Creates a new {@code ReadOnlyValueAdvice} instance with a read-only value provider
+         * @param aUnmodifiableValueProvider read-only value provider
+         */
+        public UnmodifiableValueAdvice(Function<Object, Object> aUnmodifiableValueProvider) {
+            this(aUnmodifiableValueProvider, null);
+        }
+
+        /**
+         * Creates a new {@code ReadOnlyValueAdvice} instance with a read-only value provider and a logger
+         *
+         * @param aUnmodifiableValueProvider read-only value provider. If not specified - read-only views will be provided
+         *                               for collections and maps only
+         * @param aLogger logger
+         */
+        public UnmodifiableValueAdvice(Function<Object, Object> aUnmodifiableValueProvider, Logger aLogger) {
+            super(aLogger);
+            unmodifiableValueProvider = aUnmodifiableValueProvider;
+        }
+
+        /**
+         * {@inheritDoc}
+         */
+        @Override
+        public Object apply(Object performer, String operation, Object object, Object[] args) {
+            Object result = AroundAdvice.applyDefault(performer, operation, object, args);
+
+            Object unmodifiableValue = null;
+            if (unmodifiableValueProvider != null) {
+                unmodifiableValue = unmodifiableValueProvider.apply(result);
+                if (unmodifiableValue != null)
+                    return unmodifiableValue;
+            }
+
+            unmodifiableValue = unmodifiableValue(result);
+            if (unmodifiableValue != null)
+                return unmodifiableValue;
+
+            if (result != null && logger != null)
+                logger.severe("Can't obtain read-only value for: " + result);
+
+            return result;
+        }
+    }
     /**
      * Advice (around) that allows catching all exceptions and return some value instead
      */

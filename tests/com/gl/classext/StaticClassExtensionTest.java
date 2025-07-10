@@ -1,7 +1,9 @@
 package com.gl.classext;
 
+import com.gl.classext.ThreadSafeWeakCache.ClassExtensionKey;
 import org.junit.jupiter.api.Test;
 
+import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -79,8 +81,16 @@ class ItemShippable implements Shippable {
         delegate = aDelegate;
     }
 
+    public ItemShippable(Item aDelegate, String anInstructions) {
+        this(aDelegate);
+        instructions = anInstructions;
+    }
+
     public ShippingInfo ship() {
-        return new ShippingInfo(getDelegate() + " NOT shipped");
+        String result = MessageFormat.format("{0} NOT shipped", getDelegate());
+        if (instructions != null)
+            result +=  ". Instructions: " + instructions;
+        return new ShippingInfo(result);
     }
 
     public void log() {
@@ -98,6 +108,16 @@ class ItemShippable implements Shippable {
     public void setDelegate(Item aDelegate) {
         delegate = aDelegate;
     }
+
+    public String getInstructions() {
+        return instructions;
+    }
+
+    public void setInstructions(String aInstructions) {
+        instructions = aInstructions;
+    }
+
+    String instructions;
 }
 
 @SuppressWarnings("unused")
@@ -204,6 +224,42 @@ public class StaticClassExtensionTest {
                 shippingInfos.toString());
     }
 
+    @Test
+    void extensionFactoryTest() {
+        Item[] items = {
+                new Book("The Mythical Man-Month"),
+                new Furniture("Sofa"),
+                new ElectronicItem("Soundbar"),
+                new AutoPart("Tire"),
+        };
+        final String instructions = "Handle with care";
+
+        StaticClassExtension classExtension = new StaticClassExtension();
+        classExtension.setExtensionFactory((anObject, anExtensionInterface, anExtensionClass) -> {
+            Object result = null;
+
+            if (anObject instanceof AutoPart)
+                result = new ItemShippable((Item) anObject, instructions);
+
+            return result;
+        });
+
+        StringBuilder shippingInfos = new StringBuilder();
+        for (Item item : items) {
+            ShippingInfo shippingInfo = classExtension.extension(item, Shippable.class).ship();
+            if (!shippingInfos.isEmpty())
+                shippingInfos.append("\n");
+            shippingInfos.append(shippingInfo);
+            System.out.println(shippingInfo);
+        }
+        assertEquals("""
+                      ShippingInfo[result=The Mythical Man-Month shipped]
+                      ShippingInfo[result=Sofa shipped]
+                      ShippingInfo[result=Soundbar shipped]
+                      ShippingInfo[result=Tire NOT shipped. Instructions: Handle with care]""",
+                shippingInfos.toString());
+    }
+
     /**
      * Tests for missing extension
      */
@@ -249,7 +305,7 @@ public class StaticClassExtensionTest {
         Book book = new Book("");
         Shippable extension = Shippable.extensionFor(book);
         assertSame(extension, Shippable.extensionFor(book));
-        StaticClassExtension.sharedInstance().extensionCache.remove(new ClassExtensionKey(book, Shippable.class));
+        StaticClassExtension.sharedInstance().getExtensionCache().remove(new ClassExtensionKey(book, Shippable.class));
         assertNotSame(extension, Shippable.extensionFor(book));
     }
 

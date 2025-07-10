@@ -10,7 +10,7 @@ Class extensions (categories) are beneficial because they:
 * Facilitate better separation of concerns in complex applications.
 * Improve code readability and maintainability.
 
-These benefits lead to more flexible, maintainable, and efficient code structures. Unfortunately, Java does not natively support class extensions (categories) and there is a little chance such support is going to be introduced in the near future.
+These benefits lead to more flexible, maintainable, and efficient code structures. Unfortunately, Java does not natively support class extensions (categories) and there is a little chance such support is going to be introduced soon.
 
 Java Class Extension library provides a valuable alternative for native class extensions with just a little more verbose code and little more complex implementation.
 
@@ -55,7 +55,7 @@ public interface Shippable {
   ...
 }
 ```
-With that helper method, shipping become even simpler and shorter:
+With that helper method, shipping becomes even simpler and shorter:
 ```java
 Shippable.extensionFor(item).ship();
 ```

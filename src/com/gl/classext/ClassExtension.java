@@ -24,12 +24,29 @@ SOFTWARE.
 
 package com.gl.classext;
 
+import java.util.Arrays;
+import java.util.List;
+
 /**
  * This interface provides core methods to allow getting class extensions, manage cache and logging. The main method is
  * {@code extension(Object, Class)} that allows to find and return an extension objects according to a supplied
  * interfaces.
  */
 public interface ClassExtension {
+
+    /**
+     * Determines if the aspects functionality is enabled for this extension.
+     *
+     * @return {@code true} if aspects are enabled, {@code false} otherwise
+     */
+    boolean isAspectsEnabled();
+
+    /**
+     * Toggles the activation of the aspects functionality for this extension.
+     *
+     * @param aAspectsEnabled {@code true} to enable aspects, or {@code false} to disable aspects
+     */
+    void setAspectsEnabled(boolean aAspectsEnabled);
 
     /**
      * Enum representing the caching policy for the {@code ClassExtension} class. It defines
@@ -46,6 +63,25 @@ public interface ClassExtension {
         DISABLED,
         /**
          * Cache is enabled
+         */
+        ENABLED,
+    }
+
+    /**
+     * Enumeration representing the policy for enabling or disabling aspects in the {@code ClassExtension}.
+     * It is used to control whether aspects functionality is enabled, disabled, or determined by the default setting.
+     */
+    enum AspectsPolicy {
+        /**
+         * Default aspects policy, honoring {@code ClassExtension.aspectsEnabled} property
+         */
+        DEFAULT,
+        /**
+         * Aspects are disabled
+         */
+        DISABLED,
+        /**
+         * Aspects are enabled
          */
         ENABLED,
     }
@@ -133,14 +169,14 @@ public interface ClassExtension {
      * @return {@code true} if class extension is compatible with an extension type; {@code false} otherwise
      */
     boolean compatible(Type aType);
-
     /**
      * Finds and returns an extension object according to a supplied interface. It creates either dynamic or static
-     * extensions according to the {@code @ExtensionInterface} annotation for {@code anExtensionInterface} argument
+     * extensions according to the {@code @ExtensionInterface.type} annotation for {@code anExtensionInterface} argument
      *
      * @param anObject             object to return an extension object for
      * @param anExtensionInterface interface of extension object to be returned
      * @return an extension object
+     * @throws IllegalArgumentException if extension interface is not annotated with {@code @ExtensionInterface} annotation
      */
     static <T> T sharedExtension(Object anObject, Class<T> anExtensionInterface) {
         ExtensionInterface annotation = anExtensionInterface.getAnnotation(ExtensionInterface.class);
@@ -294,5 +330,19 @@ public interface ClassExtension {
          * @return identity
          */
         Object getID();
+    }
+
+    /**
+     * Represents a composition that encapsulates a list of objects.
+     */
+    record Composition(List<?> objects) {
+        /**
+         * Constructs a Composition with the specified objects.
+         *
+         * @param objects the objects to be encapsulated in the composition
+         */
+        public Composition(Object... objects) {
+            this(Arrays.asList(objects));
+        }
     }
 }
