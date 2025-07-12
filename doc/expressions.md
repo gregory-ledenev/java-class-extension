@@ -1,8 +1,8 @@
 ## Java Class Extension Library - Expressions
 
 The Java Class Extension Library provides built-in extensions to allow dynamically accessing and modifying object
-properties using string-based expressions. It allows for complex data manipulations on an object graph without writing 
-verbose boilerplate code. For example, it is possible to use `"departments[2].employees[1].name"` expression to get or 
+properties using string-based expressions. It allows for complex data manipulations on an object graph without writing
+verbose boilerplate code. For example, it is possible to use `"departments[2].employees[1].name"` expression to get or
 change an employee name.
 
 ### Expression Format
@@ -93,5 +93,17 @@ String orgName = extension.getName();
 
 This technique promotes clean design by keeping data objects separate from the logic that operates on them, while still
 providing a flexible and powerful way to interact with the object graph.
+
+### Known Issues, Peculiarities, and Limitations
+
+1. Setting the `null` value for an expression whose last property has overloaded setters may produce unexpected results.
+   For this reason, an exception will be thrown to prevent such situations.
+2. Although both `is` and `get` accessor methods are supported for `boolean` properties, it is recommended to always use
+   `get` accessors for better performance and faster processing.
+3. Utility methods like `List.of(...)` may return objects of private internal classes whose properties could be
+   inaccessible due to security restrictions. To resolve this issue, wrap such objects in well-known public classes
+   like `ArrayList`.
+4. Index out-of-bounds access for arrays or lists will throw an exception rather than returning a default value like
+   `null`
 
 Next >> [Utilities](utilities.md)

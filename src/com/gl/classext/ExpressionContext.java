@@ -31,6 +31,45 @@ public interface ExpressionContext {
     Object getExpressionValue(String expression);
 
     /**
+     * Retrieves a value from an object using the specified property expression,
+     * returning a default value if the evaluated expression yields null.
+     *
+     * @param expression The property expression to evaluate.
+     * @param defaultValue The default value to return if the evaluated expression yields null.
+     * @return The value at the specified expression path, or the default value if the result is null.
+     * @throws NullPointerException if a null value is encountered in non-null-safe navigation.
+     */
+    default <T> T getExpressionValue(String expression, T defaultValue) {
+        Object value = getExpressionValue(expression);
+        //noinspection unchecked
+        return value != null ? (T) value : defaultValue;
+    }
+
+    /**
+     * Retrieves a value from an object using the specified property expression,
+     * returning a default value if the evaluated expression yields null.
+     * Additionally, allows suppressing a NullPointerException if encountered, returning a default value instead.
+     *
+     * @param expression The property expression to evaluate.
+     * @param defaultValue The default value to return if the evaluated expression yields null.
+     * @param suppressNPE A flag to indicate whether to suppress NullPointerException.
+     * @return The value at the specified expression path, the default value if the result is null,
+     *         or the default value if a NullPointerException is suppressed.
+     * @throws NullPointerException if a null value is encountered in non-null-safe navigation
+     *                              and suppressNPE is false.
+     */
+    default <T> T getExpressionValue(String expression, T defaultValue, boolean suppressNPE) {
+        try {
+            return getExpressionValue(expression, defaultValue);
+        } catch (NullPointerException e) {
+            if (suppressNPE)
+                return defaultValue;
+            else
+                throw e;
+        }
+    }
+
+    /**
      * Sets a value in an object at the specified property expression path.
      *
      * @param expression The property expression indicating where to set the value

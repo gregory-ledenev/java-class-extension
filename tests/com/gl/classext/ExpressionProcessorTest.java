@@ -218,12 +218,17 @@ public class ExpressionProcessorTest {
     static final class Department {
         private String name;
 
+        public boolean isValid() {
+            return name != null && !name.isBlank();
+        }
+
         public List<Employee> getEmployees() {
             return employees;
         }
 
         public Map<String, Employee> getEmployeeMap() {
-            return employees.stream()
+            return employees == null ? null :
+                    employees.stream()
                     .collect(Collectors.toMap(Employee::getName, e -> e));
         }
 
@@ -345,12 +350,17 @@ public class ExpressionProcessorTest {
     void testOrganizationGetValues() {
         Organization organization = setupOrganization();
 
-        assertEquals("Acme", ((String) processor.getExpressionValue(organization, "name")));
-        assertEquals(organization.departments.get(0), (Department) processor.getExpressionValue(organization, "departments[0]"));
-        assertEquals("com.IT", ((String) processor.getExpressionValue(organization, "departments[0].name")));
-        assertEquals("John", ((String) processor.getExpressionValue(organization, "departments[0].employees[0].name")));
+        assertEquals("Acme", processor.getExpressionValue(organization, "name"));
+        assertEquals(organization.departments.get(0), processor.getExpressionValue(organization, "departments[0]"));
+        assertEquals("com.IT", processor.getExpressionValue(organization, "departments[0].name"));
+        assertEquals("John", processor.getExpressionValue(organization, "departments[0].employees[0].name"));
         assertEquals(3, ((Integer) processor.getExpressionValue(organization, "departments[0].employees.size")));
         assertEquals(105000, ((Integer) processor.getExpressionValue(organization, "departmentMap[\"Sales\"].employeeMap[\"Grace\"].salary")));
+        assertEquals(105000, ((Integer) processor.getExpressionValue(organization, "departmentMap[\"Sales\"].employeeMap[\"Grace\"].salary")));
+
+        assertEquals(true, processor.getExpressionValue(organization, "departments[0].valid"));
+        assertEquals(false, processor.getExpressionValue(new Organization("", new ArrayList<>(List.of(new Department(null, null)))),
+                "departments[0].valid"));
     }
 
     @Test
@@ -365,6 +375,18 @@ public class ExpressionProcessorTest {
 
         npe = assertThrowsExactly(NullPointerException.class, () -> processor.getExpressionValue(new Organization("Acme", null), "departments[0].employeeMap[\"\"].name"));
         assertEquals("Null value at: departments[0]", npe.getMessage());
+
+        npe = assertThrowsExactly(NullPointerException.class, () -> processor.getExpressionValue(new Organization("Acme", List.of(new Department(null, null))),
+                "departments[0].employees[0].name"));
+        assertEquals("Null value at: departments[0].employees[0]", npe.getMessage());
+
+        npe = assertThrowsExactly(NullPointerException.class, () -> processor.getExpressionValue(new Organization("Acme", new ArrayList<>(List.of(new Department(null, null)))),
+                "departments[0].employees.size"));
+        assertEquals("Null value at: departments[0].employees", npe.getMessage());
+
+        npe = assertThrowsExactly(NullPointerException.class, () -> processor.getExpressionValue(new Organization("Acme", new ArrayList<>(List.of(new Department(null, null)))),
+                "departments[0].employeeMap[''].name"));
+        assertEquals("Null value at: departments[0].employeeMap['']", npe.getMessage());
     }
 
     @Test
@@ -373,7 +395,14 @@ public class ExpressionProcessorTest {
 
         assertNull(processor.getExpressionValue(organization, "departmentMap[\"\"]?.name"));
         assertNull(processor.getExpressionValue(organization, "departments[0]?.employeeMap[\"\"]?.name"));
-        assertNull(processor.getExpressionValue(new Organization("Acme", null), "departments[0]?.employeeMap[\"\"]?.name"));
+
+        assertNull(processor.getExpressionValue(new Organization(null, null), "name?"));
+        assertNull(processor.getExpressionValue(new Organization(null, null), "name"));
+
+        assertNull(processor.getExpressionValue(new Organization("Acme", List.of(new Department(null, null))),
+                "departments[0]?.employees"));
+        assertNull(processor.getExpressionValue(new Organization("Acme", new ArrayList<>(List.of(new Department(null, null)))),
+                "departments[0]?.employees?.size"));
     }
 
     @Test
@@ -381,13 +410,13 @@ public class ExpressionProcessorTest {
         Organization organization = setupOrganization();
 
         processor.setExpressionValue(organization, "name", "Acme123");
-        assertEquals("Acme123", ((String) processor.getExpressionValue(organization, "name")));
+        assertEquals("Acme123", processor.getExpressionValue(organization, "name"));
 
         processor.setExpressionValue(organization, "departments[0].name", "IT123");
-        assertEquals("IT123", ((String) processor.getExpressionValue(organization, "departments[0].name")));
+        assertEquals("IT123", processor.getExpressionValue(organization, "departments[0].name"));
 
         processor.setExpressionValue(organization, "departments[0].employees[0].name", "John123");
-        assertEquals("John123", ((String) processor.getExpressionValue(organization, "departments[0].employees[0].name")));
+        assertEquals("John123", processor.getExpressionValue(organization, "departments[0].employees[0].name"));
 
         processor.setExpressionValue(organization, "departmentMap[\"Sales\"].employeeMap[\"Grace\"].salary", 1050000);
         assertEquals(1050000, ((Integer) processor.getExpressionValue(organization, "departmentMap[\"Sales\"].employeeMap[\"Grace\"].salary")));
@@ -425,13 +454,13 @@ public class ExpressionProcessorTest {
         Organization organization = setupOrganization();
 
         processor.setExpressionValue(organization, "name", null);
-        assertNull(((String) processor.getExpressionValue(organization, "name")));
+        assertNull(processor.getExpressionValue(organization, "name"));
 
         processor.setExpressionValue(organization, "departments[0].name", null);
-        assertNull(((String) processor.getExpressionValue(organization, "departments[0].name")));
+        assertNull(processor.getExpressionValue(organization, "departments[0].name"));
 
         processor.setExpressionValue(organization, "departments[0].employees[0].name", null);
-        assertNull(((String) processor.getExpressionValue(organization, "departments[0].employees[0].name")));
+        assertNull(processor.getExpressionValue(organization, "departments[0].employees[0].name"));
 
         assertThrows(RuntimeException.class, () -> processor.setExpressionValue(organization, "departmentMap[\"Sales\"].employeeMap[\"Grace\"].salary", null));
     }
@@ -451,7 +480,6 @@ public class ExpressionProcessorTest {
     @Test
     void testOrganizationSetNulValuesSafeNullable() {
         Organization organization = setupOrganization();
-        NullPointerException npe;
 
         processor.setExpressionValue(organization, "departmentMap[\"\"]?.name", null);
         processor.setExpressionValue(organization, "departments[0]?.employeeMap[\"\"]?.name", null);
@@ -463,7 +491,7 @@ public class ExpressionProcessorTest {
 
         Department department = new Department("Finance", null);
         processor.setExpressionValue(organization, "departments[+]?", department);
-        assertEquals("Finance", ((String) processor.getExpressionValue(organization, "departments[3]?.name")));
+        assertEquals("Finance", processor.getExpressionValue(organization, "departments[3]?.name"));
 
         processor.setExpressionValue(organization, "departments[-]?", department);
         assertEquals(3, ((Integer) processor.getExpressionValue(organization, "departments.size")));
@@ -480,6 +508,9 @@ public class ExpressionProcessorTest {
 
         OrganizationInterfaceEx extension = DynamicClassExtension.sharedExtension(organization, OrganizationInterfaceEx.class);
         assertEquals("Frank", extension.getExpressionValue("departments[2].employees[1].name"));
+
+        assertEquals("N/A", extension.getExpressionValue("departments[2].employeeMap['Doe']?.name", "N/A"));
+        assertEquals("N/A", extension.getExpressionValue("departments[2].employeeMap['Doe'].name", "N/A", true));
 
         extension.setExpressionValue("departments[2].employees[1].name", "Frank Jr");
         assertEquals("Frank Jr", extension.getExpressionValue("departments[2].employees[1].name"));

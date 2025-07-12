@@ -1,6 +1,7 @@
 package com.gl.classext;
 
 import javax.swing.text.html.Option;
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicReference;
@@ -25,19 +26,6 @@ public abstract class AbstractClassExtension implements ClassExtension {
     private boolean cacheEnabled = true;
 
     private volatile ThreadSafeWeakCache<ThreadSafeWeakCache.ClassExtensionKey, Object> extensionCache;
-
-    protected static Object performExpressionContextOperation(AbstractClassExtension aClassExtension, Object anObject, Method method, Object[] args) {
-        Object result;
-        if (method.getName().equals("getExpressionValue")) {
-            result = aClassExtension.getExpressionProcessor().getExpressionValue(anObject, (String) args[0]);
-        } else if (method.getName().equals("setExpressionValue")) {
-            aClassExtension.getExpressionProcessor().setExpressionValue(anObject, (String) args[0], args[1]);
-            result = null;
-        } else {
-            throw new IllegalArgumentException(format("Unknown method \"{0}\" for \"{1}\"", method.getName(), anObject));
-        }
-        return result;
-    }
 
     protected ThreadSafeWeakCache<ThreadSafeWeakCache.ClassExtensionKey, Object> getExtensionCache() {
         if (extensionCache == null) {
@@ -370,5 +358,25 @@ public abstract class AbstractClassExtension implements ClassExtension {
             processor = expressionProcessor.get();
         }
         return processor;
+    }
+
+    protected static Object performExpressionContextOperation(AbstractClassExtension aClassExtension, Object anObject, Method method, Object[] args) {
+        ExpressionContext expressionContext = new ExpressionContext() {
+            @Override
+            public Object getExpressionValue(String expression) {
+                return aClassExtension.getExpressionProcessor().getExpressionValue(anObject, (String) args[0]);
+            }
+
+            @Override
+            public void setExpressionValue(String expression, Object value) {
+                aClassExtension.getExpressionProcessor().setExpressionValue(anObject, (String) args[0], args[1]);
+            }
+        };
+
+        try {
+            return method.invoke(expressionContext, args);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
     }
 }

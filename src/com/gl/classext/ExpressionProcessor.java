@@ -290,8 +290,20 @@ public class ExpressionProcessor {
             noGetter = true;
         }
 
-        // try to use fallback methods such as List.size()
         if (noGetter) {
+            // try to use is method like isEnabled()
+            noGetter = false;
+            try {
+                // try to use getter
+                String getter = "is" + info.name();
+                value = current.getClass().getMethod(getter).invoke(current);
+            } catch (Exception e) {
+                noGetter = true;
+            }
+        }
+
+        if (noGetter) {
+            // try to use fallback methods such as List.size()
             try {
                 value = current.getClass().getMethod(info.property()).invoke(current);
             } catch (Exception e) {
