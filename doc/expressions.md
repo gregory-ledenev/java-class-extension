@@ -53,11 +53,15 @@ extension mechanism, you can "attach" `ExpressionContext` functionality to any o
 This approach is powerful because it allows you to work with expression-based access on existing classes, including
 third-party ones, without modifying their original source code.
 
-There are two primary ways to do this:
+There are three primary ways to do this:
+1. Directly obtaining an `ExpressionContext` extension.
+2. Extending a business interface with `ExpressionContext`.
+3. Composing `ExpressionContext` with a business interface.
 
-1. **Directly obtain an `ExpressionContext` extension:**
-   You can get a pure `ExpressionContext` extension for any object. This is useful when you only need expression
-   evaluation capabilities.
+#### Directly Obtaining an `ExpressionContext` Extension
+
+You can get a pure `ExpressionContext` extension for any object. This is useful when you only need expression evaluation 
+capabilities and do not want to expose a business interface for some reason.
 
 ```java
 Organization organization = new Organization(/*...*/);
@@ -65,11 +69,11 @@ ExpressionContext context = DynamicClassExtension.sharedExtension(organization, 
 String employeeName = (String) context.getExpressionValue("departments[0].employees[0].name");
 ```
 
-2. **Combine with a business interface:**
-   For a more integrated approach, you can create a new interface that extends both your custom business interface and
-   `ExpressionContext`. This combines the standard methods of your object with the power of expression evaluation.
+#### Extending a Business Interface with `ExpressionContext`
+For a more integrated approach, you can create a new interface that extends both your custom business interface and
+`ExpressionContext`. This combines the standard methods of your object with the power of expression evaluation.
 
-   First, define an interface that inherits from both:
+First, define an interface that inherits from both:
 
 ```java
 interface OrganizationInterfaceEx extends OrganizationInterface, ExpressionContext {
@@ -90,7 +94,20 @@ setExpressionValue("departments[2].employees[1].name","Frank Jr");
 // Call a method from OrganizationInterface
 String orgName = extension.getName();
 ```
+#### Composing `ExpressionContext` with a Business Interface
+When you don't want or can't extend a business interface with `ExpressionContext`, you can use interface composition
+instead. This lets you use your business interface normally while still accessing expression support by casting to
+`ExpressionContext` when needed.
 
+```java
+// get an extension to work with composition of interfaces
+OrganizationInterface extension = DynamicClassExtension.sharedInstance().extension(organization,
+        OrganizationInterface.class, ExpressionContext.class);
+// get the name of a first employee from a first department
+assertEquals("John", ((ExpressionContext) extension).getExpressionValue("departments[0].employees[0].name"));
+// use it as an organization
+assertEquals("Acme", extension.getName());
+```
 This technique promotes clean design by keeping data objects separate from the logic that operates on them, while still
 providing a flexible and powerful way to interact with the object graph.
 

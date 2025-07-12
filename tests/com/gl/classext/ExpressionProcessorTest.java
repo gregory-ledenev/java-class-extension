@@ -516,22 +516,30 @@ public class ExpressionProcessorTest {
         // get the name of a first employee from a first department
         assertEquals("John", expressionContext.getExpressionValue("departments[0].employees[0].name"));
 
+        // get an extension to work with composition of interfaces
+        OrganizationInterface extension1 = DynamicClassExtension.sharedInstance().extension(organization,
+                OrganizationInterface.class, ExpressionContext.class);
+        // get the name of a first employee from a first department
+        assertEquals("John", ((ExpressionContext) extension1).getExpressionValue("departments[0].employees[0].name"));
+        // use it as an organization
+        assertEquals("Acme", extension1.getName());
+
         // get an extension to work with any interface + expression support for any object
-        OrganizationInterfaceEx extension = DynamicClassExtension.sharedExtension(organization, OrganizationInterfaceEx.class);
+        OrganizationInterfaceEx extension2 = DynamicClassExtension.sharedExtension(organization, OrganizationInterfaceEx.class);
 
         // get the name of a second employee from a third department
-        assertEquals("Frank", extension.getExpressionValue("departments[2].employees[1].name"));
+        assertEquals("Frank", extension2.getExpressionValue("departments[2].employees[1].name"));
         // get the name of a first employee from the "Sales" department
-        assertEquals("Eve", extension.getExpressionValue("departmentMap['Sales'].employees[0].name"));
+        assertEquals("Eve", extension2.getExpressionValue("departmentMap['Sales'].employees[0].name"));
 
         // handle nullability, suppressing NPE and providing default values
-        assertEquals("N/A", extension.getExpressionValue("departments[2].employeeMap['Doe']?.name",
+        assertEquals("N/A", extension2.getExpressionValue("departments[2].employeeMap['Doe']?.name",
                 "N/A"));
-        assertEquals("N/A", extension.getExpressionValue("departments[2].employeeMap['Doe'].name",
+        assertEquals("N/A", extension2.getExpressionValue("departments[2].employeeMap['Doe'].name",
                 "N/A", true));
 
         // update the name of an employee
-        extension.setExpressionValue("departments[2].employees[1].name", "Frank Jr");
-        assertEquals("Frank Jr", extension.getExpressionValue("departments[2].employees[1].name"));
+        extension2.setExpressionValue("departments[2].employees[1].name", "Frank Jr");
+        assertEquals("Frank Jr", extension2.getExpressionValue("departments[2].employees[1].name"));
     }
 }
