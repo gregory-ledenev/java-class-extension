@@ -36,6 +36,9 @@ public class ExpressionProcessor {
      * @throws NullPointerException if a null value is encountered in non-null-safe navigation
      */
     public Object getExpressionValue(Object object, String expression) {
+        if (object == null)
+            throw new NullPointerException("Null value at: object");
+
         Object current = object;
         String[] expressionParts = splitExpression(expression);
 
@@ -61,6 +64,9 @@ public class ExpressionProcessor {
      * @throws NullPointerException if a null value is encountered in non-null-safe navigation
      */
     public void setExpressionValue(Object object, String expression, Object value) {
+        if (object == null)
+            throw new NullPointerException("Null value at: object");
+
         Object current = object;
         String[] expressionParts = splitExpression(expression);
 

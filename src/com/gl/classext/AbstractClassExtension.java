@@ -21,7 +21,6 @@ import static java.text.MessageFormat.format;
  * behaviors or extensions as required.
  */
 public abstract class AbstractClassExtension implements ClassExtension {
-    private final AtomicReference<ExpressionProcessor> expressionProcessor = new AtomicReference<>();
     //region Cache methods
     private boolean cacheEnabled = true;
 
@@ -350,14 +349,11 @@ public abstract class AbstractClassExtension implements ClassExtension {
         return result;
     }
 
+    private final AtomicReference<ExpressionProcessor> expressionProcessor = new AtomicReference<>();
+
     protected ExpressionProcessor getExpressionProcessor() {
-        ExpressionProcessor processor = expressionProcessor.get();
-        if (processor == null) {
-            processor = new ExpressionProcessor();
-            expressionProcessor.compareAndSet(null, processor);
-            processor = expressionProcessor.get();
-        }
-        return processor;
+        return expressionProcessor.updateAndGet(processor ->
+                processor != null ? processor : new ExpressionProcessor());
     }
 
     protected static Object performExpressionContextOperation(AbstractClassExtension aClassExtension, Object anObject, Method method, Object[] args) {

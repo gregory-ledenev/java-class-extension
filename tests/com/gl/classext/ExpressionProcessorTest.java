@@ -387,6 +387,10 @@ public class ExpressionProcessorTest {
         npe = assertThrowsExactly(NullPointerException.class, () -> processor.getExpressionValue(new Organization("Acme", new ArrayList<>(List.of(new Department(null, null)))),
                 "departments[0].employeeMap[''].name"));
         assertEquals("Null value at: departments[0].employeeMap['']", npe.getMessage());
+
+        npe = assertThrowsExactly(NullPointerException.class, () -> processor.getExpressionValue(null,
+                "departments[0].employeeMap[''].name"));
+        assertEquals("Null value at: object", npe.getMessage());
     }
 
     @Test
@@ -437,6 +441,10 @@ public class ExpressionProcessorTest {
         npe = assertThrowsExactly(NullPointerException.class, () -> processor.setExpressionValue(new Organization("Acme", List.of(new Department("IT", null))),
                 "departments[0].employees[0]", new Employee("John123", 1050000)));
         assertEquals("Null value at: departments[0].employees", npe.getMessage());
+
+        npe = assertThrowsExactly(NullPointerException.class, () -> processor.setExpressionValue(null,
+                "departments[0].employees[0]", new Employee("John123", 1050000)));
+        assertEquals("Null value at: object", npe.getMessage());
     }
 
     @Test
@@ -503,15 +511,26 @@ public class ExpressionProcessorTest {
     void testExtensionWithExpressionContext() {
         Organization organization = setupOrganization();
 
+        // get an extension to work with expression for any object
         ExpressionContext expressionContext = DynamicClassExtension.sharedExtension(organization, ExpressionContext.class);
+        // get the name of a first employee from a first department
         assertEquals("John", expressionContext.getExpressionValue("departments[0].employees[0].name"));
 
+        // get an extension to work with any interface + expression support for any object
         OrganizationInterfaceEx extension = DynamicClassExtension.sharedExtension(organization, OrganizationInterfaceEx.class);
+
+        // get the name of a second employee from a third department
         assertEquals("Frank", extension.getExpressionValue("departments[2].employees[1].name"));
+        // get the name of a first employee from the "Sales" department
+        assertEquals("Eve", extension.getExpressionValue("departmentMap['Sales'].employees[0].name"));
 
-        assertEquals("N/A", extension.getExpressionValue("departments[2].employeeMap['Doe']?.name", "N/A"));
-        assertEquals("N/A", extension.getExpressionValue("departments[2].employeeMap['Doe'].name", "N/A", true));
+        // handle nullability, suppressing NPE and providing default values
+        assertEquals("N/A", extension.getExpressionValue("departments[2].employeeMap['Doe']?.name",
+                "N/A"));
+        assertEquals("N/A", extension.getExpressionValue("departments[2].employeeMap['Doe'].name",
+                "N/A", true));
 
+        // update the name of an employee
         extension.setExpressionValue("departments[2].employees[1].name", "Frank Jr");
         assertEquals("Frank Jr", extension.getExpressionValue("departments[2].employees[1].name"));
     }
