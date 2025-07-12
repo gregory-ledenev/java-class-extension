@@ -731,6 +731,8 @@ public class DynamicClassExtension extends AbstractClassExtension {
             }
         } else if (method.getDeclaringClass().isAssignableFrom(PrivateDelegateHolder.class)) {
             result = method.invoke((PrivateDelegateHolder)() -> anObject, args);
+        } else if (method.getDeclaringClass().isAssignableFrom(ExpressionContext.class)) {
+            result = performExpressionContextOperation(aClassExtension, anObject, method, args);
         } else {
             if (aMissingMethodsHandler != null && method.isAnnotationPresent(OptionalMethod.class))
                 result = aMissingMethodsHandler.apply(method);

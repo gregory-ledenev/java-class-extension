@@ -151,7 +151,18 @@ public class ExpressionProcessorTest {
         assertThrows(RuntimeException.class, () -> processor.setExpressionValue(rootObject, "nonExistent", "value"));
     }
 
-    static final class Organization {
+    interface OrganizationInterface {
+        void setName(String name);
+        String getName();
+
+        List<Department> getDepartments();
+        Map<String, Department> getDepartmentMap();
+    }
+
+    interface OrganizationInterfaceEx extends OrganizationInterface, ExpressionContext {
+    }
+
+    static final class Organization implements OrganizationInterface {
         private String name;
         private final List<Department> departments;
 
@@ -458,5 +469,19 @@ public class ExpressionProcessorTest {
         assertEquals(3, ((Integer) processor.getExpressionValue(organization, "departments.size")));
 
         processor.setExpressionValue(organization, "departments[0]?.employeeMap[\"\"]?.name", null);
+    }
+
+    @Test
+    void testExtensionWithExpressionContext() {
+        Organization organization = setupOrganization();
+
+        ExpressionContext expressionContext = DynamicClassExtension.sharedExtension(organization, ExpressionContext.class);
+        assertEquals("John", expressionContext.getExpressionValue("departments[0].employees[0].name"));
+
+        OrganizationInterfaceEx extension = DynamicClassExtension.sharedExtension(organization, OrganizationInterfaceEx.class);
+        assertEquals("Frank", extension.getExpressionValue("departments[2].employees[1].name"));
+
+        extension.setExpressionValue("departments[2].employees[1].name", "Frank Jr");
+        assertEquals("Frank Jr", extension.getExpressionValue("departments[2].employees[1].name"));
     }
 }

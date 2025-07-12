@@ -1,5 +1,6 @@
 package com.gl.classext;
 
+import java.lang.reflect.Array;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -7,7 +8,33 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
+/**
+ * Processes property expressions to get or set values in object hierarchies.
+ * Expression format supports:
+ * <ul>
+ *   <li>Simple property access: "firstName"</li>
+ *   <li>Nested property access: "address.city"</li>
+ *   <li>List/array indexing: "items[0]"</li>
+ *   <li>Map access: "data['key']" or "data["key"]"</li>
+ *   <li>List operations: "items[+]" (add), "items[-]" (remove)</li>
+ *   <li>Null-safe navigation: "address?.city" or "addresses[0]?.city"</li>
+ * </ul>
+ * <p>
+ *     Sample expressions: <br>
+ *     "departmentMap['Sales'].employeeMap['Grace'].salary"<br>
+ *     "departmentMap['Sales']?.employeeMap['Grace']?.salary"<br>
+ *     "departments[0].employees[0].name"
+ * </p>
+ */
 public class ExpressionProcessor {
+    /**
+     * Retrieves a value from an object using the specified property expression.
+     *
+     * @param object     The root object to evaluate the expression against
+     * @param expression The property expression to evaluate
+     * @return The value at the specified expression path
+     * @throws NullPointerException if a null value is encountered in non-null-safe navigation
+     */
     public Object getExpressionValue(Object object, String expression) {
         Object current = object;
         String[] expressionParts = splitExpression(expression);
@@ -15,8 +42,8 @@ public class ExpressionProcessor {
         for (int i = 0; i < expressionParts.length; i++) {
             try {
                 current = getPropertyValue(current, expressionParts[i],
-                        i > 0 && expressionParts[i - 1].endsWith(NULL_SAFE_OPERATOR),
-                        i == expressionParts.length - 1);
+                        i > 0 && expressionParts[i - 1].endsWith(NULL_SAFE_OPERATOR)
+                );
             } catch (NullPropertyValue e) {
                 npeAtSubExpression(expressionParts, i > 0 ? i - 1 : i, false);
             }
@@ -25,6 +52,14 @@ public class ExpressionProcessor {
         return current;
     }
 
+    /**
+     * Sets a value in an object at the specified property expression path.
+     *
+     * @param object     The root object to set the value in
+     * @param expression The property expression indicating where to set the value
+     * @param value      The value to set
+     * @throws NullPointerException if a null value is encountered in non-null-safe navigation
+     */
     public void setExpressionValue(Object object, String expression, Object value) {
         Object current = object;
         String[] expressionParts = splitExpression(expression);
@@ -32,7 +67,7 @@ public class ExpressionProcessor {
         for (int i = 0; i < expressionParts.length - 1; i++) {
             boolean isNullSafe = expressionParts[i].endsWith(NULL_SAFE_OPERATOR);
             try {
-                current = getPropertyValue(current, expressionParts[i], isNullSafe, i == expressionParts.length - 1);
+                current = getPropertyValue(current, expressionParts[i], isNullSafe);
             } catch (NullPropertyValue e) {
                 npeAtSubExpression(expressionParts, i, false);
             }
@@ -50,7 +85,7 @@ public class ExpressionProcessor {
         if (isSubscript(lastExpressionPart)) {
             PropertyInfo info = parseProperty(lastExpressionPart);
             boolean isNullSafe = lastExpressionPart.endsWith(NULL_SAFE_OPERATOR);
-            current = getPropertyValue(current, info.property(), isNullSafe, true);
+            current = getPropertyValue(current, info.property(), isNullSafe);
             if (current != null) {
                 setValueForProperty(current, lastExpressionPart, value);
             } else if (! isNullSafe) {
@@ -75,13 +110,16 @@ public class ExpressionProcessor {
                     list.set(Integer.parseInt(info.index()), value);
             } else if (object instanceof Map) {
                 ((Map) object).put(info.unquotedIndex(), value);
+            } else if (object.getClass().isArray()) {
+                setArrayValue(object, Integer.parseInt(info.index()), value);
             }
         } else {
             try {
                 String setter = "set" + info.name();
                 Method method;
                 if (value != null) {
-                    method = object.getClass().getMethod(setter, getValueClassForSetter(value));
+                    Class<?> valueClassForSetter = getValueClassForSetter(value);
+                    method = findMethodByName(object, setter, valueClassForSetter);
                 } else {
                     method = findAnyMethodByName(object.getClass(), setter);
                 }
@@ -93,8 +131,36 @@ public class ExpressionProcessor {
         }
     }
 
+    private void setArrayValue(Object object, int i, Object value) {
+        Class<?> componentType = object.getClass().getComponentType();
+        if (componentType.isPrimitive()) {
+            if (boolean.class.equals(componentType))
+                Array.setBoolean(object, i, (Boolean) value);
+            else if (byte.class.equals(componentType))
+                Array.setByte(object, i, (Byte) value);
+            else if (char.class.equals(componentType))
+                Array.setChar(object, i, (Character) value);
+            else if (short.class.equals(componentType))
+                Array.setShort(object, i, (Short) value);
+            else if (int.class.equals(componentType))
+                Array.setInt(object, i, (Integer) value);
+            else if (long.class.equals(componentType))
+                Array.setLong(object, i, (Long) value);
+            else if (float.class.equals(componentType))
+                Array.setFloat(object, i, (Float) value);
+            else if (double.class.equals(componentType))
+                Array.setDouble(object, i, (Double) value);
+        } else {
+            ((Object[]) object)[i] = value;
+        }
+    }
+
     private boolean isSubscript(String expression) {
         return expression.endsWith(SUBSCRIPT_END) || expression.endsWith(SUBSCRIPT_END_OPTIONAL);
+    }
+
+    private static Method findMethodByName(Object object, String setter, Class<?> parameterType) throws NoSuchMethodException {
+        return object.getClass().getMethod(setter, parameterType);
     }
 
     private final Map<String, Method> methodCache = new ConcurrentHashMap<>();
@@ -206,7 +272,7 @@ public class ExpressionProcessor {
 
     static class NullPropertyValue extends NullPointerException {}
 
-    private Object getPropertyValue(Object current, String part, boolean isNullSafe, boolean isLastPart) throws NullPropertyValue {
+    private Object getPropertyValue(Object current, String part, boolean isNullSafe) throws NullPropertyValue {
         if (current == null) {
             if (isNullSafe)
                 return null;

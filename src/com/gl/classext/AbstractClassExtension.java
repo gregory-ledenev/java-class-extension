@@ -3,6 +3,7 @@ package com.gl.classext;
 import javax.swing.text.html.Option;
 import java.lang.reflect.Method;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Stream;
@@ -19,10 +20,24 @@ import static java.text.MessageFormat.format;
  * behaviors or extensions as required.
  */
 public abstract class AbstractClassExtension implements ClassExtension {
+    private final AtomicReference<ExpressionProcessor> expressionProcessor = new AtomicReference<>();
     //region Cache methods
     private boolean cacheEnabled = true;
 
     private volatile ThreadSafeWeakCache<ThreadSafeWeakCache.ClassExtensionKey, Object> extensionCache;
+
+    protected static Object performExpressionContextOperation(AbstractClassExtension aClassExtension, Object anObject, Method method, Object[] args) {
+        Object result;
+        if (method.getName().equals("getExpressionValue")) {
+            result = aClassExtension.getExpressionProcessor().getExpressionValue(anObject, (String) args[0]);
+        } else if (method.getName().equals("setExpressionValue")) {
+            aClassExtension.getExpressionProcessor().setExpressionValue(anObject, (String) args[0], args[1]);
+            result = null;
+        } else {
+            throw new IllegalArgumentException(format("Unknown method \"{0}\" for \"{1}\"", method.getName(), anObject));
+        }
+        return result;
+    }
 
     protected ThreadSafeWeakCache<ThreadSafeWeakCache.ClassExtensionKey, Object> getExtensionCache() {
         if (extensionCache == null) {
@@ -345,5 +360,15 @@ public abstract class AbstractClassExtension implements ClassExtension {
                 result = aspectsPolicy == AspectsPolicy.ENABLED;
         }
         return result;
+    }
+
+    protected ExpressionProcessor getExpressionProcessor() {
+        ExpressionProcessor processor = expressionProcessor.get();
+        if (processor == null) {
+            processor = new ExpressionProcessor();
+            expressionProcessor.compareAndSet(null, processor);
+            processor = expressionProcessor.get();
+        }
+        return processor;
     }
 }

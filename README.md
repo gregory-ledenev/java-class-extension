@@ -65,6 +65,7 @@ Shippable.extensionFor(item).ship();
 2. [Static Class Extensions](doc/static-class-extensions.md)
 3. [Dynamic Class Extensions](doc/dynamic-class-extensions.md)
 4. [Aspects](doc/aspects.md)
+5. [Expressions](doc/expressions.md)
 5. [Utilities](doc/utilities.md)
 
 ## Adding to Your Build 
