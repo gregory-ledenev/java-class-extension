@@ -152,67 +152,19 @@ public class ExpressionProcessorTest {
     }
 
     interface OrganizationInterface {
-        void setName(String name);
-        String getName();
-
-        List<Department> getDepartments();
+        String name();
+        List<Department> departments();
         Map<String, Department> getDepartmentMap();
     }
 
     interface OrganizationInterfaceEx extends OrganizationInterface, ExpressionContext {
     }
 
-    static final class Organization implements OrganizationInterface {
-        private String name;
-        private final List<Department> departments;
-
-        Organization(String name, List<Department> departments) {
-            this.name = name;
-            this.departments = departments;
-        }
-
-        public List<Department> getDepartments() {
-            return departments;
-        }
-
-        public void setName(String name) {
-            this.name = name;
-        }
-
-        public String getName() {
-            return name;
-        }
-
+    record Organization(String name, List<Department> departments) implements OrganizationInterface {
         public Map<String, Department> getDepartmentMap() {
             return departments.stream()
                     .collect(Collectors.toMap(Department::getName, d -> d));
         }
-
-        public List<Department> departments() {
-            return departments;
-        }
-
-        @Override
-        public boolean equals(Object obj) {
-            if (obj == this) return true;
-            if (obj == null || obj.getClass() != this.getClass()) return false;
-            var that = (Organization) obj;
-            return Objects.equals(this.name, that.name) &&
-                    Objects.equals(this.departments, that.departments);
-        }
-
-        @Override
-        public int hashCode() {
-            return Objects.hash(name, departments);
-        }
-
-        @Override
-        public String toString() {
-            return "Organization[" +
-                    "name=" + name + ", " +
-                    "departments=" + departments + ']';
-        }
-
     }
 
     static final class Department {
@@ -413,9 +365,6 @@ public class ExpressionProcessorTest {
     void testOrganizationSetValues() {
         Organization organization = setupOrganization();
 
-        processor.setExpressionValue(organization, "name", "Acme123");
-        assertEquals("Acme123", processor.getExpressionValue(organization, "name"));
-
         processor.setExpressionValue(organization, "departments[0].name", "IT123");
         assertEquals("IT123", processor.getExpressionValue(organization, "departments[0].name"));
 
@@ -460,9 +409,6 @@ public class ExpressionProcessorTest {
     @Test
     void testOrganizationSetNullValues() {
         Organization organization = setupOrganization();
-
-        processor.setExpressionValue(organization, "name", null);
-        assertNull(processor.getExpressionValue(organization, "name"));
 
         processor.setExpressionValue(organization, "departments[0].name", null);
         assertNull(processor.getExpressionValue(organization, "departments[0].name"));
@@ -522,7 +468,7 @@ public class ExpressionProcessorTest {
         // get the name of a first employee from a first department
         assertEquals("John", ((ExpressionContext) extension1).getExpressionValue("departments[0].employees[0].name"));
         // use it as an organization
-        assertEquals("Acme", extension1.getName());
+        assertEquals("Acme", extension1.name());
 
         // get an extension to work with any interface + expression support for any object
         OrganizationInterfaceEx extension2 = DynamicClassExtension.sharedExtension(organization, OrganizationInterfaceEx.class);

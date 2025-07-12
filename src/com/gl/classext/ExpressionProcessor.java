@@ -27,6 +27,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * </p>
  */
 public class ExpressionProcessor {
+
     /**
      * Retrieves a value from an object using the specified property expression.
      *
@@ -278,6 +279,24 @@ public class ExpressionProcessor {
 
     static class NullPropertyValue extends NullPointerException {}
 
+    record InvokeResult(Object result, boolean success) {
+        public InvokeResult(Object result) {
+            this(result, true);
+        }
+    }
+
+    static InvokeResult getValueForProperty(Object current, String property, String prefix) {
+        try {
+            String getter = prefix != null ? prefix + property : property;
+            return new InvokeResult(current.getClass().getMethod(getter).invoke(current));
+        } catch (Exception e) {
+            return new InvokeResult(null, false);
+        }
+    }
+
+    public static final String[] JB_METHOD_PREFIXES_CLASS = {"get", "is", null};
+    public static final String[] JB_METHOD_PREFIXES_RECORD = {null, "get", "is"};
+
     private Object getPropertyValue(Object current, String part, boolean isNullSafe) throws NullPropertyValue {
         if (current == null) {
             if (isNullSafe)
@@ -286,38 +305,19 @@ public class ExpressionProcessor {
         }
 
         PropertyInfo info = parseProperty(part);
-        Object value = null;
-        boolean noGetter = false;
-        try {
-            // try to use getter
-            String getter = "get" + info.name();
-            value = current.getClass().getMethod(getter).invoke(current);
-        } catch (Exception e) {
-            noGetter = true;
+        InvokeResult result = new InvokeResult(null, false);
+
+        String methodName = info.name();
+        String propertyName = info.property();
+        String[] prefixes = current.getClass().isRecord() ? JB_METHOD_PREFIXES_RECORD : JB_METHOD_PREFIXES_CLASS;
+
+        for (String prefix : prefixes) {
+            result = getValueForProperty(current, prefix == null ? propertyName : methodName, prefix);
+            if (result.success)
+                break;
         }
 
-        if (noGetter) {
-            // try to use is method like isEnabled()
-            noGetter = false;
-            try {
-                // try to use getter
-                String getter = "is" + info.name();
-                value = current.getClass().getMethod(getter).invoke(current);
-            } catch (Exception e) {
-                noGetter = true;
-            }
-        }
-
-        if (noGetter) {
-            // try to use fallback methods such as List.size()
-            try {
-                value = current.getClass().getMethod(info.property()).invoke(current);
-            } catch (Exception e) {
-                throw new RuntimeException("Error evaluating: " + part, e);
-            }
-        }
-
-        return getSubscriptValue(value, info.index());
+        return getSubscriptValue(result.result(), info.index());
     }
 
     private Object getSubscriptValue(Object value, String index) {
