@@ -4,6 +4,7 @@ package com.gl.classext;
 import com.gl.classext.ThreadSafeWeakCache.ClassExtensionKey;
 import org.junit.jupiter.api.Test;
 
+import java.lang.reflect.Method;
 import java.text.MessageFormat;
 import java.time.Duration;
 import java.util.*;
@@ -833,7 +834,7 @@ public class DynamicClassExtensionTest {
 
         Book book = new Book("The Mythical Man-Month");
         Item_Shippable itemShippable = dynamicClassExtension.extension(book,
-                aMethod -> 100f, // optional and missing methods handler
+                (Method aMethod, Object object) -> 100f, // optional and missing methods handler
                 Item_Shippable.class);
         // must succeed as it is annotated with @OptionalMethod and the missing methods handler will be called
         assertEquals(100f, itemShippable.calculateShippingCost("asap"));

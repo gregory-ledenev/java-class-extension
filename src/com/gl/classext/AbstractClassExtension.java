@@ -1,7 +1,5 @@
 package com.gl.classext;
 
-import javax.swing.text.html.Option;
-import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicReference;
@@ -374,5 +372,40 @@ public abstract class AbstractClassExtension implements ClassExtension {
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
+    }
+
+    public static final String[] JB_METHOD_PREFIXES_CLASS = {"get", "is", null};
+    public static final String[] JB_METHOD_PREFIXES_RECORD = {null, "get", "is"};
+
+    public record InvokeResult(Object result, boolean success) {
+        public InvokeResult(Object result) {
+            this(result, true);
+        }
+    }
+
+    private static InvokeResult invokeMethod(Object current, String propertyName, String prefix) {
+        try {
+            String getter = prefix != null ?
+                    prefix + propertyName.substring(0, 1).toUpperCase() + propertyName.substring(1) :
+                    propertyName;
+
+            return new AbstractClassExtension.InvokeResult(current.getClass().getMethod(getter).invoke(current));
+        } catch (Exception e) {
+            return new AbstractClassExtension.InvokeResult(null, false);
+        }
+    }
+
+    public static InvokeResult getPropertyValue(Object object, String propertyName) {
+        InvokeResult result = new InvokeResult(null, false);
+
+        String[] prefixes = object.getClass().isRecord() ? JB_METHOD_PREFIXES_RECORD : JB_METHOD_PREFIXES_CLASS;
+
+        for (String prefix : prefixes) {
+            result = invokeMethod(object, propertyName, prefix);
+            if (result.success)
+                break;
+        }
+
+        return result;
     }
 }

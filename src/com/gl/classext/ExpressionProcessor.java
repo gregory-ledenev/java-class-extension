@@ -279,24 +279,6 @@ public class ExpressionProcessor {
 
     static class NullPropertyValue extends NullPointerException {}
 
-    record InvokeResult(Object result, boolean success) {
-        public InvokeResult(Object result) {
-            this(result, true);
-        }
-    }
-
-    static InvokeResult getValueForProperty(Object current, String property, String prefix) {
-        try {
-            String getter = prefix != null ? prefix + property : property;
-            return new InvokeResult(current.getClass().getMethod(getter).invoke(current));
-        } catch (Exception e) {
-            return new InvokeResult(null, false);
-        }
-    }
-
-    public static final String[] JB_METHOD_PREFIXES_CLASS = {"get", "is", null};
-    public static final String[] JB_METHOD_PREFIXES_RECORD = {null, "get", "is"};
-
     private Object getPropertyValue(Object current, String part, boolean isNullSafe) throws NullPropertyValue {
         if (current == null) {
             if (isNullSafe)
@@ -305,17 +287,7 @@ public class ExpressionProcessor {
         }
 
         PropertyInfo info = parseProperty(part);
-        InvokeResult result = new InvokeResult(null, false);
-
-        String methodName = info.name();
-        String propertyName = info.property();
-        String[] prefixes = current.getClass().isRecord() ? JB_METHOD_PREFIXES_RECORD : JB_METHOD_PREFIXES_CLASS;
-
-        for (String prefix : prefixes) {
-            result = getValueForProperty(current, prefix == null ? propertyName : methodName, prefix);
-            if (result.success)
-                break;
-        }
+        AbstractClassExtension.InvokeResult result = AbstractClassExtension.getPropertyValue(current, info.property());
 
         return getSubscriptValue(result.result(), info.index());
     }

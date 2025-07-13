@@ -456,7 +456,7 @@ public class DynamicClassExtension extends AbstractClassExtension {
      * @return an extension object
      */
     @SuppressWarnings({"unchecked"})
-    public <T> T extensionNoCache(Object anObject, Function<Method, Object> aMissingMethodsHandler, Class<T> anExtensionInterface, Class<?>... aSupplementaryInterfaces) {
+    public <T> T extensionNoCache(Object anObject, BiFunction<Method, Object, Object> aMissingMethodsHandler, Class<T> anExtensionInterface, Class<?>... aSupplementaryInterfaces) {
         Objects.requireNonNull(anExtensionInterface);
 
         try {
@@ -513,7 +513,7 @@ public class DynamicClassExtension extends AbstractClassExtension {
      * @param anExtensionInterface class of extension object to be returned
      * @return an extension object
      */
-    public <T> T extension(Object anObject, Function<Method, Object> aMissingMethodsHandler, Class<T> anExtensionInterface) {
+    public <T> T extension(Object anObject, BiFunction<Method, Object, Object> aMissingMethodsHandler, Class<T> anExtensionInterface) {
         return extension(anObject, aMissingMethodsHandler, anExtensionInterface, (Class<?>[]) null);
     }
 
@@ -545,7 +545,7 @@ public class DynamicClassExtension extends AbstractClassExtension {
      * @return an extension object
      */
     @SuppressWarnings("unchecked")
-    public <T> T extension(Object anObject, Function<Method, Object> aMissingMethodsHandler, Class<T> anExtensionInterface, Class<?>... aSupplementaryInterfaces) {
+    public <T> T extension(Object anObject, BiFunction<Method, Object, Object> aMissingMethodsHandler, Class<T> anExtensionInterface, Class<?>... aSupplementaryInterfaces) {
         Objects.requireNonNull(anExtensionInterface);
 
         return isCacheEnabled(anExtensionInterface) ?
@@ -600,7 +600,7 @@ public class DynamicClassExtension extends AbstractClassExtension {
         return result;
     }
 
-    <T> Object performOperation(DynamicClassExtension aClassExtension, Object anObject, Function<Method, Object> aMissingMethodsHandler, Class<T> anExtensionInterface,
+    <T> Object performOperation(DynamicClassExtension aClassExtension, Object anObject, BiFunction<Method, Object, Object> aMissingMethodsHandler, Class<T> anExtensionInterface,
                                 Class<?>[] aSupplementaryInterfaces, Method method, Object[] args) throws InvocationTargetException, IllegalAccessException {
         Object result;
 
@@ -687,9 +687,9 @@ public class DynamicClassExtension extends AbstractClassExtension {
     private static <T> OperationResult performStaticOperation(DynamicClassExtension aClassExtension,
                                                               Object anObject,
                                                               Class<T> anExtensionInterface,
-                                                              Function<Method, Object> aMissingMethodsHandler,
+                                                              BiFunction<Method, Object, Object> aMissingMethodsHandler,
                                                               Method method, Object[] args) throws IllegalAccessException, InvocationTargetException {
-        Object result;
+        OperationResult result = null;
 
         Pointcut aroundPointcut = null;
         Pointcut beforePointcut = null;
@@ -701,7 +701,10 @@ public class DynamicClassExtension extends AbstractClassExtension {
             afterPointcut = aroundPointcut == null ? aClassExtension.getPointcut(anExtensionInterface, anObject.getClass(), method.getName(), method.getParameterTypes(), AdviceType.AFTER) : null;
         }
 
-        if (method.getDeclaringClass().isAssignableFrom(anObject.getClass())) {
+        if (method.getDeclaringClass().isAssignableFrom(anObject.getClass()) ||
+                method.getDeclaringClass().isAssignableFrom(ExpressionContext.class) ||
+                aMissingMethodsHandler != null && (anObject.getClass().isRecord() || method.isAnnotationPresent(OptionalMethod.class))) {
+
             if (aClassExtension.isVerbose())
                 aClassExtension.logger.info(format("Performing operation for delegate \"{0}\" -> {1}", anObject, method));
             if (beforePointcut != null) {
@@ -713,34 +716,44 @@ public class DynamicClassExtension extends AbstractClassExtension {
             if (aroundPointcut != null) {
                 if (aClassExtension.isVerbose())
                     aClassExtension.logger.info(formatAdvice(anObject, aroundPointcut, AdviceType.AROUND));
-                result = aroundPointcut.around((Performer<Object>) (operation, anObject1, anArgs) -> {
+                result = new OperationResult(aroundPointcut.around((Performer<Object>) (operation, anObject1, anArgs) -> {
                     try {
-                        return method.invoke(anObject1, anArgs);
+                        OperationResult operationResult = invokeOperation(aClassExtension, anObject, aMissingMethodsHandler, method, args);
+                        return operationResult.result;
                     } catch (Exception ex) {
                         throw new RuntimeException(ex);
                     }
-                }, method.getName(), anObject, args);
+                }, method.getName(), anObject, args), true);
             } else {
-                result = method.invoke(anObject, args);
+                result = invokeOperation(aClassExtension, anObject, aMissingMethodsHandler, method, args);
             }
 
-            if (afterPointcut != null) {
+            if (result.isSuccess() && afterPointcut != null) {
                 if (aClassExtension.isVerbose())
                     aClassExtension.logger.info(formatAdvice(anObject, afterPointcut, AdviceType.AFTER));
-                afterPointcut.after(result, method.getName(), anObject, args);
+                afterPointcut.after(result.result(), method.getName(), anObject, args);
             }
         } else if (method.getDeclaringClass().isAssignableFrom(PrivateDelegateHolder.class)) {
-            result = method.invoke((PrivateDelegateHolder)() -> anObject, args);
-        } else if (method.getDeclaringClass().isAssignableFrom(ExpressionContext.class)) {
-            result = performExpressionContextOperation(aClassExtension, anObject, method, args);
-        } else {
-            if (aMissingMethodsHandler != null && method.isAnnotationPresent(OptionalMethod.class))
-                result = aMissingMethodsHandler.apply(method);
-            else
-                return new OperationResult(null, false);
+            result = new OperationResult(method.invoke((PrivateDelegateHolder)() -> anObject, args), true);
         }
 
-        return new OperationResult(transformOperationResult(aClassExtension, method, result), true);
+        return result != null && result.isSuccess() ?
+                new OperationResult(transformOperationResult(aClassExtension, method, result.result()), true) :
+                result != null ? result : new OperationResult(null, false);
+    }
+
+    private static OperationResult invokeOperation(DynamicClassExtension aClassExtension, Object anObject, BiFunction<Method, Object, Object> aMissingMethodsHandler, Method method, Object[] args) throws IllegalAccessException, InvocationTargetException {
+        OperationResult operationResult;
+        if (method.getDeclaringClass().isAssignableFrom(anObject.getClass())) {
+            operationResult = new OperationResult(method.invoke(anObject, args), true);
+        } else if (method.getDeclaringClass().isAssignableFrom(ExpressionContext.class)) {
+            operationResult = new OperationResult(performExpressionContextOperation(aClassExtension, anObject, method, args), true);
+        } else if (aMissingMethodsHandler != null && (anObject.getClass().isRecord() || method.isAnnotationPresent(OptionalMethod.class))) {
+            operationResult = new OperationResult(aMissingMethodsHandler.apply(method, anObject), true);
+        } else {
+            operationResult = new OperationResult(null, false);
+        }
+        return operationResult;
     }
 
     private static <T> Object performOperation(DynamicClassExtension aClassExtension,
@@ -1490,11 +1503,11 @@ public class DynamicClassExtension extends AbstractClassExtension {
 
     private class ExtensionInvocationHandler<T> implements InvocationHandler {
         private final Object object;
-        private final Function<Method, Object> missingMethodsHandler;
+        private final BiFunction<Method, Object, Object> missingMethodsHandler;
         private final Class<T> extensionInterface;
         private final Class<?>[] supplementaryInterfaces;
 
-        public ExtensionInvocationHandler(Object anObject, Function<Method, Object> aMissingMethodsHandler, Class<T> anExtensionInterface, Class<?>... aSupplementaryInterfaces) {
+        public ExtensionInvocationHandler(Object anObject, BiFunction<Method, Object, Object> aMissingMethodsHandler, Class<T> anExtensionInterface, Class<?>... aSupplementaryInterfaces) {
             object = anObject;
             missingMethodsHandler = aMissingMethodsHandler;
             extensionInterface = anExtensionInterface;
