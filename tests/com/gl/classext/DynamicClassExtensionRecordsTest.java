@@ -159,9 +159,13 @@ public class DynamicClassExtensionRecordsTest {
         String getName();
         int getAge();
         boolean isEnabled();
+        void print(boolean isVerbose);
     }
 
     public record User(String name, int age, boolean enabled) {
+        public void print(boolean isVerbose) {
+            System.out.println(name + " is " + age + " years old and " + (enabled ? "enabled" : "disabled"));
+        }
     }
 
     @Test
@@ -173,5 +177,7 @@ public class DynamicClassExtensionRecordsTest {
         System.out.println(extension.getName());
         System.out.println(extension.getAge());
         System.out.println(extension.isEnabled());
+
+        extension.print(true);
     }
 }

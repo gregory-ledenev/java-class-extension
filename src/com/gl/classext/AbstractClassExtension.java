@@ -383,7 +383,7 @@ public abstract class AbstractClassExtension implements ClassExtension {
         }
     }
 
-    private static InvokeResult invokeMethod(Object current, String propertyName, String prefix) {
+    protected static InvokeResult invokeGetterMethod(Object current, String propertyName, String prefix) {
         try {
             String getter = prefix != null ?
                     prefix + propertyName.substring(0, 1).toUpperCase() + propertyName.substring(1) :
@@ -401,7 +401,7 @@ public abstract class AbstractClassExtension implements ClassExtension {
         String[] prefixes = object.getClass().isRecord() ? JB_METHOD_PREFIXES_RECORD : JB_METHOD_PREFIXES_CLASS;
 
         for (String prefix : prefixes) {
-            result = invokeMethod(object, propertyName, prefix);
+            result = invokeGetterMethod(object, propertyName, prefix);
             if (result.success)
                 break;
         }

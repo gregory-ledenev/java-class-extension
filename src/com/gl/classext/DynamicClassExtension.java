@@ -761,7 +761,7 @@ public class DynamicClassExtension extends AbstractClassExtension {
         } else if (anObject.getClass().isRecord() &&
                 anExtensionInterface.isAnnotationPresent(ExtensionInterface.class) &&
                 anExtensionInterface.getAnnotation(ExtensionInterface.class).adoptRecord()) {
-            return invokeAdoptedOperationForRecord(anObject, method);
+            return invokeAdoptedOperationForRecord(anObject, method, args);
         } else if (method.getDeclaringClass().isAssignableFrom(PrivateDelegateHolder.class)) {
             result = new OperationResult(method.invoke((PrivateDelegateHolder)() -> anObject, args), true);
         } else {
@@ -770,14 +770,25 @@ public class DynamicClassExtension extends AbstractClassExtension {
         return result;
     }
 
-    private static OperationResult invokeAdoptedOperationForRecord(Object anObject, Method method) {
-        InvokeResult invokeResult = (method.getParameterCount() == 0) ?
-                AbstractClassExtension.getPropertyValue(anObject, getPropertyNameForGetterName(method.getName())) :
-                null;
+    private static OperationResult invokeAdoptedOperationForRecord(Object anObject, Method method, Object[] args) {
+        InvokeResult invokeResult = null;
+
+        if (method.getParameterCount() == 0) {
+            invokeResult = AbstractClassExtension.getPropertyValue(anObject, getPropertyNameForGetterName(method.getName()));
+        } else {
+            try {
+                invokeResult = new InvokeResult(anObject.getClass().
+                        getMethod(method.getName(), method.getParameterTypes()).invoke(anObject, args), true);
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+        }
+
         if (invokeResult != null && invokeResult.success())
             return new OperationResult(invokeResult.result(), true);
         else
-            throw new UnsupportedOperationException(MessageFormat.format("Unsupported operation: {0}.{1}", anObject.getClass().getName(), method.getName()));
+            throw new UnsupportedOperationException(MessageFormat.format("Unsupported operation: {0}.{1}()",
+                    anObject.getClass().getName(), method.getName()));
     }
 
     private static <T> Object performOperation(DynamicClassExtension aClassExtension,
