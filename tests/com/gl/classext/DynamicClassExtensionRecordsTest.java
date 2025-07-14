@@ -154,6 +154,7 @@ public class DynamicClassExtensionRecordsTest {
                      Tire[OVERRIDDEN for AutoPart]""", names.toString());
     }
 
+    @ExtensionInterface(adoptRecord = true)
     public interface UserInterface {
         String getName();
         int getAge();
@@ -163,29 +164,10 @@ public class DynamicClassExtensionRecordsTest {
     public record User(String name, int age, boolean enabled) {
     }
 
-    private static String getPropertyName(String getterName) {
-        if (getterName.startsWith("get")) {
-            return Character.toLowerCase(getterName.charAt(3)) + getterName.substring(4);
-        }
-        if (getterName.startsWith("is")) {
-            return Character.toLowerCase(getterName.charAt(2)) + getterName.substring(3);
-        }
-        return getterName;
-    }
-
     @Test
-    void adoptionTest() {
+    void recordAdoptionTest() {
         DynamicClassExtension dynamicClassExtension = new DynamicClassExtension();
         UserInterface extension = dynamicClassExtension.extension(new User("John Doe", 32, false),
-                (Method method, Object object) -> {
-                    AbstractClassExtension.InvokeResult result = (method.getParameterCount() == 0) ?
-                            AbstractClassExtension.getPropertyValue(object, getPropertyName(method.getName())) :
-                            null;
-                    if (result != null && result.success())
-                        return result.result();
-                    else
-                        throw new UnsupportedOperationException("Unsupported operation: " + method.getName());
-                },
                 UserInterface.class);
 
         System.out.println(extension.getName());

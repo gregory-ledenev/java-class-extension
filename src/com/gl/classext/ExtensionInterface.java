@@ -56,4 +56,5 @@ public @interface ExtensionInterface {
     ClassExtension.CachePolicy cachePolicy() default ClassExtension.CachePolicy.DEFAULT;
     ClassExtension.AspectsPolicy aspectsPolicy() default ClassExtension.AspectsPolicy.DEFAULT;
     String[] packages() default {};
+    boolean adoptRecord() default false;
 }

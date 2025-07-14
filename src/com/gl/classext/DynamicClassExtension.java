@@ -28,6 +28,7 @@ import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
+import java.text.MessageFormat;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
@@ -701,59 +702,82 @@ public class DynamicClassExtension extends AbstractClassExtension {
             afterPointcut = aroundPointcut == null ? aClassExtension.getPointcut(anExtensionInterface, anObject.getClass(), method.getName(), method.getParameterTypes(), AdviceType.AFTER) : null;
         }
 
-        if (method.getDeclaringClass().isAssignableFrom(anObject.getClass()) ||
-                method.getDeclaringClass().isAssignableFrom(ExpressionContext.class) ||
-                aMissingMethodsHandler != null && (anObject.getClass().isRecord() || method.isAnnotationPresent(OptionalMethod.class))) {
-
+        if (aClassExtension.isVerbose())
+            aClassExtension.logger.info(format("Performing operation for delegate \"{0}\" -> {1}", anObject, method));
+        if (beforePointcut != null) {
             if (aClassExtension.isVerbose())
-                aClassExtension.logger.info(format("Performing operation for delegate \"{0}\" -> {1}", anObject, method));
-            if (beforePointcut != null) {
-                if (aClassExtension.isVerbose())
-                    aClassExtension.logger.info(formatAdvice(anObject, beforePointcut, AdviceType.BEFORE));
-                beforePointcut.before(method.getName(), anObject, args);
-            }
-
-            if (aroundPointcut != null) {
-                if (aClassExtension.isVerbose())
-                    aClassExtension.logger.info(formatAdvice(anObject, aroundPointcut, AdviceType.AROUND));
-                result = new OperationResult(aroundPointcut.around((Performer<Object>) (operation, anObject1, anArgs) -> {
-                    try {
-                        OperationResult operationResult = invokeOperation(aClassExtension, anObject, aMissingMethodsHandler, method, args);
-                        return operationResult.result;
-                    } catch (Exception ex) {
-                        throw new RuntimeException(ex);
-                    }
-                }, method.getName(), anObject, args), true);
-            } else {
-                result = invokeOperation(aClassExtension, anObject, aMissingMethodsHandler, method, args);
-            }
-
-            if (result.isSuccess() && afterPointcut != null) {
-                if (aClassExtension.isVerbose())
-                    aClassExtension.logger.info(formatAdvice(anObject, afterPointcut, AdviceType.AFTER));
-                afterPointcut.after(result.result(), method.getName(), anObject, args);
-            }
-        } else if (method.getDeclaringClass().isAssignableFrom(PrivateDelegateHolder.class)) {
-            result = new OperationResult(method.invoke((PrivateDelegateHolder)() -> anObject, args), true);
+                aClassExtension.logger.info(formatAdvice(anObject, beforePointcut, AdviceType.BEFORE));
+            beforePointcut.before(method.getName(), anObject, args);
         }
 
-        return result != null && result.isSuccess() ?
+        if (aroundPointcut != null) {
+            if (aClassExtension.isVerbose())
+                aClassExtension.logger.info(formatAdvice(anObject, aroundPointcut, AdviceType.AROUND));
+            result = new OperationResult(aroundPointcut.around((Performer<Object>) (operation, anObject1, anArgs) -> {
+                try {
+                    OperationResult operationResult = invokeOperation(aClassExtension, anExtensionInterface, aMissingMethodsHandler, anObject, method, args);
+                    return operationResult.result;
+                } catch (Exception ex) {
+                    throw new RuntimeException(ex);
+                }
+            }, method.getName(), anObject, args), true);
+        } else {
+            result = invokeOperation(aClassExtension, anExtensionInterface, aMissingMethodsHandler, anObject, method, args);
+        }
+
+        if (result.isSuccess() && afterPointcut != null) {
+            if (aClassExtension.isVerbose())
+                aClassExtension.logger.info(formatAdvice(anObject, afterPointcut, AdviceType.AFTER));
+            afterPointcut.after(result.result(), method.getName(), anObject, args);
+        }
+
+        return result.isSuccess() ?
                 new OperationResult(transformOperationResult(aClassExtension, method, result.result()), true) :
-                result != null ? result : new OperationResult(null, false);
+                new OperationResult(null, false);
     }
 
-    private static OperationResult invokeOperation(DynamicClassExtension aClassExtension, Object anObject, BiFunction<Method, Object, Object> aMissingMethodsHandler, Method method, Object[] args) throws IllegalAccessException, InvocationTargetException {
-        OperationResult operationResult;
-        if (method.getDeclaringClass().isAssignableFrom(anObject.getClass())) {
-            operationResult = new OperationResult(method.invoke(anObject, args), true);
-        } else if (method.getDeclaringClass().isAssignableFrom(ExpressionContext.class)) {
-            operationResult = new OperationResult(performExpressionContextOperation(aClassExtension, anObject, method, args), true);
-        } else if (aMissingMethodsHandler != null && (anObject.getClass().isRecord() || method.isAnnotationPresent(OptionalMethod.class))) {
-            operationResult = new OperationResult(aMissingMethodsHandler.apply(method, anObject), true);
-        } else {
-            operationResult = new OperationResult(null, false);
+    private static String getPropertyNameForGetterName(String getterName) {
+        if (getterName.startsWith("get")) {
+            return Character.toLowerCase(getterName.charAt(3)) + getterName.substring(4);
         }
-        return operationResult;
+        if (getterName.startsWith("is")) {
+            return Character.toLowerCase(getterName.charAt(2)) + getterName.substring(3);
+        }
+        return getterName;
+    }
+
+    private static OperationResult invokeOperation(DynamicClassExtension aClassExtension,
+                                                   Class<?> anExtensionInterface,
+                                                   BiFunction<Method, Object, Object> aMissingMethodsHandler,
+                                                   Object anObject,
+                                                   Method method, Object[] args) throws IllegalAccessException, InvocationTargetException {
+        OperationResult result;
+        if (method.getDeclaringClass().isAssignableFrom(anObject.getClass())) {
+            result = new OperationResult(method.invoke(anObject, args), true);
+        } else if (method.getDeclaringClass().isAssignableFrom(ExpressionContext.class)) {
+            result = new OperationResult(performExpressionContextOperation(aClassExtension, anObject, method, args), true);
+        } else if (aMissingMethodsHandler != null && method.isAnnotationPresent(OptionalMethod.class)) {
+            result = new OperationResult(aMissingMethodsHandler.apply(method, anObject), true);
+        } else if (anObject.getClass().isRecord() &&
+                anExtensionInterface.isAnnotationPresent(ExtensionInterface.class) &&
+                anExtensionInterface.getAnnotation(ExtensionInterface.class).adoptRecord()) {
+            return invokeAdoptedOperationForRecord(anObject, method);
+        } else if (method.getDeclaringClass().isAssignableFrom(PrivateDelegateHolder.class)) {
+            result = new OperationResult(method.invoke((PrivateDelegateHolder)() -> anObject, args), true);
+        } else {
+            result = new OperationResult(null, false);
+        }
+        return result;
+    }
+
+    private static OperationResult invokeAdoptedOperationForRecord(Object anObject, Method method) {
+        InvokeResult invokeResult = (method.getParameterCount() == 0) ?
+                AbstractClassExtension.getPropertyValue(anObject, getPropertyNameForGetterName(method.getName())) :
+                null;
+        if (invokeResult != null && invokeResult.success())
+            return new OperationResult(invokeResult.result(), true);
+        else
+            throw new UnsupportedOperationException(MessageFormat.format("Unsupported operation: {0}.{1}", anObject.getClass().getName(), method.getName()));
     }
 
     private static <T> Object performOperation(DynamicClassExtension aClassExtension,
