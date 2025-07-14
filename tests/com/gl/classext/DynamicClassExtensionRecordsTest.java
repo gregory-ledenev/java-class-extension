@@ -5,6 +5,7 @@ import org.junit.jupiter.api.Test;
 import java.lang.reflect.Method;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 
 public class DynamicClassExtensionRecordsTest {
     public interface Item {
@@ -157,27 +158,31 @@ public class DynamicClassExtensionRecordsTest {
     @ExtensionInterface(adoptRecord = true)
     public interface UserInterface {
         String getName();
-        int getAge();
+        String getEmail();
         boolean isEnabled();
-        void print(boolean isVerbose);
+        String toString(boolean isVerbose);
     }
 
-    public record User(String name, int age, boolean enabled) {
-        public void print(boolean isVerbose) {
-            System.out.println(name + " is " + age + " years old and " + (enabled ? "enabled" : "disabled"));
+    public record User(String name, String email, boolean enabled) {
+        public String toString(boolean isVerbose) {
+            return "User[name=" + name + ", email=" + email + ", enabled=" + enabled + "]";
         }
     }
 
     @Test
     void recordAdoptionTest() {
         DynamicClassExtension dynamicClassExtension = new DynamicClassExtension();
-        UserInterface extension = dynamicClassExtension.extension(new User("John Doe", 32, false),
+        UserInterface extension = dynamicClassExtension.extension(new User("John Doe", "john.doe@gmail.com", false),
                 UserInterface.class);
 
         System.out.println(extension.getName());
-        System.out.println(extension.getAge());
+        System.out.println(extension.getEmail());
         System.out.println(extension.isEnabled());
+        System.out.println(extension.toString(true));
 
-        extension.print(true);
+        assertEquals("John Doe", extension.getName());
+        assertEquals("john.doe@gmail.com", extension.getEmail());
+        assertFalse(extension.isEnabled());
+        assertEquals("User[name=John Doe, email=john.doe@gmail.com, enabled=false]", extension.toString(true));
     }
 }
