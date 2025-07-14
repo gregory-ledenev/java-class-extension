@@ -32,6 +32,7 @@ import java.text.MessageFormat;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
@@ -761,7 +762,7 @@ public class DynamicClassExtension extends AbstractClassExtension {
         } else if (anObject.getClass().isRecord() &&
                 anExtensionInterface.isAnnotationPresent(ExtensionInterface.class) &&
                 anExtensionInterface.getAnnotation(ExtensionInterface.class).adoptRecord()) {
-            return invokeAdoptedOperationForRecord(anObject, method, args);
+            return invokeAdoptedOperationForRecord(aClassExtension, anObject, method, args);
         } else if (method.getDeclaringClass().isAssignableFrom(PrivateDelegateHolder.class)) {
             result = new OperationResult(method.invoke((PrivateDelegateHolder)() -> anObject, args), true);
         } else {
@@ -770,11 +771,13 @@ public class DynamicClassExtension extends AbstractClassExtension {
         return result;
     }
 
-    private static OperationResult invokeAdoptedOperationForRecord(Object anObject, Method method, Object[] args) {
+    private static OperationResult invokeAdoptedOperationForRecord(DynamicClassExtension aClassExtension,
+                                                                   Object anObject, Method method, Object[] args) {
         InvokeResult invokeResult = null;
 
         if (method.getParameterCount() == 0) {
-            invokeResult = AbstractClassExtension.getPropertyValue(anObject, getPropertyNameForGetterName(method.getName()));
+            invokeResult = AbstractClassExtension.getPropertyValue(
+                    anObject, getPropertyNameForGetterName(method.getName()));
         } else {
             try {
                 invokeResult = new InvokeResult(anObject.getClass().

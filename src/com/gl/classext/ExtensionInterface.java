@@ -40,9 +40,14 @@ import java.lang.annotation.Target;
  * <ol>
  * <li>An extension type via the {@code type} parameter</li>
  * <li>An extension caching policy via the {@code cachePolicy} parameter</li>
- * <li>An aspects handling policy via the {@code aspectsPolicy} parameter</li>
+ * <li>An aspect handling policy via the {@code aspectsPolicy} parameter</li>
  * </ol>
  * <p>
+ * Dynamic extensions use that annotation to determine:
+ * <ol>
+ *     <li>If framework should automatically map the interface methods to the corresponding record components via the
+ *     {@code adoptRecord} parameter.</li>
+ * </ol>
  * Dynamic nature of the {@code DynamicClassExtension} prevents detecting some errors at compile time, so be careful
  * during refactoring of extension interfaces and check operation handling after any refactorings. It is recommended to
  * mark any extension interfaces with {@code @ExtensionInterface} annotation to let developers know that they should check and

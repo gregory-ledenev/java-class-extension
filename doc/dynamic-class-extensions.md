@@ -611,8 +611,25 @@ void recordAdoptionTest() {
 This adoption mechanism provides the best of both worlds: you can write concise, modern data carriers using records
 while maintaining seamless interoperability with APIs that rely on established JavaBean patterns.
 
-**Note:** This adoption technique is based on intensive use of reflection under the hood. Therefore, avoid using it in
-performance-critical code. Use it only for initial stages like prototyping, for non-performant code, or for quick fixes.
+**Note:** This adoption technique is, by default, based on intensive use of reflection under the hood. Therefore, avoid
+using it in performance-critical code. Use it only for initial stages like prototyping, for non-performant code, or for
+quick fixes. If you want to use `DynamicClassExtension` for adoption anyway - configure adoption using dynamic
+operations as they provide significant performance gains.
+
+```java
+DynamicClassExtension dynamicClassExtension = new DynamicClassExtension().builder(NoAdoptionUserInterface.class).
+    operationName("getName").
+        operation(User.class, User::name).
+    operationName("getEmail").
+        operation(User.class, User::email).
+    operationName("isEnabled").
+        operation(User.class, User::enabled).
+    operationName("toString").
+        operation(User.class, (User user1, Boolean verbose) -> user1.toString(verbose)).
+    build();
+```
+**Tip:** To simplify the process, you can use AI with a corresponding prompt to generate dynamic operations to adopt an
+interface to a specific record class.
 
 #### Testing
 
@@ -623,10 +640,11 @@ Testing can be organized:
     * Explicitly in the test cases after/before each test via `DynamicClassExtension.getInstance().clear`.
     * Using JUnit 5 extensions:
   ```java
-      @BeforeEach
+    @BeforeEach
     void setUp(TestInfo testInfo) {
         DynamicClassExtension.sharedInstance().clear();
-    }```
+    }
+  ```
 * Using a dedicated `DynamicClassExtension` instance. In that case each test should create its own
   `DynamicClassExtension` to work with.
 

@@ -383,13 +383,14 @@ public abstract class AbstractClassExtension implements ClassExtension {
         }
     }
 
-    protected static InvokeResult invokeGetterMethod(Object current, String propertyName, String prefix) {
+    protected static InvokeResult invokeGetterMethod(Object object, String propertyName, String prefix) {
         try {
             String getter = prefix != null ?
                     prefix + propertyName.substring(0, 1).toUpperCase() + propertyName.substring(1) :
                     propertyName;
 
-            return new AbstractClassExtension.InvokeResult(current.getClass().getMethod(getter).invoke(current));
+            Method method = object.getClass().getMethod(getter);
+            return new AbstractClassExtension.InvokeResult(method.invoke(object), true);
         } catch (Exception e) {
             return new AbstractClassExtension.InvokeResult(null, false);
         }
