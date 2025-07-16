@@ -2,7 +2,6 @@ package com.gl.classext;
 
 import java.beans.PropertyChangeEvent;
 import java.beans.PropertyChangeListener;
-import java.lang.reflect.Method;
 import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicLong;
@@ -879,30 +878,8 @@ public class Aspects {
         private final PropertyChangeListener propertyChangeListener;
 
         private Object getPropertyValue(Object anObject, String aPropertyName, Object aDefaultValue) {
-            Object result = aDefaultValue;
-            Method method = null;
-
-            try {
-                method = anObject.getClass().getMethod("get" + aPropertyName);
-            } catch (NoSuchMethodException aE) {
-                // do nothing
-            }
-            if (method == null)
-                try {
-                    method = anObject.getClass().getMethod("is" + aPropertyName);
-                } catch (NoSuchMethodException aE) {
-                    // do nothing
-                }
-
-            if (method != null) {
-                try {
-                    result = method.invoke(anObject, (Object[]) null);
-                } catch (Exception ex) {
-                    // do nothing
-                }
-            }
-
-            return result;
+            AbstractClassExtension.InvokeResult result = AbstractClassExtension.getPropertyValue(anObject, aPropertyName);
+            return result.success() ? result : aDefaultValue;
         }
 
         /**

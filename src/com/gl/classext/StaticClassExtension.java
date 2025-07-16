@@ -357,6 +357,8 @@ public class StaticClassExtension extends AbstractClassExtension {
             } else if (aMethod.getDeclaringClass().isAssignableFrom(PrivateDelegateHolder.class)) {
                 // invoke object method
                 result = performOperation(aClassExtension, (PrivateDelegateHolder)() -> anObject, aMethod, anArgs, aroundPointcut);
+            } else if (aMethod.getDeclaringClass().isAssignableFrom(ExpressionContext.class)) {
+                result = performExpressionContextOperation(aClassExtension, anObject, aMethod, anArgs);
             } else {
                 throw new IllegalArgumentException("Unexpected method: " + methodName);
             }

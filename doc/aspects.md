@@ -126,4 +126,4 @@ The Java Class Extension Library offers several ready to use Advices - lambda fu
 * `Aspects.HandleThrowableAdvice` - allows catching all exceptions and return some value instead 
 * `Aspects.CircuitBreakerAdvice` - allows adding circuit breaker to some operations 
 
-Next >> [Utilities](utilities.md)
+Next >> [Expressions](expressions.md)
