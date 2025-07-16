@@ -2,6 +2,8 @@ package com.gl.classext;
 
 import org.junit.jupiter.api.Test;
 
+import java.lang.invoke.MethodHandle;
+import java.lang.invoke.MethodHandles;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 
@@ -166,13 +168,20 @@ public class DynamicClassExtensionRecordsTest {
 
     public record User(String name, String email, boolean enabled) implements RecordUserInterface {
         public String toString(boolean isVerbose) {
-            return "User[name=" + name + ", email=" + email + ", enabled=" + enabled + "]";
+            return isVerbose ?
+                    "User[name=" + name + ", email=" + email + ", enabled=" + enabled + "]" :
+                    "User[name=" + name + "]";
         }
 
     }
     @Test
     void recordAdoptionTest() {
         DynamicClassExtension dynamicClassExtension = new DynamicClassExtension();
+        dynamicClassExtension.
+                builder(UserInterface.class).
+                    operationName("toString").
+                        operation(User.class, user -> user.toString(false)).build();
+
         User user = new User("John Doe", "john.doe@gmail.com", false);
         UserInterface extension = dynamicClassExtension.extension(user, UserInterface.class);
 
@@ -181,6 +190,8 @@ public class DynamicClassExtensionRecordsTest {
         assertFalse(extension.isEnabled());
         assertEquals("User[name=John Doe, email=john.doe@gmail.com, enabled=false]",
                 extension.toString(true));
+        assertEquals("User[name=John Doe]",
+                extension.toString());
     }
 
     public interface NoAdoptionUserInterface {
@@ -197,7 +208,7 @@ public class DynamicClassExtensionRecordsTest {
         String toString(boolean isVerbose);
     }
 
-    //    @Test
+    @Test
     void recordAdoptionPerformanceTest() {
         DynamicClassExtension dynamicClassExtension = new DynamicClassExtension();
         User user = new User("John Doe", "john.doe@gmail.com", false);
@@ -282,6 +293,18 @@ public class DynamicClassExtensionRecordsTest {
         }
         endTime = System.currentTimeMillis();
         System.out.println("Method cached lookup and invoke execution time: " + (endTime - startTime) + "ms");
+
+        PropertyValueSupport propertyValueSupport = new PropertyValueSupport();
+        try {
+            startTime = System.currentTimeMillis();
+            for (int i = 0; i < 1000000; i++) {
+                propertyValueSupport.getPropertyValue(user, "name");
+            }
+        } catch (Throwable e) {
+            throw new RuntimeException(e);
+        }
+        endTime = System.currentTimeMillis();
+        System.out.println("Methodhandle cached lookup and invoke execution time: " + (endTime - startTime) + "ms");
 
     }
 }

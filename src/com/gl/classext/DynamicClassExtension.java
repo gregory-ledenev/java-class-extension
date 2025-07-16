@@ -24,6 +24,8 @@ SOFTWARE.
 
 package com.gl.classext;
 
+import java.lang.invoke.MethodHandle;
+import java.lang.invoke.MethodHandles;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -275,7 +277,7 @@ public class DynamicClassExtension extends AbstractClassExtension {
             if (anArgs == null)
                 accept(null, null);
             else
-                accept((T) anObject, anArgs.length > 0 ? (U) anArgs[0] : null);
+                accept((T) anObject, anArgs.length > 0 ? (anArgs.length == 1 ? (U) anArgs[0] : (U) anArgs) : null);
             return null;
         }
     }
@@ -746,6 +748,8 @@ public class DynamicClassExtension extends AbstractClassExtension {
         }
         return getterName;
     }
+
+    static MethodHandle methodHandle;
 
     private static OperationResult invokeOperation(DynamicClassExtension aClassExtension,
                                                    Class<?> anExtensionInterface,

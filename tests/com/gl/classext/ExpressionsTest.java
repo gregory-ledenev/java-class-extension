@@ -8,7 +8,7 @@ import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-public class ExpressionProcessorTest {
+public class ExpressionsTest {
 
     private ExpressionProcessor processor;
     private RootObject rootObject;
@@ -57,29 +57,81 @@ public class ExpressionProcessorTest {
         private Map<String, String> map;
         private Map<String, NestedObject> nestedMap;
 
-        public String getName() { return name; }
-        public void setName(String name) { this.name = name; }
-        public int getNumber() { return number; }
-        public void setNumber(int number) { this.number = number; }
-        public NestedObject getNested() { return nested; }
-        public void setNested(NestedObject nested) { this.nested = nested; }
-        public NestedObject getNullNested() { return nullNested; }
-        public void setNullNested(NestedObject nullNested) { this.nullNested = nullNested; }
-        public List<String> getList() { return list; }
-        public void setList(List<String> list) { this.list = list; }
-        public List<NestedObject> getNestedList() { return nestedList; }
-        public void setNestedList(List<NestedObject> nestedList) { this.nestedList = nestedList; }
-        public Map<String, String> getMap() { return map; }
-        public void setMap(Map<String, String> map) { this.map = map; }
-        public Map<String, NestedObject> getNestedMap() { return nestedMap; }
-        public void setNestedMap(Map<String, NestedObject> nestedMap) { this.nestedMap = nestedMap; }
+        public String getName() {
+            return name;
+        }
+
+        public void setName(String name) {
+            this.name = name;
+        }
+
+        public int getNumber() {
+            return number;
+        }
+
+        public void setNumber(int number) {
+            this.number = number;
+        }
+
+        public NestedObject getNested() {
+            return nested;
+        }
+
+        public void setNested(NestedObject nested) {
+            this.nested = nested;
+        }
+
+        public NestedObject getNullNested() {
+            return nullNested;
+        }
+
+        public void setNullNested(NestedObject nullNested) {
+            this.nullNested = nullNested;
+        }
+
+        public List<String> getList() {
+            return list;
+        }
+
+        public void setList(List<String> list) {
+            this.list = list;
+        }
+
+        public List<NestedObject> getNestedList() {
+            return nestedList;
+        }
+
+        public void setNestedList(List<NestedObject> nestedList) {
+            this.nestedList = nestedList;
+        }
+
+        public Map<String, String> getMap() {
+            return map;
+        }
+
+        public void setMap(Map<String, String> map) {
+            this.map = map;
+        }
+
+        public Map<String, NestedObject> getNestedMap() {
+            return nestedMap;
+        }
+
+        public void setNestedMap(Map<String, NestedObject> nestedMap) {
+            this.nestedMap = nestedMap;
+        }
     }
 
     public static class NestedObject {
         private String property;
 
-        public String getProperty() { return property; }
-        public void setProperty(String property) { this.property = property; }
+        public String getProperty() {
+            return property;
+        }
+
+        public void setProperty(String property) {
+            this.property = property;
+        }
     }
 
     @Test
@@ -153,7 +205,9 @@ public class ExpressionProcessorTest {
 
     interface OrganizationInterface {
         String name();
+
         List<Department> departments();
+
         Map<String, Department> getDepartmentMap();
     }
 
@@ -181,7 +235,7 @@ public class ExpressionProcessorTest {
         public Map<String, Employee> getEmployeeMap() {
             return employees == null ? null :
                     employees.stream()
-                    .collect(Collectors.toMap(Employee::getName, e -> e));
+                            .collect(Collectors.toMap(Employee::getName, e -> e));
         }
 
         private final List<Employee> employees;
@@ -487,5 +541,24 @@ public class ExpressionProcessorTest {
         // update the name of an employee
         extension2.setExpressionValue("departments[2].employees[1].name", "Frank Jr");
         assertEquals("Frank Jr", extension2.getExpressionValue("departments[2].employees[1].name"));
+    }
+
+    @Test
+    void testDynamicExtensionWithExpressionContext() {
+        DynamicClassExtension dynamicClassExtension = new DynamicClassExtension().builder(ExpressionContext.class)
+                .objectClass(Object.class)
+                .operation("getExpressionValue", (Object self, String expression) ->
+                        processor.getExpressionValue(self, expression))
+                .voidOperation("setExpressionValue", (Object self, Object[] args) ->
+                    processor.setExpressionValue(self, (String) args[0], args[1]))
+                .build();
+
+        Organization organization = setupOrganization();
+
+        ExpressionContext expressionContext = dynamicClassExtension.extension(organization, ExpressionContext.class);
+        assertEquals("John", expressionContext.getExpressionValue("departments[0].employees[0].name"));
+
+        expressionContext.setExpressionValue("departments[0].employees[0].name", "John 123");
+        assertEquals("John 123", expressionContext.getExpressionValue("departments[0].employees[0].name"));
     }
 }

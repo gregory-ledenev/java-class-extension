@@ -12,6 +12,7 @@ public class ShapesTest {
     // virtual common interface for all shapes
     public interface Shape {
         String getDescription();
+        double getArea();
     }
 
     // define all dynamic operations for Shape interface
@@ -21,6 +22,10 @@ public class ShapesTest {
                     operation(Circle.class, c -> c.radius > 10 ? "Large Circle" : "Small Circle").
                     operation(Rectangle.class, r -> r.width() == r.height ? "Square" : "Rectangle").
                     operation(Object.class, Object::toString).
+                operationName("getArea").
+                    operation(Circle.class, c -> Math.PI * c.radius() * c.radius()).
+                    operation(Rectangle.class, r -> (double) (r.width() * r.height())).
+                    operation(Octagon.class, o -> 2 * o.radius() * o.radius() * (1 + Math.sqrt(2))).
                 build();
     }
 
@@ -38,5 +43,22 @@ public class ShapesTest {
             System.out.println(extension.getDescription());
         }
     }
+
+    @Test
+    void areaTest() {
+        List<?> shapes = List.of(new Circle(5), new Rectangle(50, 50));
+
+        for (Object shape : shapes) {
+            Shape extension = sharedExtension.extension(shape, Shape.class);
+            System.out.println(extension.getArea());
+        }
+    }
+
+    private static final DynamicClassExtension sharedExtension = new DynamicClassExtension().builder().
+            extensionInterface(Shape.class).
+                operationName("getArea").
+                    operation(Circle.class, c -> Math.PI * c.radius() * c.radius()).
+                    operation(Rectangle.class, r -> (double) (r.width() * r.height())).
+            build();
 }
 

@@ -625,7 +625,7 @@ DynamicClassExtension dynamicClassExtension = new DynamicClassExtension().builde
     operationName("isEnabled").
         operation(User.class, User::enabled).
     operationName("toString").
-        operation(User.class, (User user1, Boolean verbose) -> user1.toString(verbose)).
+        operation(User.class, (User user, Boolean verbose) -> user.toString(verbose)).
     build();
 ```
 **Tip:** To simplify the process, you can use AI with a corresponding prompt to generate dynamic operations to adopt an
