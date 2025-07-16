@@ -1208,12 +1208,10 @@ public class DynamicClassExtension extends AbstractClassExtension {
 
         /**
          * Specifies object class
-         * @param anObjectClass object class
+         * @param anObjectClass object class. It can be null to handle null objects
          * @return a copy of this {@code Builder}
          */
         public Builder<E> objectClass(Class<?> anObjectClass) {
-            Objects.requireNonNull(anObjectClass, "Object class is not specified");
-
             return new Builder<>(extensionInterface, anObjectClass, operationName, dynamicClassExtension);
         }
 
