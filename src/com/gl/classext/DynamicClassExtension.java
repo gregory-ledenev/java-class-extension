@@ -25,16 +25,13 @@ SOFTWARE.
 package com.gl.classext;
 
 import java.lang.invoke.MethodHandle;
-import java.lang.invoke.MethodHandles;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
-import java.text.MessageFormat;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
@@ -1165,6 +1162,16 @@ public class DynamicClassExtension extends AbstractClassExtension {
     }
 
     /**
+     * Creates a new {@code DynamicClassExtension} along with its {@code Builder} instance
+     * for the specified extension interface.
+     * @param anExtensionInterface extension interface (it can be {@code null})
+     * @return new {@code Builder} instance
+     */
+    public static Builder<DynamicClassExtension> builderOf(Class<?> anExtensionInterface) {
+        return new DynamicClassExtension().builder(anExtensionInterface);
+    }
+
+    /**
      * <p>Class {@code Builder} provides an ability to design class extensions (categories) by composing extensions
      * as a set of lambda operations.</p>
      *
@@ -1616,7 +1623,7 @@ public class DynamicClassExtension extends AbstractClassExtension {
      * supplementary interfaces, and whether caching should be used. It can be used instead of the direct use of
      * {@link DynamicClassExtension#extension(Object, BiFunction, Class, Class...)} or
      * {@link DynamicClassExtension#extensionNoCache(Object, BiFunction, Class, Class...)} methods. To get an extension
-     * object call the {@link ExtensionBuilder#extension()} method at the end of the chain.
+     * object call the {@link ExtensionBuilder#build()} method at the end of the chain.
      *
      * @param <T> the type of the extension interface
      */
@@ -1627,6 +1634,16 @@ public class DynamicClassExtension extends AbstractClassExtension {
         private final BiFunction<Method, Object, Object> missingMethodsHandler;
         private final Class<?>[] supplementaryInterfaces;
         private final boolean noCache;
+
+        /**
+         * Creates a new {@code ExtensionBuilder} instance.
+         *
+         * @param aDynamicClassExtension the dynamic class extension to use
+         * @param anExtensionInterface   the interface of the extension
+         */
+        public ExtensionBuilder(DynamicClassExtension aDynamicClassExtension, Class<T> anExtensionInterface) {
+            this(aDynamicClassExtension, null, anExtensionInterface);
+        }
 
         /**
          * Creates a new {@code ExtensionBuilder} instance.
@@ -1653,6 +1670,34 @@ public class DynamicClassExtension extends AbstractClassExtension {
             missingMethodsHandler = aMissingMethodsHandler;
             supplementaryInterfaces = aSupplementaryInterfaces;
             noCache = aNoCache;
+        }
+
+        /**
+         * Specifies an object to be extended. If the object is not specified, the extension will be created for
+         * {@code null} object.
+         *
+         * @param anObject the object to be extended
+         * @return a new {@code ExtensionBuilder} instance with the specified object
+         */
+        public ExtensionBuilder<T> object(Object anObject) {
+            return new ExtensionBuilder<>(this.dynamicClassExtension, anObject, this.extensionInterface, this.missingMethodsHandler, this.supplementaryInterfaces, this.noCache);
+        }
+
+        /**
+         * Specifies an object to be extended. If the object is not specified, the extension will be created for
+         * {@code null} object.
+         *
+         * @param anObjects the objects to be extended
+         * @return a new {@code ExtensionBuilder} instance with the specified objects
+         */
+        public ExtensionBuilder<T> objects(Object... anObjects) {
+            Object object;
+            if (anObjects != null)
+                object = anObjects.length == 1 ? anObjects[0] : new Composition(anObjects);
+            else
+                object = null;
+
+            return new ExtensionBuilder<>(this.dynamicClassExtension, object, this.extensionInterface, this.missingMethodsHandler, this.supplementaryInterfaces, this.noCache);
         }
 
         /**
@@ -1703,7 +1748,7 @@ public class DynamicClassExtension extends AbstractClassExtension {
          * Returns an extension object for previously specified arguments.
          * @return an extension object
          */
-        public T extension() {
+        public T build() {
             return noCache ?
                     dynamicClassExtension.extensionNoCache(object, missingMethodsHandler, extensionInterface, supplementaryInterfaces) :
                     dynamicClassExtension.extension(object, missingMethodsHandler, extensionInterface, supplementaryInterfaces);
@@ -1713,11 +1758,21 @@ public class DynamicClassExtension extends AbstractClassExtension {
     /**
      * Creates an {@link ExtensionBuilder} for a given object and extension interface.
      *
+     * @param anExtensionInterface interface of an extension object to be returned
+     * @return an extension object
+     */
+    public <T> ExtensionBuilder<T> extensionOf(Class<T> anExtensionInterface) {
+        return extensionOf(null, anExtensionInterface);
+    }
+
+    /**
+     * Creates an {@link ExtensionBuilder} for a given object and extension interface.
+     *
      * @param anObject             object to return an extension object for
      * @param anExtensionInterface interface of an extension object to be returned
      * @return an extension object
      */
-    public <T> ExtensionBuilder<T> of(Object anObject, Class<T> anExtensionInterface) {
+    public <T> ExtensionBuilder<T> extensionOf(Object anObject, Class<T> anExtensionInterface) {
         return new ExtensionBuilder<T>(this, anObject, anExtensionInterface);
     }
     //endregion ExtensionBuilder

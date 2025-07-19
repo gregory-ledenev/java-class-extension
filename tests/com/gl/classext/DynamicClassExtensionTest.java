@@ -1314,8 +1314,7 @@ public class DynamicClassExtensionTest {
                 aspectBuilder().extensionInterface(ItemInterface.class).
                 objectClass(Item.class).
                     operation("ship()").
-                        around(new RetryAdvice(3, 1000,
-                                Logger.getLogger(getClass().getName()),
+                        around(new RetryAdvice(3, 1000, Logger.getLogger(getClass().getName()),
                                 (result, ex) -> {
                                     // check if the operation succeeded
                                     if (result instanceof ShippingInfo(String aResult)) {
@@ -2165,6 +2164,11 @@ public class DynamicClassExtensionTest {
         String say();
     }
 
+    interface AngryCat extends Cat {
+        @OptionalMethod
+        String hiss();
+    }
+
     interface Dog {
         String bark();
         String say();
@@ -2195,7 +2199,7 @@ public class DynamicClassExtensionTest {
 
     @Test
     void testObjectsComposition() {
-        DynamicClassExtension dynamicClassExtension = new DynamicClassExtension().builder(CatDog.class).
+        DynamicClassExtension dynamicClassExtension = DynamicClassExtension.builderOf(CatDog.class).
                 // define value for conflicting operation present on both objects
                 operationName("say").
                     operation(Composition.class, (aComposition) -> {
@@ -2228,31 +2232,39 @@ public class DynamicClassExtensionTest {
         Cat cat = new CatImpl();
 
         Composition composition = Composition.of(cat, dog);
-        Cat catDog = dynamicClassExtension.of(composition, Cat.class).
-                missingMethodsHandler((aMethod, aO) -> null).
+        AngryCat angryCatDog = dynamicClassExtension.extensionOf(AngryCat.class).
+                objects(dog, cat).
+                missingMethodsHandler((aMethod, c) -> aMethod.getName().equals("hiss") ? "hisss!" : null).
                 supplementaryInterfaces(Dog.class).
-                extension();
+                build();
 
-        assertEquals("Meow!", catDog.meow());
-        assertEquals("Woof!", ((Dog)catDog).bark());
+        assertEquals("Meow!", angryCatDog.meow());
+        assertEquals("hisss!", angryCatDog.hiss());
+        assertEquals("Woof!", ((Dog) angryCatDog).bark());
+
+        Cat catDog = dynamicClassExtension.extensionOf(Cat.class).
+                object(composition).
+                missingMethodsHandler((aMethod, c) -> null).
+                supplementaryInterfaces(Dog.class).
+                build();
 
         assertSame(catDog,
-                dynamicClassExtension.of(composition, Cat.class).
+                dynamicClassExtension.extensionOf(composition, Cat.class).
                         missingMethodsHandler((aMethod, aO) -> null).
                         supplementaryInterfaces(Dog.class).
-                        extension());
+                        build());
         assertSame(catDog,
-                dynamicClassExtension.of(composition, Cat.class).
+                dynamicClassExtension.extensionOf(composition, Cat.class).
                         missingMethodsHandler((aMethod, aO) -> null).
                         supplementaryInterfaces(Dog.class).
                         cache(true).
-                        extension());
+                        build());
         assertNotSame(catDog,
-                dynamicClassExtension.of(composition, Cat.class).
+                dynamicClassExtension.extensionOf(composition, Cat.class).
                         missingMethodsHandler((aMethod, aO) -> null).
                         supplementaryInterfaces(Dog.class).
                         cache(false).
-                        extension());
+                        build());
     }
 
     @Test

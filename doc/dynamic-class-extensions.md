@@ -109,9 +109,9 @@ if you prefer a more fluent style, use the extension builder via the `DynamicCla
 
 ```java
 Book book = new Book("The Mythical Man-Month");
-Shippable shippable = DynamicClassExtension.sharedInstance().of(book, Shippable.class).
+Shippable shippable = DynamicClassExtension.sharedInstance().extensionOf(book, Shippable.class).
     noCache().
-    extension();
+    build();
 shippable.log(true);
 shippable.ship();
 ```
