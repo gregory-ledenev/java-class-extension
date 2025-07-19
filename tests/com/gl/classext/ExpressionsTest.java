@@ -329,14 +329,14 @@ public class ExpressionsTest {
     }
 
     Organization setupOrganization() {
-        List<Employee> itEmployees = new ArrayList<>(Arrays.asList(
+        List<Employee> itEmployees = List.of(
                 new Employee("John", 100000),
                 new Employee("Alice", 95000),
                 new Employee("Bob", 90000)
-        ));
+        );
         Department itDepartment = new Department("com.IT", itEmployees);
 
-        List<Employee> hrEmployees = Arrays.asList(
+        List<Employee> hrEmployees = List.of(
                 new Employee("Carol", 85000),
                 new Employee("David", 82000)
         );
@@ -349,7 +349,7 @@ public class ExpressionsTest {
         );
         Department salesDepartment = new Department("Sales", salesEmployees);
 
-        return new Organization("Acme", new ArrayList<>(Arrays.asList(itDepartment, hrDepartment, salesDepartment)));
+        return new Organization("Acme", new ArrayList<>(List.of(itDepartment, hrDepartment, salesDepartment)));
     }
 
     @Test

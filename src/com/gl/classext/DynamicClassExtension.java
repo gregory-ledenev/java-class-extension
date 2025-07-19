@@ -736,16 +736,6 @@ public class DynamicClassExtension extends AbstractClassExtension {
                 new OperationResult(null, false);
     }
 
-    private static String getPropertyNameForGetterName(String getterName) {
-        if (getterName.startsWith("get")) {
-            return Character.toLowerCase(getterName.charAt(3)) + getterName.substring(4);
-        }
-        if (getterName.startsWith("is")) {
-            return Character.toLowerCase(getterName.charAt(2)) + getterName.substring(3);
-        }
-        return getterName;
-    }
-
     static MethodHandle methodHandle;
 
     private static OperationResult invokeOperation(DynamicClassExtension aClassExtension,
@@ -777,8 +767,8 @@ public class DynamicClassExtension extends AbstractClassExtension {
         InvokeResult invokeResult = null;
 
         if (method.getParameterCount() == 0) {
-            invokeResult = AbstractClassExtension.getPropertyValue(
-                    anObject, getPropertyNameForGetterName(method.getName()));
+            invokeResult = new InvokeResult(aClassExtension.getPropertyValueSupport().
+                    getPropertyValue(anObject, PropertyValueSupport.getPropertyNameForGetterName(method.getName())));
         } else {
             try {
                 invokeResult = new InvokeResult(anObject.getClass().

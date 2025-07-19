@@ -117,10 +117,7 @@ providing a flexible and powerful way to interact with the object graph.
    For this reason, an exception will be thrown to prevent such situations.
 2. Although both `is` and `get` accessor methods are supported for `boolean` properties, it is recommended to always use
    `get` accessors for better performance and faster processing.
-3. Utility methods like `List.of(...)` may return objects of private internal classes whose properties could be
-   inaccessible due to security restrictions. To resolve this issue, wrap such objects in well-known public classes
-   like `ArrayList`.
-4. Index out-of-bounds access for arrays or lists will throw an exception rather than returning a default value like
+3. Index out-of-bounds access for arrays or lists will throw an exception rather than returning a default value like
    `null`
 
 Next >> [Utilities](utilities.md)

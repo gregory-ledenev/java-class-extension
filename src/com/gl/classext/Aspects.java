@@ -880,8 +880,8 @@ public class Aspects {
         private final PropertyChangeListener propertyChangeListener;
 
         private Object getPropertyValue(Object anObject, String aPropertyName, Object aDefaultValue) {
-            AbstractClassExtension.InvokeResult result = AbstractClassExtension.getPropertyValue(anObject, aPropertyName);
-            return result.success() ? result : aDefaultValue;
+            Object result = PropertyValueSupport.sharedInstance().getPropertyValue(anObject, aPropertyName);
+            return result != null ? result : aDefaultValue;
         }
 
         /**

@@ -354,6 +354,10 @@ public abstract class AbstractClassExtension implements ClassExtension {
                 processor != null ? processor : new ExpressionProcessor());
     }
 
+    protected PropertyValueSupport getPropertyValueSupport() {
+        return getExpressionProcessor().getPropertyValueSupport();
+    }
+
     protected static Object performExpressionContextOperation(AbstractClassExtension aClassExtension, Object anObject, Method method, Object[] args) {
         ExpressionContext expressionContext = new ExpressionContext() {
             @Override
@@ -374,39 +378,9 @@ public abstract class AbstractClassExtension implements ClassExtension {
         }
     }
 
-    public static final String[] JB_METHOD_PREFIXES_CLASS = {"get", "is", null};
-    public static final String[] JB_METHOD_PREFIXES_RECORD = {null, "get", "is"};
-
     public record InvokeResult(Object result, boolean success) {
         public InvokeResult(Object result) {
             this(result, true);
         }
-    }
-
-    protected static InvokeResult invokeGetterMethod(Object object, String propertyName, String prefix) {
-        try {
-            String getter = prefix != null ?
-                    prefix + propertyName.substring(0, 1).toUpperCase() + propertyName.substring(1) :
-                    propertyName;
-
-            Method method = object.getClass().getMethod(getter);
-            return new AbstractClassExtension.InvokeResult(method.invoke(object), true);
-        } catch (Exception e) {
-            return new AbstractClassExtension.InvokeResult(null, false);
-        }
-    }
-
-    public static InvokeResult getPropertyValue(Object object, String propertyName) {
-        InvokeResult result = new InvokeResult(null, false);
-
-        String[] prefixes = object.getClass().isRecord() ? JB_METHOD_PREFIXES_RECORD : JB_METHOD_PREFIXES_CLASS;
-
-        for (String prefix : prefixes) {
-            result = invokeGetterMethod(object, propertyName, prefix);
-            if (result.success)
-                break;
-        }
-
-        return result;
     }
 }
