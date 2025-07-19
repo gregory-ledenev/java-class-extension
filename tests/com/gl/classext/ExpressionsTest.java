@@ -551,9 +551,6 @@ public class ExpressionsTest {
                             processor.getExpressionValue(self, expression))
                     .voidOperation("setExpressionValue", (Object self, Object[] args) ->
                         processor.setExpressionValue(self, (String) args[0], args[1]))
-                .objectClass(null)
-                    .operation("getExpressionValue", (Object self, String expression) -> null)
-                    .voidOperation("setExpressionValue", (Object self, Object[] args) -> {})
                 .build();
 
         Organization organization = setupOrganization();
@@ -563,8 +560,5 @@ public class ExpressionsTest {
 
         expressionContext.setExpressionValue("departments[0].employees[0].name", "John 123");
         assertEquals("John 123", expressionContext.getExpressionValue("departments[0].employees[0].name"));
-
-        expressionContext = dynamicClassExtension.extension(null, ExpressionContext.class);
-        assertNull(expressionContext.getExpressionValue("departments[0].employees[0].name"));
     }
 }

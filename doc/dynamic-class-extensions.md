@@ -78,12 +78,8 @@ Finding an extension and calling its methods is simple and straightforward:
 ```java
 Book book = new Book("The Mythical Man-Month");
 Shippable shippable = DynamicClassExtension.sharedExtension(book, Shippable.class);
-shippable.
-
-log(true);
-shippable.
-
-ship();
+shippable.log(true);
+shippable.ship();
 ```
 
 Shipping a collection of items is equally straightforward:
@@ -108,6 +104,17 @@ ship();
 Supporting a new `Item` class using the Java Class Extension library requires just adding the operations for that new
 `Item` class. No need to change any other code that does shipping with help of `Shippable` interface. That is it.
 
+To get an extension, you can use either `DynamicClassExtension::extension(...)` method or, 
+if you prefer a more fluent style, use the extension builder via the `DynamicClassExtension::of(...)` method:
+
+```java
+Book book = new Book("The Mythical Man-Month");
+Shippable shippable = DynamicClassExtension.sharedInstance().of(book, Shippable.class).
+    noCache().
+    extension();
+shippable.log(true);
+shippable.ship();
+```
 ### Details
 
 For the most of the cases a shared instance of `DynamicClassExtension` can be used. But if there is a need to have

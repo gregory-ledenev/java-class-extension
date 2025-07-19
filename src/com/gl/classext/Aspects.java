@@ -771,7 +771,8 @@ public class Aspects {
          */
         @Override
         public void accept(String operation, Object object, Object[] args) {
-            logger.info(format("BEFORE: {0} -> {1}({2})",
+            logger.info(format("BEFORE: {0}({1}) -> {2}({3})",
+                    object.getClass().getName(),
                     object,
                     operation, args != null ? Arrays.toString(args) : ""));
         }
@@ -804,7 +805,8 @@ public class Aspects {
          */
         @Override
         public void accept(Object result, String operation, Object object, Object[] args) {
-            logger.info(format("AFTER: {0} -> {1}({2}) = {3}",
+            logger.info(format("AFTER: {0}({1}) -> {2}({3}) = {4}",
+                    object.getClass().getName(),
                     object,
                     operation,
                     args != null ? Arrays.toString(args) : "",

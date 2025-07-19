@@ -794,7 +794,7 @@ public class DynamicClassExtension extends AbstractClassExtension {
         if (invokeResult != null && invokeResult.success())
             return new OperationResult(invokeResult.result(), true);
         else
-            throw new UnsupportedOperationException(MessageFormat.format("Unsupported operation: {0}.{1}()",
+            throw new UnsupportedOperationException(format("Unsupported operation: {0}.{1}()",
                     anObject.getClass().getName(), method.getName()));
     }
 
@@ -1608,5 +1608,118 @@ public class DynamicClassExtension extends AbstractClassExtension {
                 Optional.ofNullable(payloadHolder.getPayload()) :
                 Optional.empty();
     }
+
+    //region ExtensionBuilder
+    /**
+     * Builder for creating extensions for objects.
+     * It allows specifying an object to be extended, an extension interface, a handler for missing methods,
+     * supplementary interfaces, and whether caching should be used. It can be used instead of the direct use of
+     * {@link DynamicClassExtension#extension(Object, BiFunction, Class, Class...)} or
+     * {@link DynamicClassExtension#extensionNoCache(Object, BiFunction, Class, Class...)} methods. To get an extension
+     * object call the {@link ExtensionBuilder#extension()} method at the end of the chain.
+     *
+     * @param <T> the type of the extension interface
+     */
+    public static class ExtensionBuilder<T> {
+        private final DynamicClassExtension dynamicClassExtension;
+        private final Object object;
+        private final Class<T> extensionInterface;
+        private final BiFunction<Method, Object, Object> missingMethodsHandler;
+        private final Class<?>[] supplementaryInterfaces;
+        private final boolean noCache;
+
+        /**
+         * Creates a new {@code ExtensionBuilder} instance.
+         *
+         * @param aDynamicClassExtension the dynamic class extension to use
+         * @param aObject                the object to be extended
+         * @param anExtensionInterface    the interface of the extension
+         */
+        public ExtensionBuilder(DynamicClassExtension aDynamicClassExtension, Object aObject, Class<T> anExtensionInterface) {
+            this(aDynamicClassExtension, aObject, anExtensionInterface, null, null, false);
+        }
+
+        private ExtensionBuilder(DynamicClassExtension aDynamicClassExtension, Object aObject, Class<T> anExtensionInterface,
+                                BiFunction<Method, Object, Object> aMissingMethodsHandler,
+                                Class<?>[] aSupplementaryInterfaces,
+                                boolean aNoCache) {
+
+            Objects.requireNonNull(aDynamicClassExtension);
+            Objects.requireNonNull(anExtensionInterface);
+
+            dynamicClassExtension = aDynamicClassExtension;
+            object = aObject;
+            extensionInterface = anExtensionInterface;
+            missingMethodsHandler = aMissingMethodsHandler;
+            supplementaryInterfaces = aSupplementaryInterfaces;
+            noCache = aNoCache;
+        }
+
+        /**
+         * Specifies that the extension should not use caching. This means that every time the extension is requested,
+         * a new instance will be created.
+         *
+         * @return a new {@code ExtensionBuilder} instance with caching disabled
+         */
+        public ExtensionBuilder<T> noCache() {
+            return new ExtensionBuilder<>(this.dynamicClassExtension, this.object, this.extensionInterface, this.missingMethodsHandler, this.supplementaryInterfaces, true);
+        }
+
+        /**
+         * Determines if the extension should use caching.
+         *
+         * @param isCache {@code true} to enable caching, {@code false} to disable it
+         * @return a new {@code ExtensionBuilder} instance with caching enabled or disable
+         */
+        public ExtensionBuilder<T> cache(boolean isCache) {
+            return new ExtensionBuilder<>(this.dynamicClassExtension, this.object, this.extensionInterface, this.missingMethodsHandler, this.supplementaryInterfaces, ! isCache);
+        }
+
+
+        /**
+         * Specifies a handler for missing methods. This handler will be called when a method is invoked on the extension,
+         * but such a method is neither provided by the object nor by dynamic operations. Note: the method must be marked
+         * by the {@link OptionalMethod} annotation otherwise missing methods handler will not be invoked.
+         *
+         * @param aMissingMethodsHandler missing methods handler
+         * @return a new {@code ExtensionBuilder} instance with the specified missing methods handler
+         */
+        public ExtensionBuilder<T> missingMethodsHandler(BiFunction<Method, Object, Object> aMissingMethodsHandler) {
+            return new ExtensionBuilder<>(this.dynamicClassExtension, this.object, this.extensionInterface, aMissingMethodsHandler, this.supplementaryInterfaces, this.noCache);
+        }
+
+        /**
+         * Specifies supplementary interfaces to be added to the extension.
+         * These interfaces will be included in the extension object along with the main extension interface.
+         *
+         * @param aSupplementaryInterfaces supplementary interfaces to be added
+         * @return a new {@code ExtensionBuilder} instance with the specified supplementary interfaces
+         */
+        public ExtensionBuilder<T> supplementaryInterfaces(Class<?>... aSupplementaryInterfaces) {
+            return new ExtensionBuilder<>(this.dynamicClassExtension, this.object, this.extensionInterface, this.missingMethodsHandler, aSupplementaryInterfaces, this.noCache);
+        }
+
+        /**
+         * Returns an extension object for previously specified arguments.
+         * @return an extension object
+         */
+        public T extension() {
+            return noCache ?
+                    dynamicClassExtension.extensionNoCache(object, missingMethodsHandler, extensionInterface, supplementaryInterfaces) :
+                    dynamicClassExtension.extension(object, missingMethodsHandler, extensionInterface, supplementaryInterfaces);
+        }
+    }
+
+    /**
+     * Creates an {@link ExtensionBuilder} for a given object and extension interface.
+     *
+     * @param anObject             object to return an extension object for
+     * @param anExtensionInterface interface of an extension object to be returned
+     * @return an extension object
+     */
+    public <T> ExtensionBuilder<T> of(Object anObject, Class<T> anExtensionInterface) {
+        return new ExtensionBuilder<T>(this, anObject, anExtensionInterface);
+    }
+    //endregion ExtensionBuilder
 }
 
