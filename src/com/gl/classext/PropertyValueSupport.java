@@ -124,17 +124,15 @@ public class PropertyValueSupport {
      * Converts a getter method name to a property name according to JavaBean naming conventions.
      * For example, "getName" becomes "name", and "isActive" becomes "active".
      *
-     * @param getterName the name of the getter method
+     * @param name the name of the getter method
      * @return the corresponding property name
      */
-    public static String getPropertyNameForGetterName(String getterName) {
-        if (getterName.startsWith("get")) {
-            return Character.toLowerCase(getterName.charAt(3)) + getterName.substring(4);
+    public static String getPropertyNameForGetterName(String name) {
+        for (String prefix : JB_METHOD_PREFIXES_CLASS) {
+            if (prefix != null && name.startsWith(prefix) && name.length() > prefix.length())
+                return Character.toLowerCase(name.charAt(prefix.length())) + name.substring(prefix.length() + 1);
         }
-        if (getterName.startsWith("is")) {
-            return Character.toLowerCase(getterName.charAt(2)) + getterName.substring(3);
-        }
-        return getterName;
+        return name;
     }
 
     //region Setters support
