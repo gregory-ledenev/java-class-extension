@@ -209,6 +209,7 @@ public class ExpressionProcessor {
 
     static class NullPropertyValue extends NullPointerException {}
 
+
     public PropertyValueSupport getPropertyValueSupport() {
         return propertyValueSupport;
     }

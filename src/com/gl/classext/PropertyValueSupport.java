@@ -47,7 +47,14 @@ public class PropertyValueSupport {
         return sharedInstance.updateAndGet(p -> p != null ? p : new PropertyValueSupport());
     }
 
-
+    /**
+     * Retrieves the value of a property from an object using reflection.
+     * The property name should follow JavaBean naming conventions.
+     *
+     * @param target        the object from which to retrieve the property value
+     * @param propertyName  the name of the property to retrieve
+     * @return the value of the specified property
+     */
     public Object getPropertyValue(Object target, String propertyName) {
         Method handle = getterMethod(getTargetClass(target), propertyName);
         try {
@@ -83,8 +90,8 @@ public class PropertyValueSupport {
         }
     }
 
-    public static final String[] JB_METHOD_PREFIXES_CLASS = {"get", "is", null};
-    public static final String[] JB_METHOD_PREFIXES_RECORD = {null, "get", "is"};
+    private static final String[] JB_METHOD_PREFIXES_CLASS = {"get", "is", null};
+    private static final String[] JB_METHOD_PREFIXES_RECORD = {null, "get", "is"};
 
     private Method findGetterMethod(Class<?> targetClass, String propertyName) {
         if (propertyName == null || propertyName.isEmpty()) {
