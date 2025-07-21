@@ -351,11 +351,13 @@ public abstract class AbstractClassExtension implements ClassExtension {
 
     protected ExpressionProcessor getExpressionProcessor() {
         return expressionProcessor.updateAndGet(processor ->
-                processor != null ? processor : new ExpressionProcessor());
+                processor != null ? processor : new ExpressionProcessor(getPropertyValueSupport()));
     }
 
+    private final AtomicReference<PropertyValueSupport> propertyValueSupport = new AtomicReference<>();
+
     protected PropertyValueSupport getPropertyValueSupport() {
-        return getExpressionProcessor().getPropertyValueSupport();
+        return propertyValueSupport.updateAndGet(p -> p != null ? p : new PropertyValueSupport());
     }
 
     protected static Object performExpressionContextOperation(AbstractClassExtension aClassExtension, Object anObject, Method method, Object[] args) {

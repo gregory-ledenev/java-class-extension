@@ -33,6 +33,24 @@ import static com.gl.classext.PropertyValueSupport.setArrayValue;
 public class ExpressionProcessor {
 
     /**
+     * Constructs an ExpressionProcessor with a specified PropertyValueSupport instance.
+     * This allows for custom behavior, such as disabling caching of method handles.
+     *
+     * @param aPropertyValueSupport The PropertyValueSupport instance to use
+     */
+    public ExpressionProcessor(PropertyValueSupport aPropertyValueSupport) {
+        propertyValueSupport = aPropertyValueSupport;
+    }
+
+    /**
+     * Default constructor that initializes the processor with a new PropertyValueSupport instance.
+     * This instance will use caching for method handles.
+     */
+    public ExpressionProcessor() {
+        this(new PropertyValueSupport());
+    }
+
+    /**
      * Retrieves a value from an object using the specified property expression.
      *
      * @param object     The root object to evaluate the expression against
@@ -214,7 +232,7 @@ public class ExpressionProcessor {
         return propertyValueSupport;
     }
 
-    private final PropertyValueSupport propertyValueSupport = new PropertyValueSupport();
+    private final PropertyValueSupport propertyValueSupport;
 
     private Object getPropertyValue(Object current, String part, boolean isNullSafe) throws NullPropertyValue {
         if (current == null) {
