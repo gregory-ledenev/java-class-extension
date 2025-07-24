@@ -143,6 +143,19 @@ defined for `AutoPart` objects - base `ship()` and `log(boolean)` operations spe
 Dynamic operations can override methods defined in the objects' class. For example, if you add a `toString` operation to
 the `AutoPart` class - it will override the `toString()` method defined in the `Object` class.
 
+```java
+DynamicClassExtension dynamicClassExtension = new DynamicClassExtension().
+   builder(Item_Shippable.class).
+      operationName("toString").
+         operation(AutoPart.class, autoPart -> "Autopart: " + autoPart.toString()).
+   build();
+
+AutoPart autoPart = new autoPart("tire");
+Item_Shippable extension = dynamicClassExtension.extension(autoPart,
+   Item_Shippable.class);
+out.println(extension.toString());
+```
+
 Objects and extensions can be used uniformly as similar objects if they implement the same base interfaces. For example,
 if both `Item` and `ItemShippable` implements(extends) the same `ItemInterface` interface having the `getName()`
 method - both items and their extensions can use that method with the same results.
@@ -183,10 +196,10 @@ This approach offers greater flexibility in object composition and usage compare
 
 ```java
 Book book = new Book("The Mythical Man-Month");
-Shippable shippable = DynamicClassExtension.sharedExtension(book, Shippable.class, ItemInterface.class);
-shippable.
-
-ship(); // use it for shipping
+Shippable shippable = DynamicClassExtension.sharedExtension(book,
+   Shippable.class,
+   ItemInterface.class);
+shippable.ship(); // use it for shipping
 out.println(((ItemInterface) shippable).getName()); // use it as a Book itself
 ```
 
@@ -206,8 +219,7 @@ Cat cat = new CatImpl();
 
 CatDog catDog = DynamicClassExtension.sharedExtension(
         new ClassExtension.Composition(cat, dog),
-        CatDog.class
-);
+        CatDog.class);
 out.println(catDog.meow());
 out.println(catDog.bark());
 out.println(catDog.say());
@@ -232,28 +244,19 @@ This approach is particularly useful when dealing with objects that lack a share
 Consider a scenario where we need to add shipping functionality to various item types:
 
 ```java
-public record Book(String name) {
-}
-
-public record Furniture(String name) {
-}
-
-public record ElectronicItem(String name) {
-}
-
-public record AutoPart(String name) {
-}
+public record Book(String name) {...}
+public record Furniture(String name) {...}
+public record ElectronicItem(String name) {...}
+public record AutoPart(String name) {...}
 ```
 
 We can introduce a Shippable interface to act as a unifying abstraction:
 
 ```java
-public record ShippingInfo(String result) {
-}
+public record ShippingInfo(String result) {}
 
 public interface Shippable {
     String name();
-
     ShippingInfo ship();
 }
 ```
@@ -266,10 +269,11 @@ static {
             operationName("ship").
                operation(Book.class, book -> shipBook(book)).
                operation(Furniture.class, furniture -> shipFurniture(furniture)).
-               operation(ElectronicItem.class, electronicItem -> shipElectronicItem(electronicItem)).
+               operation(ElectronicItem.class, eItem -> shipElectronicItem(eItem)).
                operation(AutoPart.class, electronicItem -> shipAutoPart(autoPart)).
-               operationName("name").
-               operation(Object.class, (object) -> DynamicClassExtension.performOperation("name", object)).
+            operationName("name").
+               operation(Object.class, (object) ->
+                  DynamicClassExtension.performOperation("name", object)).
             build();
 }
 ```
@@ -279,18 +283,11 @@ different object types using reflection. For example, to manage the "name" opera
 superclass and retrieve names uniformly:
 
 ```java
-DynamicClassExtension.sharedBuilder().
-
-extensionInterface(Shippable .class).
-
-// ... other operations ...
-operationName("name").
-
-operation(Object .class, (object) ->DynamicClassExtension.
-
-performOperation("name",object)).
-
-build();
+DynamicClassExtension.sharedBuilder().extensionInterface(Shippable .class).
+   // ... other operations ...
+   operationName("name").
+      operation(Object .class, (object) ->DynamicClassExtension.performOperation("name",object)).
+   build();
 ```
 
 This approach promotes code reusability and flexibility, allowing you to handle multiple types with a single operation
@@ -334,10 +331,11 @@ It is possible to use `Builder.async()` to declaratively define asynchronous ope
 background, and they are non-blocking therefore caller threads continue immediately.
 
 ```java
-DynamicClassExtension dynamicClassExtension = new DynamicClassExtension().builder(Item_Shippable.class).
-        operationName("ship").
-           operation(Book.class, shipBook(book)).async().
-        build();
+DynamicClassExtension dynamicClassExtension = new DynamicClassExtension().
+   builder(Item_Shippable.class).
+      operationName("ship").
+         operation(Book.class, shipBook(book)).async().
+   build();
 
 Book book = new Book("The Mythical Man-Month");
 dynamicClassExtension.extension(book, ItemShippable .class).
@@ -356,16 +354,15 @@ If there is a need to handle results of such asynchronous operations it can be d
 an argument for `Builder.async()`.
 
 ```java
-DynamicClassExtension dynamicClassExtension = new DynamicClassExtension().builder(Item_Shippable.class).
-        operationName("ship").
-           operation(Book.class, shipBook(book)).
-              async((Book book, Throwable ex) -> System.out.println("Book shipped: " + book)).
-        build();
+DynamicClassExtension dynamicClassExtension = new DynamicClassExtension().
+   builder(Item_Shippable.class).
+      operationName("ship").
+         operation(Book.class, shipBook(book)).
+            async((Book book, Throwable ex) -> out.println("Book shipped: " + book)).
+   build();
 
 Book book = new Book("The Mythical Man-Month");
-dynamicClassExtension.extension(book, ItemShippable .class).
-
-ship();
+dynamicClassExtension.extension(book, ItemShippable .class).ship();
 ```
 
 #### Altering Operations
