@@ -64,12 +64,11 @@ interface MultipleParameters {
     Object[] multipleParameters(int p1, String p2, String p3);
 }
 
-static DynamicClassExtension dynamicClassExtension = new DynamicClassExtension().
-        builder(MultipleParameters.class).
+static DynamicClassExtension dynamicClassExtension = new DynamicClassExtension().builder(MultipleParameters.class).
         operationName("arrayParameter").
-        operation(Object.class, (Object a1, String[] a2) -> a2).
+           operation(Object.class, (Object a1, String[] a2) -> a2).
         operationName("multipleParameters").
-        operation(Object.class, (Object a1, Object[] a2) -> a2).
+           operation(Object.class, (Object a1, Object[] a2) -> a2).
         build();
 ```
 
@@ -78,8 +77,12 @@ Finding an extension and calling its methods is simple and straightforward:
 ```java
 Book book = new Book("The Mythical Man-Month");
 Shippable shippable = DynamicClassExtension.sharedExtension(book, Shippable.class);
-shippable.log(true);
-shippable.ship();
+shippable.
+
+log(true);
+shippable.
+
+ship();
 ```
 
 Shipping a collection of items is equally straightforward:
@@ -91,30 +94,14 @@ Item[] items = {
         new ElectronicItem("Soundbar")
 };
 
-for(
-Item item :items){
-        DynamicClassExtension.
-
-sharedExtension(item, Shippable .class).
-
-ship();
+for(Item item :items) {
+   DynamicClassExtension.sharedExtension(item, Shippable .class).ship();
 }
 ```
 
 Supporting a new `Item` class using the Java Class Extension library requires just adding the operations for that new
 `Item` class. No need to change any other code that does shipping with help of `Shippable` interface. That is it.
 
-To get an extension, you can use either `DynamicClassExtension::extension(...)` method or, 
-if you prefer a more fluent style, use the extension builder via the `DynamicClassExtension::of(...)` method:
-
-```java
-Book book = new Book("The Mythical Man-Month");
-Shippable shippable = DynamicClassExtension.sharedInstance().extensionOf(book, Shippable.class).
-    noCache().
-    build();
-shippable.log(true);
-shippable.ship();
-```
 ### Details
 
 For the most of the cases a shared instance of `DynamicClassExtension` can be used. But if there is a need to have
@@ -187,14 +174,8 @@ interface ItemShippable extends ItemInterface {
 }
 ...
 Book book = new Book("The Mythical Man-Month");
-System.out.
-
-println(book.getName());
-        System.out.
-
-println(DynamicClassExtension.sharedExtension(book, ItemShippable .class).
-
-getName());
+System.out.println(book.getName());
+System.out.println(DynamicClassExtension.sharedExtension(book, ItemShippable .class).getName());
 ```
 
 #### Interfaces Composition Support
@@ -218,11 +199,7 @@ Shippable shippable = DynamicClassExtension.sharedExtension(book, Shippable.clas
 shippable.
 
 ship(); // use it for shipping
-out.
-
-println(((ItemInterface) shippable).
-
-getName()); // use it as a Book itself
+out.println(((ItemInterface) shippable).getName()); // use it as a Book itself
 ```
 
 #### Objects Composition Support
@@ -243,15 +220,9 @@ CatDog catDog = DynamicClassExtension.sharedExtension(
         new ClassExtension.Composition(cat, dog),
         CatDog.class
 );
-out.
-
-println(catDog.meow());
-        out.
-
-println(catDog.bark());
-        out.
-
-println(catDog.say());
+out.println(catDog.meow());
+out.println(catDog.bark());
+out.println(catDog.say());
 ```
 
 This pattern lets you seamlessly combine behaviors from different classes into a single composite interface.
@@ -305,12 +276,12 @@ Then we should configure Dynamic Extensions for the Shippable interface.
 static {
     DynamicClassExtension.sharedBuilder().extensionInterface(Shippable.class).
             operationName("ship").
-            operation(Book.class, book -> shipBook(book)).
-            operation(Furniture.class, furniture -> shipFurniture(furniture)).
-            operation(ElectronicItem.class, electronicItem -> shipElectronicItem(electronicItem)).
-            operation(AutoPart.class, electronicItem -> shipAutoPart(autoPart)).
-            operationName("name").
-            operation(Object.class, (object) -> DynamicClassExtension.performOperation("name", object)).
+               operation(Book.class, book -> shipBook(book)).
+               operation(Furniture.class, furniture -> shipFurniture(furniture)).
+               operation(ElectronicItem.class, electronicItem -> shipElectronicItem(electronicItem)).
+               operation(AutoPart.class, electronicItem -> shipAutoPart(autoPart)).
+               operationName("name").
+               operation(Object.class, (object) -> DynamicClassExtension.performOperation("name", object)).
             build();
 }
 ```
@@ -346,15 +317,10 @@ Object[] items = {
         new ElectronicItem("Soundbar")
 };
 
-for(
-Object item :items){
-Shippable shippable = DynamicClassExtension.sharedExtension(item, Shippable.class);
-    System.out.
-
-println("Shipping: "+shippable.name());
-        shippable.
-
-ship();
+for(Object item : items) {
+   Shippable shippable = DynamicClassExtension.sharedExtension(item, Shippable.class);
+   out.println("Shipping: "+shippable.name());
+   shippable.ship();
 }
 ```
 
@@ -382,13 +348,11 @@ background, and they are non-blocking therefore caller threads continue immediat
 ```java
 DynamicClassExtension dynamicClassExtension = new DynamicClassExtension().builder(Item_Shippable.class).
         operationName("ship").
-        operation(Book.class, shipBook(book)).async().
+           operation(Book.class, shipBook(book)).async().
         build();
 
 Book book = new Book("The Mythical Man-Month");
-dynamicClassExtension.
-
-extension(book, ItemShippable .class).
+dynamicClassExtension.extension(book, ItemShippable .class).
 
 ship();
 ```
@@ -406,14 +370,12 @@ an argument for `Builder.async()`.
 ```java
 DynamicClassExtension dynamicClassExtension = new DynamicClassExtension().builder(Item_Shippable.class).
         operationName("ship").
-        operation(Book.class, shipBook(book)).
-        async((Book book, Throwable ex) -> System.out.println("Book shipped: " + book)).
+           operation(Book.class, shipBook(book)).
+              async((Book book, Throwable ex) -> System.out.println("Book shipped: " + book)).
         build();
 
 Book book = new Book("The Mythical Man-Month");
-dynamicClassExtension.
-
-extension(book, ItemShippable .class).
+dynamicClassExtension.extension(book, ItemShippable .class).
 
 ship();
 ```
@@ -428,8 +390,7 @@ To alter an operation itself:
 ```java
 DynamicClassExtension dynamicClassExtension = new DynamicClassExtension().builder(Item_Shippable.class).
         operationName("toString").
-        removeOperation(Object.class, new Class<?>[0]).
-        operation(Object.class, o -> "result: " + o.tostring()).
+           removeOperation(Object.class, new Class<?>[0]).operation(Object.class, o -> "result: " + o.tostring()).
         build();
 ```
 
@@ -441,8 +402,7 @@ To alter the properties of an operation:
 ```java
 DynamicClassExtension dynamicClassExtension = new DynamicClassExtension().builder(Item_Shippable.class).
         operationName("ship").
-        alterOperation(Fuurniture.class, new Class<?>[0]).
-        async().
+            alterOperation(Fuurniture.class, new Class<?>[0]).async().
         build();
 ```
 
@@ -485,15 +445,15 @@ it to a base class or simply for `Object`:
 ```java
 static {
     DynamicClassExtension.sharedBuilder().extensionInterface(Shippable.class).
-            operationName("ship").
+        operationName("ship").
             operation(Book.class, book -> shipBook(book)).
             operation(Furniture.class, furniture -> shipFurniture(furniture)).
             operation(ElectronicItem.class, electronicItem -> shipElectronicItem(electronicItem)).
             operation(AutoPart.class, electronicItem -> shipAutoPart(autoPart)).
             operation(Object.class, object -> shipDefault(object)). // catch all
-            operationName("name").
+        operationName("name").
             operation(Object.class, (object) -> DynamicClassExtension.performOperation("name", object)).
-            build();
+        build();
 }
 ```
 
@@ -510,19 +470,13 @@ Item_Shippable itemShippable = DynamicClassExtension.sharedInstance().extension(
 
 // must succeed as it is annotated with @OptionalMethod
 assertEquals(100f,itemShippable.calculateShippingCost("asap"));
-        try{
-        // must fail as it is not annotated with @OptionalMethod
-        itemShippable.
-
-calculateShippingCost();
-
-fail("Unexpectedly succeeded call: calculateShippingCost()");
-}catch(
-IllegalArgumentException ex){
-        out.
-
-println(ex.getMessage());
-        }
+try {
+    // must fail as it is not annotated with @OptionalMethod
+    itemShippable.calculateShippingCost();
+    fail("Unexpectedly succeeded call: calculateShippingCost()");
+} catch (IllegalArgumentException ex) {
+    out.println(ex.getMessage());
+}
 ```
 
 #### Boxing/Unboxing Optional Results
@@ -564,8 +518,8 @@ JavaBean convention, which prefixes getter methods with `get` or `is` (e.g., `ge
 
 As a result, this new convention can create friction when integrating records with existing interfaces, frameworks or
 libraries that are built to work with the classic JavaBean naming standard. Adding classic getters to records may
-diminish their intended benefits, while modifying interfaces to adopt record conventions could be challenging and can 
-break existing code. To bridge this gap, you can use `DynamicClassExtension` to create extensions for records that 
+diminish their intended benefits, while modifying interfaces to adopt record conventions could be challenging and can
+break existing code. To bridge this gap, you can use `DynamicClassExtension` to create extensions for records that
 implement interfaces with classic JavaBean getter notation.
 
 Consider this `User` record:
@@ -596,7 +550,7 @@ the calls to the underlying `User` record.
 - A call to `isEnabled()` is forwarded to the `enabled()` accessor.
 - Methods that already match the record's method signatures, like `toString(boolean)`, are also mapped directly.
 
-The following test demonstrates this in action. A `UserInterface` extension is created from a `User` record object, and 
+The following test demonstrates this in action. A `UserInterface` extension is created from a `User` record object, and
 we can access its properties using the familiar JavaBean-style getters.
 
 ```java
@@ -625,15 +579,15 @@ operations as they provide significant performance gains.
 
 ```java
 DynamicClassExtension dynamicClassExtension = new DynamicClassExtension().builder(NoAdoptionUserInterface.class).
-    operationName("getName").
-        operation(User.class, User::name).
-    operationName("getEmail").
-        operation(User.class, User::email).
-    operationName("isEnabled").
-        operation(User.class, User::enabled).
-    operationName("toString").
-        operation(User.class, (User user, Boolean verbose) -> user.toString(verbose)).
-    build();
+        operationName("getName").
+            operation(User.class, User::name).
+        operationName("getEmail").
+            operation(User.class, User::email).
+        operationName("isEnabled").
+            operation(User.class, User::enabled).
+        operationName("toString").
+            operation(User.class, (User user, Boolean verbose) -> user.toString(verbose)).
+        build();
 ```
 **Tip:** To simplify the process, you can use AI with a corresponding prompt to generate dynamic operations to adopt an
 interface to a specific record class.

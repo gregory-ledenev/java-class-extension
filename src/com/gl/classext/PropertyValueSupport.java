@@ -19,7 +19,8 @@ import java.util.concurrent.atomic.AtomicReference;
 public class PropertyValueSupport {
     private final boolean useCache;
     private final ConcurrentHashMap<String, Method> gettersMethodCache = new ConcurrentHashMap<>();
-    private static final AtomicReference<PropertyValueSupport> sharedInstance = new AtomicReference<>();
+    private static final LazyValue<PropertyValueSupport> sharedInstance =
+            new LazyValue<>(PropertyValueSupport::new);
 
     /**
      * Creates a new instance of PropertyValueSupport with caching enabled.
@@ -44,7 +45,7 @@ public class PropertyValueSupport {
      * @return a shared instance of PropertyValueSupport
      */
     public static PropertyValueSupport sharedInstance() {
-        return sharedInstance.updateAndGet(p -> p != null ? p : new PropertyValueSupport());
+        return sharedInstance.get();
     }
 
     /**

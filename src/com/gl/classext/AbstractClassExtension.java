@@ -347,17 +347,18 @@ public abstract class AbstractClassExtension implements ClassExtension {
         return result;
     }
 
-    private final AtomicReference<ExpressionProcessor> expressionProcessor = new AtomicReference<>();
+    private final LazyValue<ExpressionProcessor> expressionProcessor =
+            new LazyValue<>(() -> new ExpressionProcessor(getPropertyValueSupport()));
 
     protected ExpressionProcessor getExpressionProcessor() {
-        return expressionProcessor.updateAndGet(processor ->
-                processor != null ? processor : new ExpressionProcessor(getPropertyValueSupport()));
+        return expressionProcessor.get();
     }
 
-    private final AtomicReference<PropertyValueSupport> propertyValueSupport = new AtomicReference<>();
+    private final LazyValue<PropertyValueSupport> propertyValueSupport =
+            new LazyValue<>(PropertyValueSupport::new);
 
     protected PropertyValueSupport getPropertyValueSupport() {
-        return propertyValueSupport.updateAndGet(p -> p != null ? p : new PropertyValueSupport());
+        return propertyValueSupport.get();
     }
 
     protected static Object performExpressionContextOperation(AbstractClassExtension aClassExtension, Object anObject, Method method, Object[] args) {
