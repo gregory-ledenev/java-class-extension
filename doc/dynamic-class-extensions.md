@@ -40,15 +40,15 @@ interface Shippable {
 }
 
 static {
-    DynamicClassExtension.sharedBuilder(Shippable.class).
-            operationName("ship").
-            operation(Item.class, item -> ...).
-    operation(Book.class, book -> ...).
-    operation(Furniture.class, furniture -> ...).
-    operation(ElectronicItem.class, electronicItem -> ...).
-    operationName "log").
-    voidOperation(Item.class, (Item item, Boolean isVerbose) -> {...}).
-            build();
+   DynamicClassExtension.sharedBuilder(Shippable.class).
+      operationName("ship").
+         operation(Item.class, item -> ...).
+         operation(Book.class, book -> ...).
+         operation(Furniture.class, furniture -> ...).
+         operation(ElectronicItem.class, electronicItem -> ...).
+      operationName "log").
+         voidOperation(Item.class, (Item item, Boolean isVerbose) -> {...}).
+      build();
 }
 ```
 
@@ -64,12 +64,11 @@ interface MultipleParameters {
     Object[] multipleParameters(int p1, String p2, String p3);
 }
 
-static DynamicClassExtension dynamicClassExtension = new DynamicClassExtension().
-        builder(MultipleParameters.class).
+static DynamicClassExtension dynamicClassExtension = new DynamicClassExtension().builder(MultipleParameters.class).
         operationName("arrayParameter").
-        operation(Object.class, (Object a1, String[] a2) -> a2).
+           operation(Object.class, (Object a1, String[] a2) -> a2).
         operationName("multipleParameters").
-        operation(Object.class, (Object a1, Object[] a2) -> a2).
+           operation(Object.class, (Object a1, Object[] a2) -> a2).
         build();
 ```
 
@@ -95,13 +94,8 @@ Item[] items = {
         new ElectronicItem("Soundbar")
 };
 
-for(
-Item item :items){
-        DynamicClassExtension.
-
-sharedExtension(item, Shippable .class).
-
-ship();
+for(Item item :items) {
+   DynamicClassExtension.sharedExtension(item, Shippable .class).ship();
 }
 ```
 
@@ -180,14 +174,8 @@ interface ItemShippable extends ItemInterface {
 }
 ...
 Book book = new Book("The Mythical Man-Month");
-System.out.
-
-println(book.getName());
-        System.out.
-
-println(DynamicClassExtension.sharedExtension(book, ItemShippable .class).
-
-getName());
+System.out.println(book.getName());
+System.out.println(DynamicClassExtension.sharedExtension(book, ItemShippable .class).getName());
 ```
 
 #### Interfaces Composition Support
@@ -211,11 +199,7 @@ Shippable shippable = DynamicClassExtension.sharedExtension(book, Shippable.clas
 shippable.
 
 ship(); // use it for shipping
-out.
-
-println(((ItemInterface) shippable).
-
-getName()); // use it as a Book itself
+out.println(((ItemInterface) shippable).getName()); // use it as a Book itself
 ```
 
 #### Objects Composition Support
@@ -236,15 +220,9 @@ CatDog catDog = DynamicClassExtension.sharedExtension(
         new ClassExtension.Composition(cat, dog),
         CatDog.class
 );
-out.
-
-println(catDog.meow());
-        out.
-
-println(catDog.bark());
-        out.
-
-println(catDog.say());
+out.println(catDog.meow());
+out.println(catDog.bark());
+out.println(catDog.say());
 ```
 
 This pattern lets you seamlessly combine behaviors from different classes into a single composite interface.
@@ -298,12 +276,12 @@ Then we should configure Dynamic Extensions for the Shippable interface.
 static {
     DynamicClassExtension.sharedBuilder().extensionInterface(Shippable.class).
             operationName("ship").
-            operation(Book.class, book -> shipBook(book)).
-            operation(Furniture.class, furniture -> shipFurniture(furniture)).
-            operation(ElectronicItem.class, electronicItem -> shipElectronicItem(electronicItem)).
-            operation(AutoPart.class, electronicItem -> shipAutoPart(autoPart)).
-            operationName("name").
-            operation(Object.class, (object) -> DynamicClassExtension.performOperation("name", object)).
+               operation(Book.class, book -> shipBook(book)).
+               operation(Furniture.class, furniture -> shipFurniture(furniture)).
+               operation(ElectronicItem.class, electronicItem -> shipElectronicItem(electronicItem)).
+               operation(AutoPart.class, electronicItem -> shipAutoPart(autoPart)).
+               operationName("name").
+               operation(Object.class, (object) -> DynamicClassExtension.performOperation("name", object)).
             build();
 }
 ```
@@ -339,15 +317,10 @@ Object[] items = {
         new ElectronicItem("Soundbar")
 };
 
-for(
-Object item :items){
-Shippable shippable = DynamicClassExtension.sharedExtension(item, Shippable.class);
-    System.out.
-
-println("Shipping: "+shippable.name());
-        shippable.
-
-ship();
+for(Object item : items) {
+   Shippable shippable = DynamicClassExtension.sharedExtension(item, Shippable.class);
+   out.println("Shipping: "+shippable.name());
+   shippable.ship();
 }
 ```
 
@@ -375,13 +348,11 @@ background, and they are non-blocking therefore caller threads continue immediat
 ```java
 DynamicClassExtension dynamicClassExtension = new DynamicClassExtension().builder(Item_Shippable.class).
         operationName("ship").
-        operation(Book.class, shipBook(book)).async().
+           operation(Book.class, shipBook(book)).async().
         build();
 
 Book book = new Book("The Mythical Man-Month");
-dynamicClassExtension.
-
-extension(book, ItemShippable .class).
+dynamicClassExtension.extension(book, ItemShippable .class).
 
 ship();
 ```
@@ -399,14 +370,12 @@ an argument for `Builder.async()`.
 ```java
 DynamicClassExtension dynamicClassExtension = new DynamicClassExtension().builder(Item_Shippable.class).
         operationName("ship").
-        operation(Book.class, shipBook(book)).
-        async((Book book, Throwable ex) -> System.out.println("Book shipped: " + book)).
+           operation(Book.class, shipBook(book)).
+              async((Book book, Throwable ex) -> System.out.println("Book shipped: " + book)).
         build();
 
 Book book = new Book("The Mythical Man-Month");
-dynamicClassExtension.
-
-extension(book, ItemShippable .class).
+dynamicClassExtension.extension(book, ItemShippable .class).
 
 ship();
 ```
@@ -421,8 +390,7 @@ To alter an operation itself:
 ```java
 DynamicClassExtension dynamicClassExtension = new DynamicClassExtension().builder(Item_Shippable.class).
         operationName("toString").
-        removeOperation(Object.class, new Class<?>[0]).
-        operation(Object.class, o -> "result: " + o.tostring()).
+           removeOperation(Object.class, new Class<?>[0]).operation(Object.class, o -> "result: " + o.tostring()).
         build();
 ```
 
@@ -503,19 +471,15 @@ Item_Shippable itemShippable = DynamicClassExtension.sharedInstance().extension(
 
 // must succeed as it is annotated with @OptionalMethod
 assertEquals(100f,itemShippable.calculateShippingCost("asap"));
-        try{
-        // must fail as it is not annotated with @OptionalMethod
-        itemShippable.
+try {
+   // must fail as it is not annotated with @OptionalMethod
+   itemShippable.
 
-calculateShippingCost();
-
-fail("Unexpectedly succeeded call: calculateShippingCost()");
-}catch(
-IllegalArgumentException ex){
-        out.
-
-println(ex.getMessage());
-        }
+   calculateShippingCost();
+   fail("Unexpectedly succeeded call: calculateShippingCost()");
+} catch (IllegalArgumentException ex) {
+        out.println(ex.getMessage());
+}
 ```
 
 #### Boxing/Unboxing Optional Results
