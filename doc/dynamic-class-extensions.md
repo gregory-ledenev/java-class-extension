@@ -148,28 +148,16 @@ if both `Item` and `ItemShippable` implements(extends) the same `ItemInterface` 
 method - both items and their extensions can use that method with the same results.
 
 ```java
-interface ItemInterface {
-    String getName();
-}
+interface ItemInterface { String getName(); }
 
-class Item implements ItemInterface {...
-}
-
-class Book extends Item {...
-}
-
-class Furniture extends Item {...
-}
-
-class ElectronicItem extends Item {...
-}
-
-class AutoPart extends Item {...
-}
+class Item implements ItemInterface {...}
+class Book extends Item {...}
+class Furniture extends Item {...}
+class ElectronicItem extends Item {...}
+class AutoPart extends Item {...}
 
 interface ItemShippable extends ItemInterface {
     ShippingInfo ship();
-
     void log(boolean isVerbose);
 }
 ...
