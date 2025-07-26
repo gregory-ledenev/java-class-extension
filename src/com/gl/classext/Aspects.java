@@ -11,6 +11,7 @@ import java.util.logging.Logger;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
+import static com.gl.classext.DeepCloneUtil.*;
 import static java.text.MessageFormat.format;
 
 /**
@@ -347,15 +348,19 @@ public class Aspects {
 
         static class OperationPredicate implements BiPredicate<String, Class<?>[]> {
             private final String operation;
+            private final boolean exclude;
 
             public OperationPredicate(String aOperation) {
-                operation = aOperation;
+                String op = aOperation.trim();
+                exclude = op.startsWith("!");
+                operation = exclude ? op.substring(1).trim() : op;
             }
 
             @Override
             public boolean test(String operation, Class<?>[] parameterTypes) {
-                return operationNameMatches(operation, this.operation) &&
+                boolean result = operationNameMatches(operation, this.operation) &&
                         operationParameterTypesMatch(this.operation, parameterTypes);
+                return ! exclude ? result : ! result;
             }
 
             @Override
@@ -1197,6 +1202,7 @@ public class Aspects {
 
         /**
          * Creates a new {@code ReadOnlyValueAdvice} instance with a read-only value provider
+         *
          * @param aUnmodifiableValueProvider read-only value provider
          */
         public UnmodifiableValueAdvice(Function<Object, Object> aUnmodifiableValueProvider) {
@@ -1206,9 +1212,9 @@ public class Aspects {
         /**
          * Creates a new {@code ReadOnlyValueAdvice} instance with a read-only value provider and a logger
          *
-         * @param aUnmodifiableValueProvider read-only value provider. If not specified - read-only views will be provided
-         *                               for collections and maps only
-         * @param aLogger logger
+         * @param aUnmodifiableValueProvider read-only value provider. If not specified - read-only views will be
+         *                                   provided for collections and maps only
+         * @param aLogger                    logger
          */
         public UnmodifiableValueAdvice(Function<Object, Object> aUnmodifiableValueProvider, Logger aLogger) {
             super(aLogger);
@@ -1239,6 +1245,7 @@ public class Aspects {
             return result;
         }
     }
+
     /**
      * Advice (around) that allows catching all exceptions and return some value instead
      */
@@ -1417,45 +1424,47 @@ public class Aspects {
     }
 
     /**
-     * Represents a handler for managing quotas on operations. This interface defines methods
-     * to retrieve available quota, decrease quota based on usage, and calculate costs associated
-     * with operations and their results. Note: implementation of the interface must take care of proper synchronization
-     * when getting and updating quota
+     * Represents a handler for managing quotas on operations. This interface defines methods to retrieve available
+     * quota, decrease quota based on usage, and calculate costs associated with operations and their results. Note:
+     * implementation of the interface must take care of proper synchronization when getting and updating quota
      */
     public interface QuotaHandler {
         /**
          * Retrieves the available quota for a specified operation and context.
          *
          * @param anOperation the name of the operation for which the quota is being retrieved
-         * @param anObject the object associated with the operation
-         * @param anArgs arguments related to the operation
+         * @param anObject    the object associated with the operation
+         * @param anArgs      arguments related to the operation
          * @return the remaining quota as a long value
          */
         long getQuota(String anOperation, Object anObject, Object[] anArgs);
+
         /**
          * Decreases the available quota for a specific operation.
          *
-         * @param anAmount   the amount by which the quota should be decreased
-         * @param anOperation  the name of the operation for which the quota is being reduced
-         * @param anObject     the object related to the operation
-         * @param anArgs       the arguments associated with the operation
+         * @param anAmount    the amount by which the quota should be decreased
+         * @param anOperation the name of the operation for which the quota is being reduced
+         * @param anObject    the object related to the operation
+         * @param anArgs      the arguments associated with the operation
          */
         void decreaseQuota(long anAmount, String anOperation, Object anObject, Object[] anArgs);
+
         /**
          * Calculates the cost associated with performing a specific operation.
          *
          * @param anOperation the name of the operation for which the cost is being calculated
-         * @param anObject the object involved in the operation
-         * @param anArgs the arguments related to the operation
+         * @param anObject    the object involved in the operation
+         * @param anArgs      the arguments related to the operation
          * @return the calculated cost of the operation as a long value
          */
         long calculateOperationCost(String anOperation, Object anObject, Object[] anArgs);
+
         /**
-         * Calculates the cost associated with a given operation result based on the operation type,
-         * result object, relevant context object, and operation arguments (({@code 0} if left default)).
+         * Calculates the cost associated with a given operation result based on the operation type, result object,
+         * relevant context object, and operation arguments (({@code 0} if left default)).
          *
          * @param anOperation the name of the operation being performed
-         * @param aResult   the result of the operation
+         * @param aResult     the result of the operation
          * @param anObject    the context object relevant to the operation
          * @param anArgs      the arguments with which the operation is executed
          * @return the calculated cost of the operation result
@@ -1466,12 +1475,10 @@ public class Aspects {
     }
 
     /**
-     * Represents a dynamic quota advice implementation that ensures quota constraints
-     * are adhered to when performing operations. The class acts as around advice
-     * that validates the available quota before allowing an operation to proceed.
-     * Post-operation, it verifies the result cost against the remaining quota
-     * and updates the quota appropriately. Runtime exceptions are thrown if the
-     * operation or result exceeds the allocated quota.
+     * Represents a dynamic quota advice implementation that ensures quota constraints are adhered to when performing
+     * operations. The class acts as around advice that validates the available quota before allowing an operation to
+     * proceed. Post-operation, it verifies the result cost against the remaining quota and updates the quota
+     * appropriately. Runtime exceptions are thrown if the operation or result exceeds the allocated quota.
      */
     public static class DynamicQuotaAdvice implements AroundAdvice {
 
@@ -1521,7 +1528,7 @@ public class Aspects {
             // check result quota
             long resultCost = quotaHandler.calculateOperationResultCost(operation, result, object, args);
 
-            if (availableQuota - operationCost- resultCost < 0) // rollback operation cost
+            if (availableQuota - operationCost - resultCost < 0) // rollback operation cost
                 quotaHandler.decreaseQuota(-operationCost, operation, object, args);
             checkQuota(operation, resultCost, availableQuota - operationCost);
             quotaHandler.decreaseQuota(resultCost, operation, object, args);
@@ -1545,14 +1552,81 @@ public class Aspects {
         }
 
         /**
-         * Exception thrown to indicate specific advice related to dynamic quota management.
-         * This exception is used to signal issues or errors within the context of
-         * dynamic quota handling logic.
+         * Exception thrown to indicate specific advice related to dynamic quota management. This exception is used to
+         * signal issues or errors within the context of dynamic quota handling logic.
          */
         public static class DynamicQuotaAdviceException extends IllegalStateException {
             public DynamicQuotaAdviceException(String message) {
                 super(message);
             }
+        }
+    }
+
+
+    /**
+     * An abstract class that provides a base for isolation around advices. It allows implementing an isolation layer
+     * that creates copies of both input arguments and the operation’s results. This approach is especially useful
+     * during module development to prevent tight coupling and avoid unintended sharing of mutable state.
+     * <br><br>
+     * This advice can be used in development and testing to ensure isolation. Copies can be created either by deep
+     * cloning or through serialization-like mechanism. In production mode, such advice can be turned off to avoid
+     * performance overhead.
+     */
+    public static abstract class IsolationAroundAdvice implements AroundAdvice {
+
+        /**
+         * Converts the result of the operation to an isolated form. This method should be overridden to provide
+         * specific conversion logic.
+         *
+         * @param aResult the result of the operation
+         * @return the converted result
+         */
+        public abstract Object convertResult(Object aResult);
+
+        /**
+         * Converts the arguments of the operation to an isolated form. This method should be overridden to provide
+         * specific conversion logic.
+         *
+         * @param anArgs the arguments of the operation
+         * @return the converted arguments
+         */
+        public abstract Object[] convertArguments(Object[] anArgs   );
+
+        /**
+         * {@inheritDoc}
+         */
+        @Override
+        public final Object apply(Object performer, String operation, Object object, Object[] args) {
+            return convertResult(AroundAdvice.applyDefault(performer, operation, object, convertArguments(args)));
+        }
+    }
+
+
+    /**
+     * Isolation around advice that uses deep cloning to create isolated copies of the operation's results and
+     * arguments. This is useful for ensuring that the operation does not modify the original arguments and the client
+     * doesn't modify the result, providing a clean slate for each invocation.
+     */
+    public static class DeepCloneIsolationAroundAdvice extends IsolationAroundAdvice {
+
+        /**
+         * Converts the result of the operation to an isolated form by deep cloning it.
+         *
+         * @param aResult the result of the operation
+         * @return the converted result
+         */
+        public Object convertResult(Object aResult) {
+            return deepClone(aResult);
+        }
+
+        /**
+         * Converts the arguments of the operation to an isolated form by deep cloning them.
+         *
+         * @param anArgs the arguments of the operation
+         * @return the converted arguments
+         */
+        public Object[] convertArguments(Object[] anArgs) {
+            return deepClone(anArgs);
         }
     }
 }

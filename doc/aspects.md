@@ -125,5 +125,7 @@ The Java Class Extension Library offers several ready to use Advices - lambda fu
    `Collection` or `Map` results and uses a lambda function to convert values of other type 
 * `Aspects.HandleThrowableAdvice` - allows catching all exceptions and return some value instead 
 * `Aspects.CircuitBreakerAdvice` - allows adding circuit breaker to some operations 
+* `Aspects.DeepCloneIsolationAroundAdvice` - allows deep cloning of objects before and after the operation execution to isolate changes. It can be useful during module development to prevent tight coupling and avoid unintended sharing of mutable state.
+
 
 Next >> [Expressions](expressions.md)
