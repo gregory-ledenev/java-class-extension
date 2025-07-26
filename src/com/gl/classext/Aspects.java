@@ -1679,6 +1679,23 @@ public class Aspects {
      * doesn't modify the result, providing a clean slate for each invocation.
      */
     public static class DeepCloneIsolationAroundAdvice extends IsolationAroundAdvice {
+        Function<Object, Object> cloner;
+
+        /**
+         * Creates a new instance of {@code DeepCloneIsolationAroundAdvice} with a custom cloner function.
+         *
+         * @param aCloner a function that takes an object and returns its deep clone
+         */
+        public DeepCloneIsolationAroundAdvice(Function<Object, Object> aCloner) {
+            cloner = aCloner;
+        }
+
+        /**
+         * Creates a new instance of {@code DeepCloneIsolationAroundAdvice} without a custom cloner function.
+         * This will use the default deep cloning mechanism.
+         */
+        public DeepCloneIsolationAroundAdvice() {
+        }
 
         /**
          * Converts the result of the operation to an isolated form by deep cloning it.
@@ -1687,7 +1704,7 @@ public class Aspects {
          * @return the converted result
          */
         public Object convertResult(Object aResult) {
-            return deepClone(aResult);
+            return deepClone(aResult, cloner);
         }
 
         /**
@@ -1697,7 +1714,7 @@ public class Aspects {
          * @return the converted arguments
          */
         public Object[] convertArguments(Object[] anArgs) {
-            return deepClone(anArgs);
+            return deepClone(anArgs, cloner);
         }
     }
 }

@@ -7,8 +7,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
 
-import static org.junit.jupiter.api.Assertions.assertNotSame;
-import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.*;
 
 public class IsolationAroundAdviceTest {
 
@@ -216,5 +215,65 @@ public class IsolationAroundAdviceTest {
         assertNotSame(user, userService.findUserByUID(user.uid()), "User should not be the same instance after isolation.");
         assertNotSame(userService.findUserByUID(user.uid()), userService.findUserByUID(user.uid()), "User should not be the same instance after isolation.");
         assertSame(userService.findUserByUserName(user.userName()), userService.findUserByUserName(user.userName()), "User should not be the same instance after isolation.");
+    }
+
+    record Department(String name)  {}
+    interface DepartmentService {
+        List<Department> getAllDepartments();
+    }
+
+    class DepartmentServiceImpl implements DepartmentService {
+        private final List<Department> departments = new ArrayList<>();
+
+        public DepartmentServiceImpl() {
+            departments.add(new Department("HR"));
+            departments.add(new Department("Engineering"));
+            departments.add(new Department("Marketing"));
+        }
+
+        @Override
+        public List<Department> getAllDepartments() {
+            return new ArrayList<>(departments);
+        }
+    }
+
+    @Test
+    void deepCloneDepartmentsWithNoClonerTest() {
+        DynamicClassExtension dynamicClassExtension = new DynamicClassExtension().aspectBuilder().
+                extensionInterface(DepartmentService.class).
+                objectClass("*").
+                operation("*").
+                around(new Aspects.DeepCloneIsolationAroundAdvice()).
+                build();
+        List<Department> departments = List.of(
+                new Department("HR"),
+                new Department("Engineering"),
+                new Department("Marketing")
+        );
+
+        DepartmentServiceImpl departmentServiceImpl = new DepartmentServiceImpl();
+        DepartmentService departmentService = dynamicClassExtension.extension(departmentServiceImpl, DepartmentService.class);
+        assertThrows(UnsupportedOperationException.class, departmentService::getAllDepartments);
+    }
+
+    @Test
+    void deepCloneDepartmentsWithClonerTest() {
+        DynamicClassExtension dynamicClassExtension = new DynamicClassExtension().aspectBuilder().
+                extensionInterface(DepartmentService.class).
+                objectClass("*").
+                operation("*").
+                around(new Aspects.DeepCloneIsolationAroundAdvice(o -> o instanceof Department d ? new Department(d.name()) : null)).
+                build();
+        List<Department> departments = List.of(
+                new Department("HR"),
+                new Department("Engineering"),
+                new Department("Marketing")
+        );
+
+        DepartmentServiceImpl departmentServiceImpl = new DepartmentServiceImpl();
+        DepartmentService departmentService = dynamicClassExtension.extension(departmentServiceImpl, DepartmentService.class);
+        List<Department> clonedDepartments = departmentService.getAllDepartments();
+        assertNotSame(departments, clonedDepartments);
+        assertEquals(departments, clonedDepartments);
     }
 }

@@ -27,6 +27,8 @@ package com.gl.classext;
 
 import java.lang.reflect.*;
 import java.util.*;
+import java.util.function.Function;
+
 
 public class DeepCloneUtil {
 
@@ -34,88 +36,105 @@ public class DeepCloneUtil {
      * Deep clones an object handling cloneable and immutable objects. Note: all collections will be cloned to their
      * unmodifiable view.
      *
-     * @param original the object to clone
+     * @param anOriginal the object to clone
      * @param <T>      the type of the object
-     * @return a deep clone of the original object
+     * @return a deep clone of the anOriginal object
      */
-    public static <T> T deepClone(T original) {
-        return deepClone(original, false);
+    public static <T> T deepClone(T anOriginal) {
+        return deepClone(anOriginal, null, false);
     }
 
     /**
      * Deep clones an object handling cloneable and immutable objects. Note: all collections will be cloned to their
      * unmodifiable view.
      *
-     * @param original         the object to clone
-     * @param copyImmutable    whether to clone immutable objects or return the original
-     * @param <T>              the type of the object
-     * @return a deep clone of the original object
+     * @param anOriginal      the object to clone
+     * @param aCloner         a function to apply for cloning the object, can be null
+     * @return a deep clone of the anOriginal object
      */
-    public static <T> T deepClone(T original, boolean copyImmutable) {
-        return deepClone(original, new Stack<>(), copyImmutable);
+    public static <T> T deepClone(T anOriginal, Function<Object, Object> aCloner) {
+        return deepClone(anOriginal, aCloner, false);
     }
 
     /**
      * Deep clones an object handling cloneable and immutable objects. Note: all collections will be cloned to their
      * unmodifiable view.
      *
-     * @param original         the object to clone
-     * @param callStack        a stack to track circular references
-     * @param copyImmutable    whether to clone immutable objects or return the original
-     * @param <T>              the type of the object
-     * @return a deep clone of the original object
+     * @param anOriginal      the object to clone
+     * @param aCloner         a function to apply for cloning the object, can be null
+     * @param isCopyImmutable whether to clone immutable objects or return the anOriginal
+     * @return a deep clone of the anOriginal object
+     */
+    public static <T> T deepClone(T anOriginal, Function<Object, Object> aCloner, boolean isCopyImmutable) {
+        return deepClone(new Stack<Object>(), anOriginal, aCloner, isCopyImmutable);
+    }
+
+    /**
+     * Deep clones an object handling cloneable and immutable objects. Note: all collections will be cloned to their
+     * unmodifiable view.
+     *
+     * @param aCloner         a function to apply for cloning the object, can be null
+     * @param aCallStack      a stack to track circular references
+     * @param <T>             the type of the object
+     * @param anOriginal      the object to clone
+     * @param isCopyImmutable whether to clone immutable objects or return the anOriginal
+     * @return a deep clone of the anOriginal object
      */
     @SuppressWarnings("unchecked")
-    private static <T> T deepClone(T original, Stack<Object> callStack, boolean copyImmutable) {
-        if (original == null)
+    private static <T> T deepClone(Stack<Object> aCallStack, T anOriginal, Function<Object, Object> aCloner, boolean isCopyImmutable) {
+        if (anOriginal == null)
             return null;
 
-        if (callStack.contains(original))
-            throw new IllegalArgumentException("Circular reference detected for: " + original);
-        callStack.push(original);
+        if (aCallStack.contains(anOriginal))
+            throw new IllegalArgumentException("Circular reference detected for: " + anOriginal);
+        aCallStack.push(anOriginal);
 
         try {
-            Class<?> clazz = original.getClass();
+            Class<?> clazz = anOriginal.getClass();
 
             if (isImmutable(clazz))
-                return copyImmutable ? copyImmutableObject(original) : original;
+                return isCopyImmutable ? copyImmutableObject(anOriginal) : anOriginal;
 
-            switch (original) {
+            switch (anOriginal) {
                 case List<?> originalList -> {
-                    return (T) copyList(originalList, callStack, copyImmutable);
+                    return (T) copyList(aCallStack, originalList, aCloner, isCopyImmutable);
                 }
                 case Set<?> originalSet -> {
-                    return (T) copySet(originalSet, callStack, copyImmutable);
+                    return (T) copySet(aCallStack, originalSet, aCloner, isCopyImmutable);
                 }
                 case Map<?, ?> originalMap -> {
-                    return (T) copyMap(originalMap, callStack, copyImmutable);
+                    return (T) copyMap(aCallStack, originalMap, aCloner, isCopyImmutable);
                 }
                 default -> {
                 }
             }
 
             if (clazz.isArray())
-                return (T) copyArray(original, callStack, copyImmutable);
+                return (T) copyArray(aCallStack, anOriginal, aCloner, isCopyImmutable);
 
-            Object clonedOrCopied = tryClone(original);
-            if (clonedOrCopied != null)
-                return (T) clonedOrCopied;
+            Object clone = aCloner != null ? aCloner.apply(anOriginal) : null;
 
-            clonedOrCopied = tryCopyConstructor(original);
-            if (clonedOrCopied != null)
-                return (T) clonedOrCopied;
+            if (clone == null) {
+                clone = tryClone(anOriginal);
+                if (clone != null)
+                    return (T) clone;
+
+                clone = tryCopyConstructor(anOriginal);
+            }
+            if (clone != null)
+                return (T) clone;
 
             throw new UnsupportedOperationException("Deep copy not supported for class: " + clazz.getName());
         } finally {
-            callStack.pop();
+            aCallStack.pop();
         }
     }
 
     @SuppressWarnings({"unchecked", "BoxingBoxedValue"})
-    private static <T> T copyImmutableObject(T original) {
-        Class<?> clazz = original.getClass();
+    private static <T> T copyImmutableObject(T anOriginal) {
+        Class<?> clazz = anOriginal.getClass();
 
-        switch (original) {
+        switch (anOriginal) {
             case String s -> {
                 return (T) new String(s);
             }
@@ -148,56 +167,56 @@ public class DeepCloneUtil {
         }
 
         if (clazz.isEnum())
-            return original;
+            return anOriginal;
 
-        return original;
+        return anOriginal;
     }
 
-    private static <T> List<T> copyList(List<T> originalList, Stack<Object> callStack, boolean copyImmutable) {
-        List<T> copyList = new ArrayList<>(originalList.size());
-        for (T item : originalList)
-            copyList.add(deepClone(item, callStack, copyImmutable));
+    private static <T> List<T> copyList(Stack<Object> aCallStack, List<T> anOriginalList, Function<Object, Object> aCloner, boolean isCopyImmutable) {
+        List<T> copyList = new ArrayList<>(anOriginalList.size());
+        for (T item : anOriginalList)
+            copyList.add(deepClone(aCallStack, item, aCloner, isCopyImmutable));
 
         return Collections.unmodifiableList(copyList);
     }
 
-    private static <T> Set<T> copySet(Set<T> originalSet, Stack<Object> callStack, boolean copyImmutable) {
+    private static <T> Set<T> copySet(Stack<Object> aCallStack, Set<T> anOriginalSet, Function<Object, Object> aCloner, boolean isCopyImmutable) {
         Set<T> copySet = new HashSet<>();
-        for (T item : originalSet)
-            copySet.add(deepClone(item, callStack, copyImmutable));
+        for (T item : anOriginalSet)
+            copySet.add(deepClone(aCallStack, item, aCloner, isCopyImmutable));
 
         return Collections.unmodifiableSet(copySet);
     }
 
-    private static <K, V> Map<K, V> copyMap(Map<K, V> originalMap, Stack<Object> callStack, boolean copyImmutable) {
+    private static <K, V> Map<K, V> copyMap(Stack<Object> aCallStack, Map<K, V> anOriginalMap, Function<Object, Object> aCloner, boolean isCopyImmutable) {
         Map<K, V> copyMap = new HashMap<>();
-        for (Map.Entry<K, V> entry : originalMap.entrySet()) {
-            K copiedKey = deepClone(entry.getKey(), callStack, copyImmutable);
-            V copiedValue = deepClone(entry.getValue(), callStack, copyImmutable);
+        for (Map.Entry<K, V> entry : anOriginalMap.entrySet()) {
+            K copiedKey = deepClone(aCallStack, entry.getKey(), aCloner, isCopyImmutable);
+            V copiedValue = deepClone(aCallStack, entry.getValue(), aCloner, isCopyImmutable);
             copyMap.put(copiedKey, copiedValue);
         }
 
         return Collections.unmodifiableMap(copyMap);
     }
 
-    private static Object copyArray(Object originalArray, Stack<Object> callStack, boolean copyImmutable) {
-        int length = Array.getLength(originalArray);
-        Class<?> componentType = originalArray.getClass().getComponentType();
+    private static Object copyArray(Stack<Object> aCallStack, Object anOriginalArray, Function<Object, Object> aCloner, boolean isCopyImmutable) {
+        int length = Array.getLength(anOriginalArray);
+        Class<?> componentType = anOriginalArray.getClass().getComponentType();
         Object copyArray = Array.newInstance(componentType, length);
         for (int i = 0; i < length; i++) {
-            Object element = Array.get(originalArray, i);
-            Object copiedElement = deepClone(element, callStack, copyImmutable);
+            Object element = Array.get(anOriginalArray, i);
+            Object copiedElement = deepClone(aCallStack, element, aCloner, isCopyImmutable);
             Array.set(copyArray, i, copiedElement);
         }
 
         return copyArray;
     }
 
-    private static Object tryClone(Object original) {
+    private static Object tryClone(Object anOriginal) {
         try {
-            Method cloneMethod = original.getClass().getMethod("clone");
+            Method cloneMethod = anOriginal.getClass().getMethod("clone");
             if (Modifier.isPublic(cloneMethod.getModifiers()))
-                return cloneMethod.invoke(original);
+                return cloneMethod.invoke(anOriginal);
         } catch (Exception e) {
             // do nothing, just return null
         }
@@ -205,10 +224,10 @@ public class DeepCloneUtil {
         return null;
     }
 
-    private static Object tryCopyConstructor(Object original) {
+    private static Object tryCopyConstructor(Object anOoriginal) {
         try {
-            Constructor<?> constructor = original.getClass().getConstructor(original.getClass());
-            return constructor.newInstance(original);
+            Constructor<?> constructor = anOoriginal.getClass().getConstructor(anOoriginal.getClass());
+            return constructor.newInstance(anOoriginal);
         } catch (Exception e) {
             // do nothing, just return null
         }
@@ -216,18 +235,18 @@ public class DeepCloneUtil {
         return null;
     }
 
-    private static boolean isImmutable(Class<?> clazz) {
-        return clazz.isPrimitive()
-                || clazz.equals(String.class)
-                || Number.class.isAssignableFrom(clazz)
-                || clazz.equals(Boolean.class)
-                || clazz.isEnum()
-                || clazz.equals(Character.class)
-                || clazz.equals(Byte.class)
-                || clazz.equals(Short.class)
-                || clazz.equals(Integer.class)
-                || clazz.equals(Long.class)
-                || clazz.equals(Float.class)
-                || clazz.equals(Double.class);
+    private static boolean isImmutable(Class<?> aClass) {
+        return aClass.isPrimitive()
+                || aClass.equals(String.class)
+                || Number.class.isAssignableFrom(aClass)
+                || aClass.equals(Boolean.class)
+                || aClass.isEnum()
+                || aClass.equals(Character.class)
+                || aClass.equals(Byte.class)
+                || aClass.equals(Short.class)
+                || aClass.equals(Integer.class)
+                || aClass.equals(Long.class)
+                || aClass.equals(Float.class)
+                || aClass.equals(Double.class);
     }
 }
