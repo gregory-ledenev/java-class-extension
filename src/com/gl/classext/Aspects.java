@@ -360,7 +360,7 @@ public class Aspects {
             public boolean test(String operation, Class<?>[] parameterTypes) {
                 boolean result = operationNameMatches(operation, this.operation) &&
                         operationParameterTypesMatch(this.operation, parameterTypes);
-                return ! exclude ? result : ! result;
+                return exclude != result;
             }
 
             @Override
@@ -750,7 +750,13 @@ public class Aspects {
     }
 
     /**
-     * Advice (before) that allows logging operations
+     * Advice (before) that allows that enhances the visibility of operations by logging their arguments before execution.
+     * This is particularly useful for debugging and monitoring purposes, as it allows developers to trace the flow of
+     * data through the system and understand how different components interact.
+     * <br><br>
+     * When applied, {@code LogBeforeAdvice} captures the method name, the object on which it is called, and the arguments
+     * passed to it. This information is then logged, providing a clear record of what operations are being performed
+     * and with what data. This can be invaluable in identifying issues or understanding the behavior of complex systems.
      */
     public static class LogBeforeAdvice implements BeforeAdvice {
         final Logger logger;
@@ -784,7 +790,14 @@ public class Aspects {
     }
 
     /**
-     * Advice (after) that allows logging results of operations
+     * Advice (after) that allows logging results of operations. It` complements {@code LogBeforeAdvice} by logging the
+     * results of operations after they have been executed. This aspect captures the outcome of method calls, providing
+     * insights into the effects of operations and helping to verify that they behave as expected.
+     * <br><br>
+     * When {@code LogAfterAdvice} is applied, it logs the method name, the object on which it was called, and the result
+     * returned by the operation. This information is crucial for debugging and monitoring, as it allows developers to
+     * see not only what inputs were used but also what outputs were produced, facilitating a better understanding of
+     * system behavior.
      */
     public static class LogAfterAdvice implements AfterAdvice {
         final Logger logger;
@@ -820,7 +833,13 @@ public class Aspects {
     }
 
     /**
-     * Advice (around) that allows logging perform times for operations
+     * Advice (around) that measures and logs the time taken to execute operations. This is particularly useful for
+     * performance monitoring, as it helps identify bottlenecks and optimize the efficiency of the system.
+     * <br><br>
+     * When applied, {@code LogPerformTimeAdvice} captures the start time before the operation is executed and calculates
+     * the elapsed time once the operation completes. It then logs this information, providing a clear picture of how
+     * long each operation takes to perform. This can be invaluable in performance tuning, allowing developers to focus
+     * on optimizing slow operations and improving overall system responsiveness.
      */
     public static class LogPerformTimeAdvice implements AroundAdvice {
         final Logger logger;
@@ -868,7 +887,13 @@ public class Aspects {
     }
 
     /**
-     * Advice (around) that allows tracking all property changes.
+     * Advice (around) that that listens for changes to properties of objects and notifies registered listeners when such
+     * changes occur. This is particularly useful in scenarios where you need to track modifications to object state,
+     * such as in user interfaces or data binding contexts.
+     * <br><br>
+     * When applied, {@code PropertyChangeAdvice} intercepts property setter methods and triggers notifications to any
+     * registered listeners whenever a property value changes. This allows other components of the system to react to
+     * changes in real-time, enabling dynamic updates and interactions without requiring manual polling or checks.
      */
     public static class PropertyChangeAdvice implements AroundAdvice {
         /**
@@ -921,10 +946,17 @@ public class Aspects {
     }
 
     /**
-     * Advice (around) that automatically retries failed operations. Executes the operation multiple times upon
-     * exception, up to a specified retry limit, before propagating the final failure. Default policy is "retry after
-     * any exception" but it is possible to fine-tune that behavior to provide {@code resultChecker} that allows
-     * checking whether results of exceptions are errors that can be recovered by retrying the operation.
+     * Advice (around) that implements a retry mechanism for operations that may fail due to transient issues, such as
+     * network errors or temporary unavailability of resources. This aspect allows developers to specify how many times
+     * an operation should be retried before giving up, along with optional delay strategies between retries.
+     * <br><br>
+     * When applied, {@code RetryAdvice} intercepts method calls and, if an exception occurs (or a result signals an
+     * error), it will automatically retry the operation up to the specified number of attempts. The Default policy is
+     * "retry after any exception" but it is possible to fine-tune that behavior to provide {@code resultChecker} that
+     * allows checking whether results and exceptions are errors that can be recovered by retrying the operation.
+     * <br><br>
+     * This can significantly improve the resilience of applications by allowing them to recover from temporary failures
+     * without crashing or requiring manual intervention.
      */
     public static class RetryAdvice implements AroundAdvice {
         private final int retryCount;
@@ -1101,7 +1133,17 @@ public class Aspects {
     }
 
     /**
-     * Advice (around) that allows caching of operation results
+     * Advice (around) that implements caching for operation results, allowing for efficient reuse of previously computed
+     * values. This is particularly useful in scenarios where operations are expensive or time-consuming, and the same
+     * inputs are likely to be used multiple times.
+     * <br><br>
+     * When applied, {@code CachedValueAdvice} intercepts method calls and checks if a cached result already exists for
+     * the given inputs. If a cached value is found, it is returned immediately, avoiding the need to recompute the result.
+     * If no cached value exists, the operation is executed, and the result is stored in the cache for future use.
+     * <br><br>
+     * This {@code CachedValueAdvice} advice uses {@code CachedValueProvider} to manage the cache, allowing for flexible
+     * caching strategies. It can be configured to use different caching mechanisms, such as in-memory caches or
+     * distributed caches, depending on the application's requirements.
      */
     public static class CachedValueAdvice implements AroundAdvice {
         private final Logger logger;
@@ -1145,7 +1187,14 @@ public class Aspects {
     }
 
     /**
-     * Advice (around) that allows turning all the Collection or Map results to their unmodifiable views
+     * Advice (around) that ensures that the results of operations returning collections or maps are wrapped in
+     * unmodifiable views. This is particularly useful for preventing or detecting accidental modifications to data
+     * structures that should remain immutable, enhancing the safety and integrity of the system.
+     * <br><br>
+     * When applied, {@code ReadOnlyCollectionOrMapAdvice} intercepts method calls that return collections or maps and
+     * automatically converts them into unmodifiable views. For collections and lists, it uses
+     * {@code Collections.unmodifiableCollection()} or {@code Collections.unmodifiableList()}, and for maps, it uses
+     * {@code Collections.unmodifiableMap()}.
      */
     public static class ReadOnlyCollectionOrMapAdvice implements AroundAdvice {
         protected final Logger logger;
@@ -1195,7 +1244,15 @@ public class Aspects {
     }
 
     /**
-     * Advice (around) that allows turning results to their unmodifiable views
+     * Advice (around) that ensures that the results of operations returning collections or maps are wrapped in
+     * unmodifiable views. This is particularly useful for preventing or detecting accidental modifications to data
+     * structures that should remain immutable, enhancing the safety and integrity of the system.
+     * <br><br>
+     * When applied, {@code ReadOnlyCollectionOrMapAdvice} intercepts method calls that return collections or maps and
+     * automatically converts them into unmodifiable views. For collections and lists, it uses
+     * {@code Collections.unmodifiableCollection()} or {@code Collections.unmodifiableList()}, and for maps, it uses
+     * {@code Collections.unmodifiableMap()}. For other types of results, it applies a lambda function to convert them
+     * into an unmodifiable form.
      */
     public static class UnmodifiableValueAdvice extends ReadOnlyCollectionOrMapAdvice {
         Function<Object, Object> unmodifiableValueProvider;
@@ -1247,7 +1304,14 @@ public class Aspects {
     }
 
     /**
-     * Advice (around) that allows catching all exceptions and return some value instead
+     * Advice (around) that provides a mechanism for handling exceptions thrown by operations. This is particularly useful
+     * for implementing custom error handling strategies, such as logging errors, transforming exceptions, or providing
+     * fallback values. Additionally, it can help adapt existing code to methods that have recently started throwing
+     * exceptions in newer versions of libraries or APIs, when the calling code is not prepared to handle them.
+     * <br><br>
+     * When applied, {@code HandleThrowableAdvice} intercepts method calls and catches any exceptions that occur during
+     * execution. It then allows developers to define custom behavior for handling these exceptions, such as logging
+     * the error, transforming it into a different type of exception, or returning a default value.
      */
     public static class HandleThrowableAdvice<T> implements AroundAdvice {
         private final Supplier<T> supplier;
@@ -1291,7 +1355,14 @@ public class Aspects {
     }
 
     /**
-     * Advice (around) that adds a circuit breaker to an operation
+     * Advice (around) that implements the Circuit Breaker pattern, which is used to prevent a system from repeatedly
+     * attempting operations that are likely to fail. This is particularly useful in distributed systems or microservices
+     * architectures, where network failures or service unavailability can lead to cascading failures.
+     * <br><br>
+     * When applied, {@code CircuitBreakerAdvice} monitors the success and failure rates of operations and opens a
+     * circuit when the failure rate exceeds a specified threshold. While the circuit is open, any attempts to execute
+     * the operation will immediately fail without attempting to call the underlying method. After a predefined timeout,
+     * the circuit will attempt to close again, allowing operations to be retried.
      */
     public static class CircuitBreakerAdvice implements AroundAdvice {
         private final CircuitBreaker circuitBreaker;

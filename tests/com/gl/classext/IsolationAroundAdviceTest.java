@@ -176,7 +176,7 @@ public class IsolationAroundAdviceTest {
                 extensionInterface(UserService.class).
                 objectClass("*").
                 operation("*").
-                around(new Aspects.DeepCloneIsolationAroundAdvice()).
+                    around(new Aspects.DeepCloneIsolationAroundAdvice()).
                 build();
         UserServiceImpl userServiceImpl = new UserServiceImpl();
         UserService userService = dynamicClassExtension.extension(userServiceImpl, UserService.class);
@@ -185,16 +185,16 @@ public class IsolationAroundAdviceTest {
         System.out.println("Created user:" + user);
         System.out.println("User count: " + userService.getUserCount());
 
-        assertNotSame(user, userService.findUserByUID(user.uid()), "User should not be the same instance after isolation.");
+        assertNotSame(user, userService.findUserByUID(user.uid()));
 
         user.setFirstName("Johnathan");
         user.setPassword("123");
         User updatedUser = userService.updateUser(user);
         System.out.println("Updated user:" + updatedUser);
 
-        assertNotSame(updatedUser, userService.findUserByUID(user.uid()), "User should not be the same instance after isolation.");
+        assertNotSame(updatedUser, userService.findUserByUID(user.uid()), "User should not be the same instance after isolation");
 
-        System.out.println(userService.deleteUser(updatedUser) ? "User deleted successfully." : "Failed to delete user.");
+        System.out.println(userService.deleteUser(updatedUser) ? "User deleted successfully" : "Failed to delete user");
         System.out.println("User count: " + userService.getUserCount());
     }
 
