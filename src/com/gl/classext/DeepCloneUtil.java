@@ -66,7 +66,7 @@ public class DeepCloneUtil {
      * @return a deep clone of the anOriginal object
      */
     public static <T> T deepClone(T anOriginal, Function<Object, Object> aCloner, boolean isCopyImmutable) {
-        return deepClone(new Stack<Object>(), anOriginal, aCloner, isCopyImmutable);
+        return deepClone(new Stack<>(), anOriginal, aCloner, isCopyImmutable);
     }
 
     /**
@@ -132,8 +132,6 @@ public class DeepCloneUtil {
 
     @SuppressWarnings({"unchecked", "BoxingBoxedValue"})
     private static <T> T copyImmutableObject(T anOriginal) {
-        Class<?> clazz = anOriginal.getClass();
-
         switch (anOriginal) {
             case String s -> {
                 return (T) new String(s);
@@ -165,9 +163,6 @@ public class DeepCloneUtil {
             default -> {
             }
         }
-
-        if (clazz.isEnum())
-            return anOriginal;
 
         return anOriginal;
     }
@@ -224,10 +219,10 @@ public class DeepCloneUtil {
         return null;
     }
 
-    private static Object tryCopyConstructor(Object anOoriginal) {
+    private static Object tryCopyConstructor(Object anOriginal) {
         try {
-            Constructor<?> constructor = anOoriginal.getClass().getConstructor(anOoriginal.getClass());
-            return constructor.newInstance(anOoriginal);
+            Constructor<?> constructor = anOriginal.getClass().getConstructor(anOriginal.getClass());
+            return constructor.newInstance(anOriginal);
         } catch (Exception e) {
             // do nothing, just return null
         }

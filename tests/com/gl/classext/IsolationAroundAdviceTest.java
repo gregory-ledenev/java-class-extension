@@ -115,6 +115,14 @@ public class IsolationAroundAdviceTest {
     static class UserServiceImpl implements UserService {
         private final List<User> users = new ArrayList<>();
 
+        public UserServiceImpl() {
+            users.addAll(List.of(
+                    new UserImpl("1", "alice", "Alice", "password1"),
+                    new UserImpl("2", "bob", "Bob", "password2"),
+                    new UserImpl("3", "charlie", "Charlie", "password3")
+            ));
+        }
+
         @Override
         public User createUser(String userName, String firstName, String password) {
             User user = new UserImpl(UUID.randomUUID().toString(), userName, firstName, password);
@@ -167,6 +175,31 @@ public class IsolationAroundAdviceTest {
         public int getUserCount() {
             return users.size();
         }
+    }
+
+    @Test
+    void updateUserTest() {
+
+        UserServiceImpl userServiceImpl = new UserServiceImpl();
+        User user = userServiceImpl.findUserByUID("1");
+        user.setPassword("new_password");
+
+        assertEquals("new_password", userServiceImpl.findUserByUID("1").password());
+
+        DynamicClassExtension dynamicClassExtension = new DynamicClassExtension().aspectBuilder().
+                extensionInterface(UserService.class).objectClass("*").
+                operation("*").
+                    around(new Aspects.DeepCloneIsolationAroundAdvice()).
+                build();
+        UserService userService = dynamicClassExtension.extension(userServiceImpl, UserService.class);
+        user = userService.findUserByUID("1");
+
+        user.setPassword("new_password");
+        assertNotEquals("new_password", userService.findUserByUID("1").password());
+
+        userService.updateUser(user);
+        assertEquals("new_password", userService.findUserByUID("1").password());
+
     }
 
     @Test

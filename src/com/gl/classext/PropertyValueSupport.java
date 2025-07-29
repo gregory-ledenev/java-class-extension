@@ -228,14 +228,14 @@ public class PropertyValueSupport {
 
     private static Class<?> getValueClassForSetter(Object value) {
         return switch (value) {
-            case Byte _ -> byte.class;
-            case Short _ -> short.class;
-            case Integer _ -> int.class;
-            case Long _ -> long.class;
-            case Float _ -> float.class;
-            case Double _ -> double.class;
-            case Character _ -> char.class;
-            case Boolean _ -> boolean.class;
+            case Byte b -> byte.class;
+            case Short s -> short.class;
+            case Integer i -> int.class;
+            case Long l -> long.class;
+            case Float f -> float.class;
+            case Double d -> double.class;
+            case Character c -> char.class;
+            case Boolean b -> boolean.class;
             default -> value.getClass();
         };
     }

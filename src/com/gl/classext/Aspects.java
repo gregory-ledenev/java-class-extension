@@ -19,12 +19,12 @@ import static java.text.MessageFormat.format;
  */
 public class Aspects {
     /**
-     * Defines Advice type
+     * Defines an Advice type
      */
     public enum AdviceType {
         BEFORE,
         AFTER,
-        AROUND;
+        AROUND
     }
 
     /**
@@ -115,7 +115,7 @@ public class Aspects {
 
         /**
          * Performs default handling of an operation. An around lambda function should call this method to allow default
-         * handling of an operation e.g. calling an underlying method, performing a dynamic operation, or transferring
+         * handling of an operation e.g., calling an underlying method, performing a dynamic operation, or transferring
          * control to the next around advice in the chain. Generally, this method should be called only once inside an
          * around lambda function to avoid side effects. Though some advice implementation like {@code RetryAdvice} may
          * call the {@code applyDefault()} several times in attempts to recover after some failure.
@@ -168,7 +168,7 @@ public class Aspects {
         }
 
         public void addPointcut(Pointcut aPointcut) {
-            // keep out same pointcuts; walk though manually as Pointcut.equals() ignores advice lambda
+            // keep out the same pointcuts; walk though manually as Pointcut.equals() ignores advice lambda
             if (pointcuts.stream().noneMatch(pointcut -> pointcut == aPointcut))
                 pointcuts.add(aPointcut);
         }
@@ -965,7 +965,7 @@ public class Aspects {
         private final BiPredicate<Object, Throwable> resultChecker;
 
         /**
-         * Creates new advice with 500ms sleep time, no logger, and no result checker
+         * Creates new advice with 500 ms sleep time, no logger, and no result checker
          *
          * @param aRetryCount retry count
          */
@@ -974,7 +974,7 @@ public class Aspects {
         }
 
         /**
-         * Creates new advice with 500ms sleep time and no logger
+         * Creates new advice with 500 ms sleep time and no logger
          *
          * @param aRetryCount    retry count
          * @param aResultChecker result checking lambda function
@@ -1014,7 +1014,7 @@ public class Aspects {
                     result = AroundAdvice.applyDefault(performer, operation, object, args);
                     resultEx = null;
                     if (resultChecker != null && resultChecker.test(result, null))
-                        break; // result is not an error - return
+                        break; // the result is not an error - return
                     else if (logger != null) {
                         logger.severe(format("Failed operation: {0} with result: {1}", operation, result));
                     }
@@ -1049,7 +1049,7 @@ public class Aspects {
      * extensions will not be cached.
      *
      * @param anObject             object to return an extension object for
-     * @param anExtensionInterface interface of extension object to be returned
+     * @param anExtensionInterface interface of an extension object to be returned
      * @return an extension object
      */
     public static <T> T logPerformanceExtension(Object anObject, Class<T> anExtensionInterface) {
@@ -1068,7 +1068,7 @@ public class Aspects {
      * extensions will not be cached.
      *
      * @param anObject             object to return an extension object for
-     * @param anExtensionInterface interface of extension object to be returned
+     * @param anExtensionInterface interface of an extension object to be returned
      * @return an extension object
      */
     public static <T> T logBeforeAndAfterExtension(Object anObject, Class<T> anExtensionInterface) {
@@ -1089,7 +1089,7 @@ public class Aspects {
      * extensions will not be cached.
      *
      * @param anObject                object to return an extension object for
-     * @param anExtensionInterface    interface of extension object to be returned
+     * @param anExtensionInterface    interface of an extension object to be returned
      * @param aPropertyChangeListener property change listener
      * @return an extension object
      */
@@ -1285,7 +1285,7 @@ public class Aspects {
         public Object apply(Object performer, String operation, Object object, Object[] args) {
             Object result = AroundAdvice.applyDefault(performer, operation, object, args);
 
-            Object unmodifiableValue = null;
+            Object unmodifiableValue;
             if (unmodifiableValueProvider != null) {
                 unmodifiableValue = unmodifiableValueProvider.apply(result);
                 if (unmodifiableValue != null)
@@ -1341,7 +1341,7 @@ public class Aspects {
          */
         @Override
         public Object apply(Object performer, String operation, Object object, Object[] args) {
-            Object result = null;
+            Object result;
             try {
                 result = AroundAdvice.applyDefault(performer, operation, object, args);
             } catch (Throwable aThrowable) {

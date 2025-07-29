@@ -1,5 +1,5 @@
-## Java Class Extension Library - Aspects
-The Java Class Extension Library provides support of Aspects (AOP) by applying them to class extensions. This can be done by allowing to specify lambda functions which should be applied before, after or around some operations.
+## Java Class Extension Library — Aspects
+The Java Class Extension Library provides support for Aspects (AOP) by applying them to class extensions. This can be done by allowing to specify lambda functions which should be applied before, after or around some operations.
 
 Common use cases for Aspects include:
 * Logging and tracing
@@ -12,7 +12,7 @@ Common use cases for Aspects include:
 * Quota management for APIs
 * Retry mechanisms
 
-Aspects allows developers to separate these concerns from core business logic, reducing code duplication and improving maintainability.
+Aspects allow developers to separate these concerns from core business logic, reducing code duplication and improving maintainability.
 
 ### Defining Aspects
 The `AspectBuilder` enables defining Aspects for `ClassExtensions`. Create an instance using the `aspectBuilder()` method of `DynamicClassExtension` or `StaticClassExtension`. Use this builder to define Aspects for pointcuts specified by extension interfaces, object classes, and operations. Supports exact values and wildcards for flexible aspect definition.
@@ -31,7 +31,7 @@ StaticClassExtension.sharedInstance().aspectBuilder().
                     around((performer, operation, object, args) -> "ALTERED AUTO PART: " + applyDefault(performer, operation, object, args)).
 build();
 ```
-To utilize extensions with Aspects - just obtain extensions and use them as usual:
+To use extensions with Aspects — get extensions and use them as usual:
 
 ```java
 Item[] items = {
@@ -47,7 +47,7 @@ for (Item item : items) {
 ```
 
 #### Altering
-It is possible to remove already defined aspects using the `remove()` method specifying which types of advices should be removed. To remove specific advices only - specify them with identifiers and then use that identifiers in `remove()` methods.
+It is possible to remove already defined aspects using the `remove()` method specifying which types of advices should be removed. To remove specific advices only — specify them with identifiers and then use that identifier in `remove()` methods.
 
 ```java
 dynamicClassExtension.aspectBuilder().
@@ -58,7 +58,7 @@ dynamicClassExtension.aspectBuilder().
         build();
 ```
 
-It is possible to enable/disable already defined aspects using the `enabled()` method specifying which types of advices should be enabled/disabled. To enable/disable specific advices only - specify them with identifiers and then use that identifiers in `enabled()` methods.
+It is possible to enable/disable already defined aspects using the `enabled()` method specifying which types of advices should be enabled/disabled. To enable/disable specific advices only - specify them with identifiers and then use that identifier in `enabled()` methods.
 ```java
 dynamicClassExtension.aspectBuilder().
             extensionInterface(ItemInterface.class).
@@ -99,7 +99,7 @@ DynamicClassExtension dynamicClassExtension = new DynamicClassExtension().builde
 Book book = new Book("The Mythical Man-Month");
 dynamicClassExtension.extension(book, ItemShippable.class).ship();
 ```
-Explicit Aspects are only supported for defined operations only. So if there is a need to intercept calls of usual methods - such methods should be dynamically "overridden" by defining operations with the same signature. The following example intercepts `Object.toString()` method:
+Explicit Aspects are only supported for defined operations only. So if there is a need to intercept calls of usual methods — such methods should be dynamically "overridden" by defining operations with the same signature. The following example intercepts `Object.toString()` method:
 ```java
 DynamicClassExtension dynamicClassExtension = new DynamicClassExtension().builder(Item_Shippable.class).
         opName("toString").
@@ -112,12 +112,19 @@ Book book = new Book("The Mythical Man-Month");
 dynamicClassExtension.extension(book, ItemShippable.class).toString();
 ```
 ### Ready to Use Advices
-The Java Class Extension Library offers several ready to use Advices - lambda functions used to handle before, after or around conditions:
+The Java Class Extension Library offers several ready to use Advices — lambda functions used to handle before, after or around conditions:
 
 #### Aspects.DeepCloneIsolationAroundAdvice
 `DeepCloneIsolationAroundAdvice` introduces an effective isolation layer that creates deep-cloned copies of both the input arguments and the results of operations. This mechanism is particularly valuable during module development to prevent the sharing of mutable state, which can lead to unintended side effects and tight coupling between components.
 
 By using deep cloning, this advice ensures that the operation receives independent copies of the arguments, protecting the original inputs from modification during processing. Similarly, it returns isolated copies of the results, preventing clients from inadvertently altering shared state. It also makes unmodifiable views of collections and maps, ensuring that the returned data structures cannot be modified, further enforcing immutability and isolation. This approach provides a clean slate for each method invocation, enhancing predictability and safety.
+
+To support cloning, the target class must either:
+* Implement the `Cloneable` interface, and it must provide a public `clone()` method that performs a deep copy of the object.
+* Provide a public copy constructor that creates a new instance with the same state.
+* Be a primitive type like int or Boolean.
+* Be a known collection or an array.
+* Be a class that doesn't support clone, but a cloner function is provided via the `cloner` parameter of the `DeepCloneIsolationAroundAdvice` constructor to support its cloning.
 
 This strategy is especially beneficial in the context of Modular Monolith architectures, where multiple modules coexist within a single application but should remain loosely coupled. `DeepCloneIsolationAroundAdvice` helps keep modules isolated by avoiding direct sharing of mutable objects, thereby simplifying future efforts to spin off modules into independent services or microservices.
 
