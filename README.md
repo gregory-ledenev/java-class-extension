@@ -17,7 +17,7 @@ Java Class Extension library provides a valuable alternative for native class ex
 The library supports the following approaches for creating of class extensions:
 
 1. [Static Class Extensions](doc/static-class-extensions.md): define and implement extensions as usual Java classes and then utilize the Java Class Extension library to find matching extensions.
-   2. [Dynamic Class Extensions](doc/dynamic-class-extensions.md): utilize the Java Class Extension library to define extensions by composing them as sets of lambda operations and let the library create extensions dynamically on the fly.
+2. [Dynamic Class Extensions](doc/dynamic-class-extensions.md): utilize the Java Class Extension library to define extensions by composing them as sets of lambda operations and let the library create extensions dynamically on the fly.
 
 Both approaches leverage the `ClassExtension` interface, which facilitates querying for an extension based on an object's extension interface. Once obtained, these extensions unlock additional functionality with remarkable ease. For example, obtaining a `Shippable` extension and using its `ship()` method to perform shipping a book would look like:
 ```java
@@ -62,11 +62,11 @@ Shippable.extensionFor(item).ship();
 
 ## Details ##
 1. [Introduction](doc/introduction.md)
-   2. [Static Class Extensions](doc/static-class-extensions.md)
-   3. [Dynamic Class Extensions](doc/dynamic-class-extensions.md)
-   4. [Aspects](doc/aspects.md)
-   5. [Expressions](doc/expressions.md)
-   5. [Utilities](doc/utilities.md)
+2. [Static Class Extensions](doc/static-class-extensions.md)
+3. [Dynamic Class Extensions](doc/dynamic-class-extensions.md)
+4. [Aspects](doc/aspects.md)
+5. [Expressions](doc/expressions.md)
+6. [Utilities](doc/utilities.md)
 
 ## Adding to Your Build 
 To add Java Class Extension Library to your build system, you can use the following Maven dependency:
