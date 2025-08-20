@@ -94,4 +94,32 @@ public class UnionTest {
                     Soundbar
                     Tire""", String.join("\n", names));
     }
+
+    @ExtensionInterface
+    public interface Printable {
+        void print();
+    }
+
+    @Test
+    void basicUnionTest() {
+        DynamicClassExtension dynamicClassExtension =  new DynamicClassExtension().builder().
+                extensionInterface(Printable.class).
+                    operationName("print").
+                        voidOperation(Integer.class, intValue -> out.println("Integer: " + intValue)).
+                        voidOperation(Float.class, floatValue -> out.println("Float: " + floatValue)).
+                        voidOperation(String.class, stringValue -> out.println("String: " + stringValue)).
+                        voidOperation(Object.class, (objectValue) -> out.println("Object: " + objectValue)).
+                build();
+        Object[] items = {
+                42,
+                3.14f,
+                "Hello, World!",
+                new Book("Effective Java"),
+        };
+
+        for (Object item : items) {
+            Printable extension = dynamicClassExtension.extension(item, Printable.class);
+            extension.print();
+        }
+    }
 }

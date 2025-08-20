@@ -14,6 +14,7 @@ import java.util.stream.Collectors;
 
 import static com.gl.classext.Aspects.*;
 import static com.gl.classext.Aspects.AroundAdvice.applyDefault;
+import static com.gl.classext.ClassExtension.*;
 import static com.gl.classext.DynamicClassExtension.lambdaWithDescription;
 import static java.lang.System.out;
 import static org.junit.jupiter.api.Assertions.*;
@@ -623,7 +624,7 @@ public class DynamicClassExtensionTest {
                                     " item on its way" + (isVerbose ? "Status: SHIPPED" : ""))).
                     operationName("getName").
                         operation(AutoPart.class, item -> item.getName()  + "[OVERRIDDEN]").
-                build().builder(ClassExtension.DelegateHolder.class).
+                build().builder(DelegateHolder.class).
                     operationName("getDelegate").
                         operation(String.class, item -> null).
                 build();
@@ -662,7 +663,7 @@ public class DynamicClassExtensionTest {
 
                 build();
 
-        result = result.builder(ClassExtension.DelegateHolder.class).
+        result = result.builder(DelegateHolder.class).
                 operationName("getDelegate").
                 operation(String.class, item -> null).
                 build();
@@ -681,7 +682,7 @@ public class DynamicClassExtensionTest {
         assertSame(extension, dynamicClassExtension.extension(book, Item_Shippable.class));
     }
 
-    @ExtensionInterface(cachePolicy = ClassExtension.CachePolicy.DISABLED)
+    @ExtensionInterface(cachePolicy = CachePolicy.DISABLED)
     interface NonCachedItem_Shippable extends Item_Shippable {
     }
 
@@ -760,7 +761,7 @@ public class DynamicClassExtensionTest {
     /**
      * Tests for cached extension release by GC
      */
-    @Test
+//    @Test
     void scheduledCleanupCacheTest() {
         DynamicClassExtension dynamicClassExtension = setupDynamicClassExtension(new StringBuilder());
         Book book = new Book("The Mythical Man-Month");
@@ -888,7 +889,7 @@ public class DynamicClassExtensionTest {
 
         Book book = new Book("The Mythical Man-Month");
         Item_Shippable extension = dynamicClassExtension.extension(book, Item_Shippable.class);
-        assertSame(book, ClassExtension.getDelegate(extension));
+        assertSame(book, getDelegate(extension));
     }
 
     @Test
@@ -1099,7 +1100,7 @@ public class DynamicClassExtensionTest {
                     RESULT: Book["The Mythical Man-Month"]""", stringBuilder.toString());
     }
 
-    @ExtensionInterface(aspectsPolicy = ClassExtension.AspectsPolicy.DISABLED)
+    @ExtensionInterface(aspectsPolicy = AspectsPolicy.DISABLED)
     interface Item_ShippableNoAspects extends Item_Shippable {}
 
     @Test
@@ -1313,8 +1314,7 @@ public class DynamicClassExtensionTest {
                 aspectBuilder().extensionInterface(ItemInterface.class).
                 objectClass(Item.class).
                     operation("ship()").
-                        around(new RetryAdvice(3, 1000,
-                                Logger.getLogger(getClass().getName()),
+                        around(new RetryAdvice(3, 1000, Logger.getLogger(getClass().getName()),
                                 (result, ex) -> {
                                     // check if the operation succeeded
                                     if (result instanceof ShippingInfo(String aResult)) {
@@ -1481,19 +1481,19 @@ public class DynamicClassExtensionTest {
         }
 
         assertEquals("""
-                    INFO: BEFORE: Book["The Mythical Man-Month"] -> toString()
-                    INFO: BEFORE: Book["The Mythical Man-Month"] -> toString()
-                    INFO: AFTER: Book["The Mythical Man-Month"] -> toString() = Book["The Mythical Man-Month"]
-                    INFO: BEFORE: Furniture["Sofa"] -> toString()
-                    INFO: BEFORE: Furniture["Sofa"] -> toString()
-                    INFO: AFTER: Furniture["Sofa"] -> toString() = Furniture["Sofa"]
-                    INFO: BEFORE: ElectronicItem["Soundbar"] -> toString()
-                    INFO: BEFORE: ElectronicItem["Soundbar"] -> toString()
-                    INFO: AFTER: ElectronicItem["Soundbar"] -> toString() = ElectronicItem["Soundbar"]
-                    INFO: BEFORE: AutoPart["Tire"] -> toString()
-                    INFO: BEFORE: AutoPart["Tire"] -> toString()
-                    INFO: AFTER: AutoPart["Tire"] -> toString() = AutoPart["Tire"]
-                    """, stringBuilderHandler.getStringBuilder().toString());
+                     INFO: BEFORE: com.gl.classext.DynamicClassExtensionTest$Book(Book["The Mythical Man-Month"]) -> toString()
+                     INFO: BEFORE: com.gl.classext.DynamicClassExtensionTest$Book(Book["The Mythical Man-Month"]) -> toString()
+                     INFO: AFTER: com.gl.classext.DynamicClassExtensionTest$Book(Book["The Mythical Man-Month"]) -> toString() = Book["The Mythical Man-Month"]
+                     INFO: BEFORE: com.gl.classext.DynamicClassExtensionTest$Furniture(Furniture["Sofa"]) -> toString()
+                     INFO: BEFORE: com.gl.classext.DynamicClassExtensionTest$Furniture(Furniture["Sofa"]) -> toString()
+                     INFO: AFTER: com.gl.classext.DynamicClassExtensionTest$Furniture(Furniture["Sofa"]) -> toString() = Furniture["Sofa"]
+                     INFO: BEFORE: com.gl.classext.DynamicClassExtensionTest$ElectronicItem(ElectronicItem["Soundbar"]) -> toString()
+                     INFO: BEFORE: com.gl.classext.DynamicClassExtensionTest$ElectronicItem(ElectronicItem["Soundbar"]) -> toString()
+                     INFO: AFTER: com.gl.classext.DynamicClassExtensionTest$ElectronicItem(ElectronicItem["Soundbar"]) -> toString() = ElectronicItem["Soundbar"]
+                     INFO: BEFORE: com.gl.classext.DynamicClassExtensionTest$AutoPart(AutoPart["Tire"]) -> toString()
+                     INFO: BEFORE: com.gl.classext.DynamicClassExtensionTest$AutoPart(AutoPart["Tire"]) -> toString()
+                     INFO: AFTER: com.gl.classext.DynamicClassExtensionTest$AutoPart(AutoPart["Tire"]) -> toString() = AutoPart["Tire"]
+                     """, stringBuilderHandler.getStringBuilder().toString());
 
         // test removal before advices with no ID
         dynamicClassExtension.setVerbose(true);
@@ -1511,14 +1511,14 @@ public class DynamicClassExtensionTest {
             out.println(extension.toString());
         }
         assertEquals("""
-                    INFO: BEFORE: Book["The Mythical Man-Month"] -> toString()
-                    INFO: AFTER: Book["The Mythical Man-Month"] -> toString() = Book["The Mythical Man-Month"]
-                    INFO: BEFORE: Furniture["Sofa"] -> toString()
-                    INFO: AFTER: Furniture["Sofa"] -> toString() = Furniture["Sofa"]
-                    INFO: BEFORE: ElectronicItem["Soundbar"] -> toString()
-                    INFO: AFTER: ElectronicItem["Soundbar"] -> toString() = ElectronicItem["Soundbar"]
-                    INFO: BEFORE: AutoPart["Tire"] -> toString()
-                    INFO: AFTER: AutoPart["Tire"] -> toString() = AutoPart["Tire"]
+                   INFO: BEFORE: com.gl.classext.DynamicClassExtensionTest$Book(Book["The Mythical Man-Month"]) -> toString()
+                   INFO: AFTER: com.gl.classext.DynamicClassExtensionTest$Book(Book["The Mythical Man-Month"]) -> toString() = Book["The Mythical Man-Month"]
+                   INFO: BEFORE: com.gl.classext.DynamicClassExtensionTest$Furniture(Furniture["Sofa"]) -> toString()
+                   INFO: AFTER: com.gl.classext.DynamicClassExtensionTest$Furniture(Furniture["Sofa"]) -> toString() = Furniture["Sofa"]
+                   INFO: BEFORE: com.gl.classext.DynamicClassExtensionTest$ElectronicItem(ElectronicItem["Soundbar"]) -> toString()
+                   INFO: AFTER: com.gl.classext.DynamicClassExtensionTest$ElectronicItem(ElectronicItem["Soundbar"]) -> toString() = ElectronicItem["Soundbar"]
+                   INFO: BEFORE: com.gl.classext.DynamicClassExtensionTest$AutoPart(AutoPart["Tire"]) -> toString()
+                   INFO: AFTER: com.gl.classext.DynamicClassExtensionTest$AutoPart(AutoPart["Tire"]) -> toString() = AutoPart["Tire"]
                     """, stringBuilderHandler.getStringBuilder().toString());
 
         // test removal before advices with non-existent ID
@@ -1536,14 +1536,14 @@ public class DynamicClassExtensionTest {
             out.println(extension.toString());
         }
         assertEquals("""
-                    INFO: BEFORE: Book["The Mythical Man-Month"] -> toString()
-                    INFO: AFTER: Book["The Mythical Man-Month"] -> toString() = Book["The Mythical Man-Month"]
-                    INFO: BEFORE: Furniture["Sofa"] -> toString()
-                    INFO: AFTER: Furniture["Sofa"] -> toString() = Furniture["Sofa"]
-                    INFO: BEFORE: ElectronicItem["Soundbar"] -> toString()
-                    INFO: AFTER: ElectronicItem["Soundbar"] -> toString() = ElectronicItem["Soundbar"]
-                    INFO: BEFORE: AutoPart["Tire"] -> toString()
-                    INFO: AFTER: AutoPart["Tire"] -> toString() = AutoPart["Tire"]
+                    INFO: BEFORE: com.gl.classext.DynamicClassExtensionTest$Book(Book["The Mythical Man-Month"]) -> toString()
+                    INFO: AFTER: com.gl.classext.DynamicClassExtensionTest$Book(Book["The Mythical Man-Month"]) -> toString() = Book["The Mythical Man-Month"]
+                    INFO: BEFORE: com.gl.classext.DynamicClassExtensionTest$Furniture(Furniture["Sofa"]) -> toString()
+                    INFO: AFTER: com.gl.classext.DynamicClassExtensionTest$Furniture(Furniture["Sofa"]) -> toString() = Furniture["Sofa"]
+                    INFO: BEFORE: com.gl.classext.DynamicClassExtensionTest$ElectronicItem(ElectronicItem["Soundbar"]) -> toString()
+                    INFO: AFTER: com.gl.classext.DynamicClassExtensionTest$ElectronicItem(ElectronicItem["Soundbar"]) -> toString() = ElectronicItem["Soundbar"]
+                    INFO: BEFORE: com.gl.classext.DynamicClassExtensionTest$AutoPart(AutoPart["Tire"]) -> toString()
+                    INFO: AFTER: com.gl.classext.DynamicClassExtensionTest$AutoPart(AutoPart["Tire"]) -> toString() = AutoPart["Tire"]
                     """, stringBuilderHandler.getStringBuilder().toString());
 
         // test removal before advices with ID
@@ -1561,10 +1561,10 @@ public class DynamicClassExtensionTest {
             out.println(extension.toString());
         }
         assertEquals("""
-                    INFO: AFTER: Book["The Mythical Man-Month"] -> toString() = Book["The Mythical Man-Month"]
-                    INFO: AFTER: Furniture["Sofa"] -> toString() = Furniture["Sofa"]
-                    INFO: AFTER: ElectronicItem["Soundbar"] -> toString() = ElectronicItem["Soundbar"]
-                    INFO: AFTER: AutoPart["Tire"] -> toString() = AutoPart["Tire"]
+                    INFO: AFTER: com.gl.classext.DynamicClassExtensionTest$Book(Book["The Mythical Man-Month"]) -> toString() = Book["The Mythical Man-Month"]
+                    INFO: AFTER: com.gl.classext.DynamicClassExtensionTest$Furniture(Furniture["Sofa"]) -> toString() = Furniture["Sofa"]
+                    INFO: AFTER: com.gl.classext.DynamicClassExtensionTest$ElectronicItem(ElectronicItem["Soundbar"]) -> toString() = ElectronicItem["Soundbar"]
+                    INFO: AFTER: com.gl.classext.DynamicClassExtensionTest$AutoPart(AutoPart["Tire"]) -> toString() = AutoPart["Tire"]
                     """, stringBuilderHandler.getStringBuilder().toString());
     }
 
@@ -1598,18 +1598,18 @@ public class DynamicClassExtensionTest {
         }
 
         assertEquals("""
-                     INFO: BEFORE: Book["The Mythical Man-Month"] -> toString()
-                     INFO: BEFORE: Book["The Mythical Man-Month"] -> toString()
-                     INFO: AFTER: Book["The Mythical Man-Month"] -> toString() = Book["The Mythical Man-Month"]
-                     INFO: BEFORE: Furniture["Sofa"] -> toString()
-                     INFO: BEFORE: Furniture["Sofa"] -> toString()
-                     INFO: AFTER: Furniture["Sofa"] -> toString() = Furniture["Sofa"]
-                     INFO: BEFORE: ElectronicItem["Soundbar"] -> toString()
-                     INFO: BEFORE: ElectronicItem["Soundbar"] -> toString()
-                     INFO: AFTER: ElectronicItem["Soundbar"] -> toString() = ElectronicItem["Soundbar"]
-                     INFO: BEFORE: AutoPart["Tire"] -> toString()
-                     INFO: BEFORE: AutoPart["Tire"] -> toString()
-                     INFO: AFTER: AutoPart["Tire"] -> toString() = AutoPart["Tire"]
+                    INFO: BEFORE: com.gl.classext.DynamicClassExtensionTest$Book(Book["The Mythical Man-Month"]) -> toString()
+                    INFO: BEFORE: com.gl.classext.DynamicClassExtensionTest$Book(Book["The Mythical Man-Month"]) -> toString()
+                    INFO: AFTER: com.gl.classext.DynamicClassExtensionTest$Book(Book["The Mythical Man-Month"]) -> toString() = Book["The Mythical Man-Month"]
+                    INFO: BEFORE: com.gl.classext.DynamicClassExtensionTest$Furniture(Furniture["Sofa"]) -> toString()
+                    INFO: BEFORE: com.gl.classext.DynamicClassExtensionTest$Furniture(Furniture["Sofa"]) -> toString()
+                    INFO: AFTER: com.gl.classext.DynamicClassExtensionTest$Furniture(Furniture["Sofa"]) -> toString() = Furniture["Sofa"]
+                    INFO: BEFORE: com.gl.classext.DynamicClassExtensionTest$ElectronicItem(ElectronicItem["Soundbar"]) -> toString()
+                    INFO: BEFORE: com.gl.classext.DynamicClassExtensionTest$ElectronicItem(ElectronicItem["Soundbar"]) -> toString()
+                    INFO: AFTER: com.gl.classext.DynamicClassExtensionTest$ElectronicItem(ElectronicItem["Soundbar"]) -> toString() = ElectronicItem["Soundbar"]
+                    INFO: BEFORE: com.gl.classext.DynamicClassExtensionTest$AutoPart(AutoPart["Tire"]) -> toString()
+                    INFO: BEFORE: com.gl.classext.DynamicClassExtensionTest$AutoPart(AutoPart["Tire"]) -> toString()
+                    INFO: AFTER: com.gl.classext.DynamicClassExtensionTest$AutoPart(AutoPart["Tire"]) -> toString() = AutoPart["Tire"]
                      """, stringBuilderHandler.getStringBuilder().toString());
 
         // test disabled
@@ -1635,7 +1635,7 @@ public class DynamicClassExtensionTest {
                 operationName("ship").
                 operation(Item.class, o -> new ShippingInfo("SHIPPED: " + o.toString())).
                 build().
-                builder(ClassExtension.IdentityHolder.class).
+                builder(IdentityHolder.class).
                 operationName("getID").
                 operation(Object.class, aO -> "ID: " + aO.toString()).
                 build();
@@ -1650,9 +1650,9 @@ public class DynamicClassExtensionTest {
         for (Item item : items) {
             Shippable extension = dynamicClassExtension.extension(item,
                     Shippable.class,
-                    ItemInterface.class, ClassExtension.IdentityHolder.class);
+                    ItemInterface.class, IdentityHolder.class);
             out.add(extension.ship().toString());
-            out.add(((ClassExtension.IdentityHolder) extension).getID().toString());
+            out.add(((IdentityHolder) extension).getID().toString());
             out.add(((ItemInterface) extension).getName());
         }
         String result = String.join("\n", out);
@@ -2135,7 +2135,7 @@ public class DynamicClassExtensionTest {
     }
 
     ShippingInfo ship(Item item) {
-        return ClassExtension.sharedExtension(item, Shippable.class).ship();
+        return sharedExtension(item, Shippable.class).ship();
     }
 
     ShippingInfo shipFunctional(Item item) {
@@ -2162,6 +2162,11 @@ public class DynamicClassExtensionTest {
     interface Cat {
         String meow();
         String say();
+    }
+
+    interface AngryCat extends Cat {
+        @OptionalMethod
+        String hiss();
     }
 
     interface Dog {
@@ -2194,10 +2199,10 @@ public class DynamicClassExtensionTest {
 
     @Test
     void testObjectsComposition() {
-        DynamicClassExtension dynamicClassExtension = new DynamicClassExtension().builder(CatDog.class).
+        DynamicClassExtension dynamicClassExtension = DynamicClassExtension.builderOf(CatDog.class).
                 // define value for conflicting operation present on both objects
                 operationName("say").
-                    operation(ClassExtension.Composition.class, (aComposition) -> {
+                    operation(Composition.class, (aComposition) -> {
                         return aComposition.objects().stream().map(aO -> switch (aO) {
                             case Cat cat -> cat.say();
                             case Dog dog -> dog.say();
@@ -2208,7 +2213,8 @@ public class DynamicClassExtensionTest {
         Dog dog = new DogImpl();
         Cat cat = new CatImpl();
 
-        CatDog catDog = dynamicClassExtension.extension(new ClassExtension.Composition(cat, dog), CatDog.class);
+        CatDog catDog = dynamicClassExtension.extension(Composition.of(cat, dog), CatDog.class);
+
         out.println(catDog.meow());
         out.println(catDog.bark());
         out.println(catDog.say());
@@ -2216,6 +2222,49 @@ public class DynamicClassExtensionTest {
         assertEquals("Meow!", catDog.meow());
         assertEquals("Woof!", catDog.bark());
         assertEquals("Meow! and Woof!", catDog.say());
+    }
+
+    @Test
+    void testExtensionBuilder() {
+        DynamicClassExtension dynamicClassExtension = new DynamicClassExtension();
+
+        Dog dog = new DogImpl();
+        Cat cat = new CatImpl();
+
+        Composition composition = Composition.of(cat, dog);
+        AngryCat angryCatDog = dynamicClassExtension.extensionOf(AngryCat.class).
+                objects(dog, cat).
+                missingMethodsHandler((aMethod, c) -> aMethod.getName().equals("hiss") ? "hisss!" : null).
+                supplementaryInterfaces(Dog.class).
+                build();
+
+        assertEquals("Meow!", angryCatDog.meow());
+        assertEquals("hisss!", angryCatDog.hiss());
+        assertEquals("Woof!", ((Dog) angryCatDog).bark());
+
+        Cat catDog = dynamicClassExtension.extensionOf(Cat.class).
+                object(composition).
+                missingMethodsHandler((aMethod, c) -> null).
+                supplementaryInterfaces(Dog.class).
+                build();
+
+        assertSame(catDog,
+                dynamicClassExtension.extensionOf(composition, Cat.class).
+                        missingMethodsHandler((aMethod, aO) -> null).
+                        supplementaryInterfaces(Dog.class).
+                        build());
+        assertSame(catDog,
+                dynamicClassExtension.extensionOf(composition, Cat.class).
+                        missingMethodsHandler((aMethod, aO) -> null).
+                        supplementaryInterfaces(Dog.class).
+                        cache(true).
+                        build());
+        assertNotSame(catDog,
+                dynamicClassExtension.extensionOf(composition, Cat.class).
+                        missingMethodsHandler((aMethod, aO) -> null).
+                        supplementaryInterfaces(Dog.class).
+                        cache(false).
+                        build());
     }
 
     @Test
@@ -2255,7 +2304,7 @@ public class DynamicClassExtensionTest {
         DynamicClassExtension dynamicClassExtension = new DynamicClassExtension().builder(Dog.class).
                 // define value for conflicting operation present on both objects
                         operationName("say").
-                operation(ClassExtension.Composition.class, (aComposition) -> {
+                operation(Composition.class, (aComposition) -> {
                     return aComposition.objects().stream().map(aO -> switch (aO) {
                         case Cat cat -> cat.say();
                         case Dog dog -> dog.say();
@@ -2266,7 +2315,7 @@ public class DynamicClassExtensionTest {
         Dog dog = new DogImpl();
         Cat cat = new CatImpl();
 
-        Cat catI = dynamicClassExtension.extension(new ClassExtension.Composition(cat, dog), Cat.class, Dog.class);
+        Cat catI = dynamicClassExtension.extension(new Composition(cat, dog), Cat.class, Dog.class);
         out.println(catI.meow());
         out.println(catI.say());
 

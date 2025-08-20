@@ -344,5 +344,15 @@ public interface ClassExtension {
         public Composition(Object... objects) {
             this(Arrays.asList(objects));
         }
+
+        /**
+         * Factory method to create a Composition instance.
+         *
+         * @param objects the objects to be encapsulated in the composition
+         * @return a new Composition instance containing the specified objects
+         */
+        public static Composition of(Object... objects) {
+            return new Composition(objects);
+        }
     }
 }

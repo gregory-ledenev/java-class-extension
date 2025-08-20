@@ -11,6 +11,7 @@ import java.util.logging.Logger;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
+import static com.gl.classext.DeepCloneUtil.*;
 import static java.text.MessageFormat.format;
 
 /**
@@ -18,12 +19,12 @@ import static java.text.MessageFormat.format;
  */
 public class Aspects {
     /**
-     * Defines Advice type
+     * Defines an Advice type
      */
     public enum AdviceType {
         BEFORE,
         AFTER,
-        AROUND;
+        AROUND
     }
 
     /**
@@ -114,7 +115,7 @@ public class Aspects {
 
         /**
          * Performs default handling of an operation. An around lambda function should call this method to allow default
-         * handling of an operation e.g. calling an underlying method, performing a dynamic operation, or transferring
+         * handling of an operation e.g., calling an underlying method, performing a dynamic operation, or transferring
          * control to the next around advice in the chain. Generally, this method should be called only once inside an
          * around lambda function to avoid side effects. Though some advice implementation like {@code RetryAdvice} may
          * call the {@code applyDefault()} several times in attempts to recover after some failure.
@@ -167,7 +168,7 @@ public class Aspects {
         }
 
         public void addPointcut(Pointcut aPointcut) {
-            // keep out same pointcuts; walk though manually as Pointcut.equals() ignores advice lambda
+            // keep out the same pointcuts; walk though manually as Pointcut.equals() ignores advice lambda
             if (pointcuts.stream().noneMatch(pointcut -> pointcut == aPointcut))
                 pointcuts.add(aPointcut);
         }
@@ -347,15 +348,19 @@ public class Aspects {
 
         static class OperationPredicate implements BiPredicate<String, Class<?>[]> {
             private final String operation;
+            private final boolean exclude;
 
             public OperationPredicate(String aOperation) {
-                operation = aOperation;
+                String op = aOperation.trim();
+                exclude = op.startsWith("!");
+                operation = exclude ? op.substring(1).trim() : op;
             }
 
             @Override
             public boolean test(String operation, Class<?>[] parameterTypes) {
-                return operationNameMatches(operation, this.operation) &&
+                boolean result = operationNameMatches(operation, this.operation) &&
                         operationParameterTypesMatch(this.operation, parameterTypes);
+                return exclude != result;
             }
 
             @Override
@@ -745,7 +750,13 @@ public class Aspects {
     }
 
     /**
-     * Advice (before) that allows logging operations
+     * Advice (before) that allows that enhances the visibility of operations by logging their arguments before execution.
+     * This is particularly useful for debugging and monitoring purposes, as it allows developers to trace the flow of
+     * data through the system and understand how different components interact.
+     * <br><br>
+     * When applied, {@code LogBeforeAdvice} captures the method name, the object on which it is called, and the arguments
+     * passed to it. This information is then logged, providing a clear record of what operations are being performed
+     * and with what data. This can be invaluable in identifying issues or understanding the behavior of complex systems.
      */
     public static class LogBeforeAdvice implements BeforeAdvice {
         final Logger logger;
@@ -771,14 +782,22 @@ public class Aspects {
          */
         @Override
         public void accept(String operation, Object object, Object[] args) {
-            logger.info(format("BEFORE: {0} -> {1}({2})",
+            logger.info(format("BEFORE: {0}({1}) -> {2}({3})",
+                    object.getClass().getName(),
                     object,
                     operation, args != null ? Arrays.toString(args) : ""));
         }
     }
 
     /**
-     * Advice (after) that allows logging results of operations
+     * Advice (after) that allows logging results of operations. It` complements {@code LogBeforeAdvice} by logging the
+     * results of operations after they have been executed. This aspect captures the outcome of method calls, providing
+     * insights into the effects of operations and helping to verify that they behave as expected.
+     * <br><br>
+     * When {@code LogAfterAdvice} is applied, it logs the method name, the object on which it was called, and the result
+     * returned by the operation. This information is crucial for debugging and monitoring, as it allows developers to
+     * see not only what inputs were used but also what outputs were produced, facilitating a better understanding of
+     * system behavior.
      */
     public static class LogAfterAdvice implements AfterAdvice {
         final Logger logger;
@@ -804,7 +823,8 @@ public class Aspects {
          */
         @Override
         public void accept(Object result, String operation, Object object, Object[] args) {
-            logger.info(format("AFTER: {0} -> {1}({2}) = {3}",
+            logger.info(format("AFTER: {0}({1}) -> {2}({3}) = {4}",
+                    object.getClass().getName(),
                     object,
                     operation,
                     args != null ? Arrays.toString(args) : "",
@@ -813,7 +833,13 @@ public class Aspects {
     }
 
     /**
-     * Advice (around) that allows logging perform times for operations
+     * Advice (around) that measures and logs the time taken to execute operations. This is particularly useful for
+     * performance monitoring, as it helps identify bottlenecks and optimize the efficiency of the system.
+     * <br><br>
+     * When applied, {@code LogPerformTimeAdvice} captures the start time before the operation is executed and calculates
+     * the elapsed time once the operation completes. It then logs this information, providing a clear picture of how
+     * long each operation takes to perform. This can be invaluable in performance tuning, allowing developers to focus
+     * on optimizing slow operations and improving overall system responsiveness.
      */
     public static class LogPerformTimeAdvice implements AroundAdvice {
         final Logger logger;
@@ -861,7 +887,13 @@ public class Aspects {
     }
 
     /**
-     * Advice (around) that allows tracking all property changes.
+     * Advice (around) that that listens for changes to properties of objects and notifies registered listeners when such
+     * changes occur. This is particularly useful in scenarios where you need to track modifications to object state,
+     * such as in user interfaces or data binding contexts.
+     * <br><br>
+     * When applied, {@code PropertyChangeAdvice} intercepts property setter methods and triggers notifications to any
+     * registered listeners whenever a property value changes. This allows other components of the system to react to
+     * changes in real-time, enabling dynamic updates and interactions without requiring manual polling or checks.
      */
     public static class PropertyChangeAdvice implements AroundAdvice {
         /**
@@ -878,8 +910,8 @@ public class Aspects {
         private final PropertyChangeListener propertyChangeListener;
 
         private Object getPropertyValue(Object anObject, String aPropertyName, Object aDefaultValue) {
-            AbstractClassExtension.InvokeResult result = AbstractClassExtension.getPropertyValue(anObject, aPropertyName);
-            return result.success() ? result : aDefaultValue;
+            Object result = PropertyValueSupport.sharedInstance().getPropertyValue(anObject, aPropertyName);
+            return result != null ? result : aDefaultValue;
         }
 
         /**
@@ -914,10 +946,17 @@ public class Aspects {
     }
 
     /**
-     * Advice (around) that automatically retries failed operations. Executes the operation multiple times upon
-     * exception, up to a specified retry limit, before propagating the final failure. Default policy is "retry after
-     * any exception" but it is possible to fine-tune that behavior to provide {@code resultChecker} that allows
-     * checking whether results of exceptions are errors that can be recovered by retrying the operation.
+     * Advice (around) that implements a retry mechanism for operations that may fail due to transient issues, such as
+     * network errors or temporary unavailability of resources. This aspect allows developers to specify how many times
+     * an operation should be retried before giving up, along with optional delay strategies between retries.
+     * <br><br>
+     * When applied, {@code RetryAdvice} intercepts method calls and, if an exception occurs (or a result signals an
+     * error), it will automatically retry the operation up to the specified number of attempts. The Default policy is
+     * "retry after any exception" but it is possible to fine-tune that behavior to provide {@code resultChecker} that
+     * allows checking whether results and exceptions are errors that can be recovered by retrying the operation.
+     * <br><br>
+     * This can significantly improve the resilience of applications by allowing them to recover from temporary failures
+     * without crashing or requiring manual intervention.
      */
     public static class RetryAdvice implements AroundAdvice {
         private final int retryCount;
@@ -926,7 +965,7 @@ public class Aspects {
         private final BiPredicate<Object, Throwable> resultChecker;
 
         /**
-         * Creates new advice with 500ms sleep time, no logger, and no result checker
+         * Creates new advice with 500 ms sleep time, no logger, and no result checker
          *
          * @param aRetryCount retry count
          */
@@ -935,7 +974,7 @@ public class Aspects {
         }
 
         /**
-         * Creates new advice with 500ms sleep time and no logger
+         * Creates new advice with 500 ms sleep time and no logger
          *
          * @param aRetryCount    retry count
          * @param aResultChecker result checking lambda function
@@ -975,7 +1014,7 @@ public class Aspects {
                     result = AroundAdvice.applyDefault(performer, operation, object, args);
                     resultEx = null;
                     if (resultChecker != null && resultChecker.test(result, null))
-                        break; // result is not an error - return
+                        break; // the result is not an error - return
                     else if (logger != null) {
                         logger.severe(format("Failed operation: {0} with result: {1}", operation, result));
                     }
@@ -1010,7 +1049,7 @@ public class Aspects {
      * extensions will not be cached.
      *
      * @param anObject             object to return an extension object for
-     * @param anExtensionInterface interface of extension object to be returned
+     * @param anExtensionInterface interface of an extension object to be returned
      * @return an extension object
      */
     public static <T> T logPerformanceExtension(Object anObject, Class<T> anExtensionInterface) {
@@ -1029,7 +1068,7 @@ public class Aspects {
      * extensions will not be cached.
      *
      * @param anObject             object to return an extension object for
-     * @param anExtensionInterface interface of extension object to be returned
+     * @param anExtensionInterface interface of an extension object to be returned
      * @return an extension object
      */
     public static <T> T logBeforeAndAfterExtension(Object anObject, Class<T> anExtensionInterface) {
@@ -1050,7 +1089,7 @@ public class Aspects {
      * extensions will not be cached.
      *
      * @param anObject                object to return an extension object for
-     * @param anExtensionInterface    interface of extension object to be returned
+     * @param anExtensionInterface    interface of an extension object to be returned
      * @param aPropertyChangeListener property change listener
      * @return an extension object
      */
@@ -1094,7 +1133,17 @@ public class Aspects {
     }
 
     /**
-     * Advice (around) that allows caching of operation results
+     * Advice (around) that implements caching for operation results, allowing for efficient reuse of previously computed
+     * values. This is particularly useful in scenarios where operations are expensive or time-consuming, and the same
+     * inputs are likely to be used multiple times.
+     * <br><br>
+     * When applied, {@code CachedValueAdvice} intercepts method calls and checks if a cached result already exists for
+     * the given inputs. If a cached value is found, it is returned immediately, avoiding the need to recompute the result.
+     * If no cached value exists, the operation is executed, and the result is stored in the cache for future use.
+     * <br><br>
+     * This {@code CachedValueAdvice} advice uses {@code CachedValueProvider} to manage the cache, allowing for flexible
+     * caching strategies. It can be configured to use different caching mechanisms, such as in-memory caches or
+     * distributed caches, depending on the application's requirements.
      */
     public static class CachedValueAdvice implements AroundAdvice {
         private final Logger logger;
@@ -1138,7 +1187,14 @@ public class Aspects {
     }
 
     /**
-     * Advice (around) that allows turning all the Collection or Map results to their unmodifiable views
+     * Advice (around) that ensures that the results of operations returning collections or maps are wrapped in
+     * unmodifiable views. This is particularly useful for preventing or detecting accidental modifications to data
+     * structures that should remain immutable, enhancing the safety and integrity of the system.
+     * <br><br>
+     * When applied, {@code ReadOnlyCollectionOrMapAdvice} intercepts method calls that return collections or maps and
+     * automatically converts them into unmodifiable views. For collections and lists, it uses
+     * {@code Collections.unmodifiableCollection()} or {@code Collections.unmodifiableList()}, and for maps, it uses
+     * {@code Collections.unmodifiableMap()}.
      */
     public static class ReadOnlyCollectionOrMapAdvice implements AroundAdvice {
         protected final Logger logger;
@@ -1177,24 +1233,37 @@ public class Aspects {
         }
 
         protected Object unmodifiableValue(Object aValue) {
-            return switch (aValue) {
-                case List<?> list -> Collections.unmodifiableList(list);
-                case Set<?> set -> Collections.unmodifiableSet(set);
-                case Map<?, ?> map -> Collections.unmodifiableMap(map);
-                case Collection<?> c -> Collections.unmodifiableCollection(c);
-                case null, default -> null;
-            };
+            if (aValue instanceof List<?> list) {
+                return Collections.unmodifiableList(list);
+            } else if (aValue instanceof Set<?> set) {
+                return Collections.unmodifiableSet(set);
+            } else if (aValue instanceof Map<?, ?> map) {
+                return Collections.unmodifiableMap(map);
+            } else if (aValue instanceof Collection<?> c) {
+                return Collections.unmodifiableCollection(c);
+            } else {
+                return null;
+            }
         }
     }
 
     /**
-     * Advice (around) that allows turning results to their unmodifiable views
+     * Advice (around) that ensures that the results of operations returning collections or maps are wrapped in
+     * unmodifiable views. This is particularly useful for preventing or detecting accidental modifications to data
+     * structures that should remain immutable, enhancing the safety and integrity of the system.
+     * <br><br>
+     * When applied, {@code ReadOnlyCollectionOrMapAdvice} intercepts method calls that return collections or maps and
+     * automatically converts them into unmodifiable views. For collections and lists, it uses
+     * {@code Collections.unmodifiableCollection()} or {@code Collections.unmodifiableList()}, and for maps, it uses
+     * {@code Collections.unmodifiableMap()}. For other types of results, it applies a lambda function to convert them
+     * into an unmodifiable form.
      */
     public static class UnmodifiableValueAdvice extends ReadOnlyCollectionOrMapAdvice {
         Function<Object, Object> unmodifiableValueProvider;
 
         /**
          * Creates a new {@code ReadOnlyValueAdvice} instance with a read-only value provider
+         *
          * @param aUnmodifiableValueProvider read-only value provider
          */
         public UnmodifiableValueAdvice(Function<Object, Object> aUnmodifiableValueProvider) {
@@ -1204,9 +1273,9 @@ public class Aspects {
         /**
          * Creates a new {@code ReadOnlyValueAdvice} instance with a read-only value provider and a logger
          *
-         * @param aUnmodifiableValueProvider read-only value provider. If not specified - read-only views will be provided
-         *                               for collections and maps only
-         * @param aLogger logger
+         * @param aUnmodifiableValueProvider read-only value provider. If not specified - read-only views will be
+         *                                   provided for collections and maps only
+         * @param aLogger                    logger
          */
         public UnmodifiableValueAdvice(Function<Object, Object> aUnmodifiableValueProvider, Logger aLogger) {
             super(aLogger);
@@ -1220,7 +1289,7 @@ public class Aspects {
         public Object apply(Object performer, String operation, Object object, Object[] args) {
             Object result = AroundAdvice.applyDefault(performer, operation, object, args);
 
-            Object unmodifiableValue = null;
+            Object unmodifiableValue;
             if (unmodifiableValueProvider != null) {
                 unmodifiableValue = unmodifiableValueProvider.apply(result);
                 if (unmodifiableValue != null)
@@ -1237,8 +1306,16 @@ public class Aspects {
             return result;
         }
     }
+
     /**
-     * Advice (around) that allows catching all exceptions and return some value instead
+     * Advice (around) that provides a mechanism for handling exceptions thrown by operations. This is particularly useful
+     * for implementing custom error handling strategies, such as logging errors, transforming exceptions, or providing
+     * fallback values. Additionally, it can help adapt existing code to methods that have recently started throwing
+     * exceptions in newer versions of libraries or APIs, when the calling code is not prepared to handle them.
+     * <br><br>
+     * When applied, {@code HandleThrowableAdvice} intercepts method calls and catches any exceptions that occur during
+     * execution. It then allows developers to define custom behavior for handling these exceptions, such as logging
+     * the error, transforming it into a different type of exception, or returning a default value.
      */
     public static class HandleThrowableAdvice<T> implements AroundAdvice {
         private final Supplier<T> supplier;
@@ -1268,7 +1345,7 @@ public class Aspects {
          */
         @Override
         public Object apply(Object performer, String operation, Object object, Object[] args) {
-            Object result = null;
+            Object result;
             try {
                 result = AroundAdvice.applyDefault(performer, operation, object, args);
             } catch (Throwable aThrowable) {
@@ -1282,7 +1359,14 @@ public class Aspects {
     }
 
     /**
-     * Advice (around) that adds a circuit breaker to an operation
+     * Advice (around) that implements the Circuit Breaker pattern, which is used to prevent a system from repeatedly
+     * attempting operations that are likely to fail. This is particularly useful in distributed systems or microservices
+     * architectures, where network failures or service unavailability can lead to cascading failures.
+     * <br><br>
+     * When applied, {@code CircuitBreakerAdvice} monitors the success and failure rates of operations and opens a
+     * circuit when the failure rate exceeds a specified threshold. While the circuit is open, any attempts to execute
+     * the operation will immediately fail without attempting to call the underlying method. After a predefined timeout,
+     * the circuit will attempt to close again, allowing operations to be retried.
      */
     public static class CircuitBreakerAdvice implements AroundAdvice {
         private final CircuitBreaker circuitBreaker;
@@ -1415,45 +1499,47 @@ public class Aspects {
     }
 
     /**
-     * Represents a handler for managing quotas on operations. This interface defines methods
-     * to retrieve available quota, decrease quota based on usage, and calculate costs associated
-     * with operations and their results. Note: implementation of the interface must take care of proper synchronization
-     * when getting and updating quota
+     * Represents a handler for managing quotas on operations. This interface defines methods to retrieve available
+     * quota, decrease quota based on usage, and calculate costs associated with operations and their results. Note:
+     * implementation of the interface must take care of proper synchronization when getting and updating quota
      */
     public interface QuotaHandler {
         /**
          * Retrieves the available quota for a specified operation and context.
          *
          * @param anOperation the name of the operation for which the quota is being retrieved
-         * @param anObject the object associated with the operation
-         * @param anArgs arguments related to the operation
+         * @param anObject    the object associated with the operation
+         * @param anArgs      arguments related to the operation
          * @return the remaining quota as a long value
          */
         long getQuota(String anOperation, Object anObject, Object[] anArgs);
+
         /**
          * Decreases the available quota for a specific operation.
          *
-         * @param anAmount   the amount by which the quota should be decreased
-         * @param anOperation  the name of the operation for which the quota is being reduced
-         * @param anObject     the object related to the operation
-         * @param anArgs       the arguments associated with the operation
+         * @param anAmount    the amount by which the quota should be decreased
+         * @param anOperation the name of the operation for which the quota is being reduced
+         * @param anObject    the object related to the operation
+         * @param anArgs      the arguments associated with the operation
          */
         void decreaseQuota(long anAmount, String anOperation, Object anObject, Object[] anArgs);
+
         /**
          * Calculates the cost associated with performing a specific operation.
          *
          * @param anOperation the name of the operation for which the cost is being calculated
-         * @param anObject the object involved in the operation
-         * @param anArgs the arguments related to the operation
+         * @param anObject    the object involved in the operation
+         * @param anArgs      the arguments related to the operation
          * @return the calculated cost of the operation as a long value
          */
         long calculateOperationCost(String anOperation, Object anObject, Object[] anArgs);
+
         /**
-         * Calculates the cost associated with a given operation result based on the operation type,
-         * result object, relevant context object, and operation arguments (({@code 0} if left default)).
+         * Calculates the cost associated with a given operation result based on the operation type, result object,
+         * relevant context object, and operation arguments (({@code 0} if left default)).
          *
          * @param anOperation the name of the operation being performed
-         * @param aResult   the result of the operation
+         * @param aResult     the result of the operation
          * @param anObject    the context object relevant to the operation
          * @param anArgs      the arguments with which the operation is executed
          * @return the calculated cost of the operation result
@@ -1464,12 +1550,10 @@ public class Aspects {
     }
 
     /**
-     * Represents a dynamic quota advice implementation that ensures quota constraints
-     * are adhered to when performing operations. The class acts as around advice
-     * that validates the available quota before allowing an operation to proceed.
-     * Post-operation, it verifies the result cost against the remaining quota
-     * and updates the quota appropriately. Runtime exceptions are thrown if the
-     * operation or result exceeds the allocated quota.
+     * Represents a dynamic quota advice implementation that ensures quota constraints are adhered to when performing
+     * operations. The class acts as around advice that validates the available quota before allowing an operation to
+     * proceed. Post-operation, it verifies the result cost against the remaining quota and updates the quota
+     * appropriately. Runtime exceptions are thrown if the operation or result exceeds the allocated quota.
      */
     public static class DynamicQuotaAdvice implements AroundAdvice {
 
@@ -1519,7 +1603,7 @@ public class Aspects {
             // check result quota
             long resultCost = quotaHandler.calculateOperationResultCost(operation, result, object, args);
 
-            if (availableQuota - operationCost- resultCost < 0) // rollback operation cost
+            if (availableQuota - operationCost - resultCost < 0) // rollback operation cost
                 quotaHandler.decreaseQuota(-operationCost, operation, object, args);
             checkQuota(operation, resultCost, availableQuota - operationCost);
             quotaHandler.decreaseQuota(resultCost, operation, object, args);
@@ -1543,14 +1627,98 @@ public class Aspects {
         }
 
         /**
-         * Exception thrown to indicate specific advice related to dynamic quota management.
-         * This exception is used to signal issues or errors within the context of
-         * dynamic quota handling logic.
+         * Exception thrown to indicate specific advice related to dynamic quota management. This exception is used to
+         * signal issues or errors within the context of dynamic quota handling logic.
          */
         public static class DynamicQuotaAdviceException extends IllegalStateException {
             public DynamicQuotaAdviceException(String message) {
                 super(message);
             }
+        }
+    }
+
+
+    /**
+     * An abstract class that provides a base for isolation around advices. It allows implementing an isolation layer
+     * that creates copies of both input arguments and the operation’s results. This approach is especially useful
+     * during module development to prevent tight coupling and avoid unintended sharing of mutable state.
+     * <br><br>
+     * This advice can be used in development and testing to ensure isolation. Copies can be created either by deep
+     * cloning or through serialization-like mechanism. In production mode, such advice can be turned off to avoid
+     * performance overhead.
+     */
+    public static abstract class IsolationAroundAdvice implements AroundAdvice {
+
+        /**
+         * Converts the result of the operation to an isolated form. This method should be overridden to provide
+         * specific conversion logic.
+         *
+         * @param aResult the result of the operation
+         * @return the converted result
+         */
+        public abstract Object convertResult(Object aResult);
+
+        /**
+         * Converts the arguments of the operation to an isolated form. This method should be overridden to provide
+         * specific conversion logic.
+         *
+         * @param anArgs the arguments of the operation
+         * @return the converted arguments
+         */
+        public abstract Object[] convertArguments(Object[] anArgs   );
+
+        /**
+         * {@inheritDoc}
+         */
+        @Override
+        public final Object apply(Object performer, String operation, Object object, Object[] args) {
+            return convertResult(AroundAdvice.applyDefault(performer, operation, object, convertArguments(args)));
+        }
+    }
+
+
+    /**
+     * Isolation around advice that uses deep cloning to create isolated copies of the operation's results and
+     * arguments. This is useful for ensuring that the operation does not modify the original arguments and the client
+     * doesn't modify the result, providing a clean slate for each invocation.
+     */
+    public static class DeepCloneIsolationAroundAdvice extends IsolationAroundAdvice {
+        Function<Object, Object> cloner;
+
+        /**
+         * Creates a new instance of {@code DeepCloneIsolationAroundAdvice} with a custom cloner function.
+         *
+         * @param aCloner a function that takes an object and returns its deep clone
+         */
+        public DeepCloneIsolationAroundAdvice(Function<Object, Object> aCloner) {
+            cloner = aCloner;
+        }
+
+        /**
+         * Creates a new instance of {@code DeepCloneIsolationAroundAdvice} without a custom cloner function.
+         * This will use the default deep cloning mechanism.
+         */
+        public DeepCloneIsolationAroundAdvice() {
+        }
+
+        /**
+         * Converts the result of the operation to an isolated form by deep cloning it.
+         *
+         * @param aResult the result of the operation
+         * @return the converted result
+         */
+        public Object convertResult(Object aResult) {
+            return deepClone(aResult, cloner);
+        }
+
+        /**
+         * Converts the arguments of the operation to an isolated form by deep cloning them.
+         *
+         * @param anArgs the arguments of the operation
+         * @return the converted arguments
+         */
+        public Object[] convertArguments(Object[] anArgs) {
+            return deepClone(anArgs, cloner);
         }
     }
 }

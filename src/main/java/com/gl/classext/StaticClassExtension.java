@@ -113,6 +113,10 @@ public class StaticClassExtension extends AbstractClassExtension {
 
     private static final StaticClassExtension classExtension = new StaticClassExtension();
 
+    /**
+     * Returns a shared instance of {@code StaticClassExtension}.
+     * @return a shared instance of {@code StaticClassExtension}
+     * */
     public static StaticClassExtension sharedInstance() {
         return classExtension;
     }

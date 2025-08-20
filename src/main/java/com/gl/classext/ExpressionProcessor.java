@@ -1,4 +1,30 @@
+/*
+Copyright 2024 Gregory Ledenev (gregory.ledenev37@gmail.com)
+
+MIT License
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of
+this software and associated documentation files (the “Software”), to deal in
+the Software without restriction, including without limitation the rights to
+use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
+of the Software, and to permit persons to whom the Software is furnished to do
+so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+*/
+
 package com.gl.classext;
+
+import com.gl.classext.AbstractClassExtension.InvokeResult;
 
 import java.lang.reflect.Array;
 import java.lang.reflect.Method;
@@ -7,6 +33,8 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+
+import static com.gl.classext.PropertyValueSupport.setArrayValue;
 
 /**
  * Processes property expressions to get or set values in object hierarchies.
@@ -27,6 +55,24 @@ import java.util.concurrent.ConcurrentHashMap;
  * </p>
  */
 public class ExpressionProcessor {
+
+    /**
+     * Constructs an ExpressionProcessor with a specified PropertyValueSupport instance.
+     * This allows for custom behavior, such as disabling caching of method handles.
+     *
+     * @param aPropertyValueSupport The PropertyValueSupport instance to use
+     */
+    public ExpressionProcessor(PropertyValueSupport aPropertyValueSupport) {
+        propertyValueSupport = aPropertyValueSupport;
+    }
+
+    /**
+     * Default constructor that initializes the processor with a new PropertyValueSupport instance.
+     * This instance will use caching for method handles.
+     */
+    public ExpressionProcessor() {
+        this(new PropertyValueSupport());
+    }
 
     /**
      * Retrieves a value from an object using the specified property expression.
@@ -94,17 +140,21 @@ public class ExpressionProcessor {
             boolean isNullSafe = lastExpressionPart.endsWith(NULL_SAFE_OPERATOR);
             current = getPropertyValue(current, info.property(), isNullSafe);
             if (current != null) {
-                setValueForProperty(current, lastExpressionPart, value);
+                setPropertyValue(current, lastExpressionPart, value);
             } else if (! isNullSafe) {
                 npeAtSubExpression(expressionParts, expressionParts.length-1, true);
             }
         } else {
-            setValueForProperty(current, lastExpressionPart, value);
+            setPropertyValue(current, lastExpressionPart, value);
         }
     }
 
+    private boolean isSubscript(String expression) {
+        return expression.endsWith(SUBSCRIPT_END) || expression.endsWith(SUBSCRIPT_END_OPTIONAL);
+    }
+
     @SuppressWarnings({"unchecked", "rawtypes"})
-    private void setValueForProperty(Object object, String expression, Object value) {
+    private void setPropertyValue(Object object, String expression, Object value) {
         PropertyInfo info = parseProperty(expression);
 
         if (info.index() != null) {
@@ -121,86 +171,8 @@ public class ExpressionProcessor {
                 setArrayValue(object, Integer.parseInt(info.index()), value);
             }
         } else {
-            try {
-                String setter = "set" + info.name();
-                Method method;
-                if (value != null) {
-                    Class<?> valueClassForSetter = getValueClassForSetter(value);
-                    method = findMethodByName(object, setter, valueClassForSetter);
-                } else {
-                    method = findAnyMethodByName(object.getClass(), setter);
-                }
-
-                method.invoke(object, value);
-            } catch (Exception e) {
-                throw new RuntimeException("Error setting value at: " + expression, e);
-            }
+            propertyValueSupport.setPropertyValue(object, info.property(), value);
         }
-    }
-
-    private void setArrayValue(Object object, int i, Object value) {
-        Class<?> componentType = object.getClass().getComponentType();
-        if (componentType.isPrimitive()) {
-            if (boolean.class.equals(componentType))
-                Array.setBoolean(object, i, (Boolean) value);
-            else if (byte.class.equals(componentType))
-                Array.setByte(object, i, (Byte) value);
-            else if (char.class.equals(componentType))
-                Array.setChar(object, i, (Character) value);
-            else if (short.class.equals(componentType))
-                Array.setShort(object, i, (Short) value);
-            else if (int.class.equals(componentType))
-                Array.setInt(object, i, (Integer) value);
-            else if (long.class.equals(componentType))
-                Array.setLong(object, i, (Long) value);
-            else if (float.class.equals(componentType))
-                Array.setFloat(object, i, (Float) value);
-            else if (double.class.equals(componentType))
-                Array.setDouble(object, i, (Double) value);
-        } else {
-            ((Object[]) object)[i] = value;
-        }
-    }
-
-    private boolean isSubscript(String expression) {
-        return expression.endsWith(SUBSCRIPT_END) || expression.endsWith(SUBSCRIPT_END_OPTIONAL);
-    }
-
-    private static Method findMethodByName(Object object, String setter, Class<?> parameterType) throws NoSuchMethodException {
-        return object.getClass().getMethod(setter, parameterType);
-    }
-
-    private final Map<String, Method> methodCache = new ConcurrentHashMap<>();
-
-    private Method findAnyMethodByName(Class<?> clazz, String methodName) {
-        String cacheKey = clazz.getName() + "#" + methodName;
-        return methodCache.computeIfAbsent(cacheKey, k -> {
-            List<Method> methods = Arrays.stream(clazz.getMethods())
-                    .filter(method -> method.getName().equals(methodName) &&
-                            method.getParameterCount() == 1 &&
-                            !method.getParameterTypes()[0].isPrimitive())
-                    .toList();
-
-            if (methods.size() > 1) {
-                throw new IllegalStateException("Multiple matching methods found for: " + methodName);
-            }
-
-            return methods.isEmpty() ? null : methods.get(0);
-        });
-    }
-
-    private static Class<?> getValueClassForSetter(Object value) {
-        return switch (value) {
-            case Byte _ -> byte.class;
-            case Short _ -> short.class;
-            case Integer _ -> int.class;
-            case Long _ -> long.class;
-            case Float _ -> float.class;
-            case Double _ -> double.class;
-            case Character _ -> char.class;
-            case Boolean _ -> boolean.class;
-            default -> value.getClass();
-        };
     }
 
     private static final String NULL_SAFE_OPERATOR = "?";
@@ -279,6 +251,13 @@ public class ExpressionProcessor {
 
     static class NullPropertyValue extends NullPointerException {}
 
+
+    public PropertyValueSupport getPropertyValueSupport() {
+        return propertyValueSupport;
+    }
+
+    private final PropertyValueSupport propertyValueSupport;
+
     private Object getPropertyValue(Object current, String part, boolean isNullSafe) throws NullPropertyValue {
         if (current == null) {
             if (isNullSafe)
@@ -287,7 +266,7 @@ public class ExpressionProcessor {
         }
 
         PropertyInfo info = parseProperty(part);
-        AbstractClassExtension.InvokeResult result = AbstractClassExtension.getPropertyValue(current, info.property());
+        InvokeResult result = new InvokeResult(propertyValueSupport.getPropertyValue(current, info.property()));
 
         return getSubscriptValue(result.result(), info.index());
     }
