@@ -26,7 +26,7 @@ Shippable shippable = StaticClassExtension.sharedExtension(book, Shippable.class
 shippable.ship();
 ```
 
-or 
+or
 ```java
 Book book = new Book("The Mythical Man-Month");
 Shippable shippable = DynamicClassExtension.sharedExtension(book, Shippable.class);
@@ -68,7 +68,7 @@ Shippable.extensionFor(item).ship();
 5. [Expressions](doc/expressions.md)
 6. [Utilities](doc/utilities.md)
 
-## Adding to Your Build 
+## Adding to Your Build
 To add Java Class Extension Library to your build system, you can use the following Maven dependency:
 ```xml
 <dependency>
