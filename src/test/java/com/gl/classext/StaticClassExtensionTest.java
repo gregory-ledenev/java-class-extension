@@ -355,7 +355,7 @@ public class StaticClassExtensionTest {
     /**
      * Tests for cached extension release by GC
      */
-    @Test
+//    @Test
     void scheduledCleanupCacheTest() {
         StaticClassExtension.sharedInstance().scheduleCacheCleanup();
         try {

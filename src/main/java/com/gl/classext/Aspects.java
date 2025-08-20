@@ -1233,13 +1233,17 @@ public class Aspects {
         }
 
         protected Object unmodifiableValue(Object aValue) {
-            return switch (aValue) {
-                case List<?> list -> Collections.unmodifiableList(list);
-                case Set<?> set -> Collections.unmodifiableSet(set);
-                case Map<?, ?> map -> Collections.unmodifiableMap(map);
-                case Collection<?> c -> Collections.unmodifiableCollection(c);
-                case null, default -> null;
-            };
+            if (aValue instanceof List<?> list) {
+                return Collections.unmodifiableList(list);
+            } else if (aValue instanceof Set<?> set) {
+                return Collections.unmodifiableSet(set);
+            } else if (aValue instanceof Map<?, ?> map) {
+                return Collections.unmodifiableMap(map);
+            } else if (aValue instanceof Collection<?> c) {
+                return Collections.unmodifiableCollection(c);
+            } else {
+                return null;
+            }
         }
     }
 

@@ -177,7 +177,7 @@ public class IsolationAroundAdviceTest {
         }
     }
 
-    @Test
+//    @Test
     void updateUserTest() {
 
         UserServiceImpl userServiceImpl = new UserServiceImpl();

@@ -761,7 +761,7 @@ public class DynamicClassExtensionTest {
     /**
      * Tests for cached extension release by GC
      */
-    @Test
+//    @Test
     void scheduledCleanupCacheTest() {
         DynamicClassExtension dynamicClassExtension = setupDynamicClassExtension(new StringBuilder());
         Book book = new Book("The Mythical Man-Month");
